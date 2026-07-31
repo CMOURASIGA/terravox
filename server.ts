@@ -51,7 +51,7 @@ async function startServer() {
         }
       });
 
-      const text = response.text();
+      const text = response.text;
       let questions = [];
       if (text) {
           try {
