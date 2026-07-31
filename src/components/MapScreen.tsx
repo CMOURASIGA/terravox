@@ -1,83 +1,38 @@
 import React from 'react';
 import { PlayerProfile } from '../types';
-import { Map, Lock, Unlock, Compass } from 'lucide-react';
+import { Compass, Crown, Lock, MapPin, Play, Sparkles } from 'lucide-react';
+import brazilWorld from '../assets/brazil-adventure-world.png';
 
-interface MapScreenProps {
-  profile: PlayerProfile;
-  onSelectTerritory: (territoryId: string) => void;
-  onOpenPassport: () => void;
-}
+interface MapScreenProps { profile: PlayerProfile; onSelectTerritory: (territoryId: string) => void; onOpenPassport: () => void; }
 
 const TERRITORIES = [
-  { id: 'brasil', name: 'Brasil', isBase: true, position: { top: '50%', left: '30%' } },
-  { id: 'mexico', name: 'México', isBase: false, position: { top: '35%', left: '20%' } },
-  { id: 'egito', name: 'Egito', isBase: false, position: { top: '40%', left: '55%' } },
+  { id: 'brasil', name: 'Floresta do Brasil', subtitle: 'Capítulo 1 · Ruínas do Saber', emoji: '🌿', level: 'Nível 2', position: 'left-[8%] top-[56%] sm:left-[15%] sm:top-[54%]' },
+  { id: 'mexico', name: 'Vale do México', subtitle: 'Em breve', emoji: '🌵', level: 'Nível 4', position: 'right-[7%] top-[22%] sm:right-[18%] sm:top-[25%]' },
+  { id: 'egito', name: 'Areias do Egito', subtitle: 'Em breve', emoji: '🏺', level: 'Nível 7', position: 'right-[8%] top-[67%] sm:right-[22%] sm:top-[64%]' },
 ];
 
 export function MapScreen({ profile, onSelectTerritory, onOpenPassport }: MapScreenProps) {
   return (
-    <div className="relative w-full h-full min-h-screen bg-sky-100 overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center font-bold text-xl">
-            {profile.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h1 className="font-bold text-lg leading-tight">{profile.name}</h1>
-            <p className="text-indigo-300 text-sm font-medium">Nível {profile.level} • {profile.xp} XP</p>
-          </div>
-        </div>
-        <div className="flex gap-4 items-center">
-          <div className="bg-slate-700 px-4 py-1.5 rounded-full flex gap-2 items-center text-amber-400 font-bold">
-             <span className="w-4 h-4 bg-amber-400 rounded-full inline-block"></span>
-             {profile.coins}
-          </div>
-          <button 
-            onClick={onOpenPassport}
-            className="p-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition"
-          >
-            <Compass size={24} />
-          </button>
-        </div>
-      </div>
-
-      {/* Map Area */}
-      <div className="flex-1 relative">
-        {/* Simple mock map background */}
-        <div className="absolute inset-0 bg-blue-300 opacity-20"></div>
-        
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Mapa Mundial</h2>
-          <p className="text-slate-600">Selecione um território para explorar.</p>
-        </div>
-
-        {/* Territories */}
-        <div className="relative w-full h-[60vh] max-w-4xl mx-auto border-4 border-slate-300 rounded-3xl bg-blue-100 overflow-hidden shadow-inner mt-4">
-           {TERRITORIES.map(t => {
-             const isUnlocked = t.isBase || profile.unlockedTerritories.includes(t.id);
-             return (
-               <button
-                 key={t.id}
-                 onClick={() => onSelectTerritory(t.id)}
-                 className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group transition-transform hover:scale-110`}
-                 style={{ top: t.position.top, left: t.position.left }}
-               >
-                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mb-2 ${
-                   isUnlocked ? 'bg-emerald-500 text-white' : 'bg-slate-400 text-slate-200'
-                 }`}>
-                   {isUnlocked ? <Unlock size={32} /> : <Lock size={32} />}
-                 </div>
-                 <span className={`font-bold px-3 py-1 rounded-full text-sm shadow-sm ${
-                   isUnlocked ? 'bg-white text-slate-800' : 'bg-slate-200 text-slate-500'
-                 }`}>
-                   {t.name}
-                 </span>
-               </button>
-             )
-           })}
-        </div>
-      </div>
-    </div>
+    <main className="min-h-screen overflow-hidden bg-[#071528] text-white">
+      <header className="relative z-20 flex items-center justify-between border-b border-white/10 bg-[#071528]/90 px-4 py-3 backdrop-blur md:px-8">
+        <div className="flex min-w-0 items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-300 to-violet-600 font-black shadow-lg shadow-cyan-500/20">{profile.name.charAt(0).toUpperCase()}</div><div className="min-w-0"><h1 className="truncate font-black">{profile.name}</h1><p className="text-sm font-bold text-cyan-300">Nível {profile.level} · {profile.xp} XP</p></div></div>
+        <div className="flex items-center gap-2"><div className="rounded-xl bg-white/10 px-3 py-2 text-sm font-black text-yellow-300"><span className="mr-1">●</span>{profile.coins}</div><button onClick={onOpenPassport} aria-label="Abrir passaporte" className="grid h-10 w-10 place-items-center rounded-xl bg-violet-600 hover:bg-violet-500"><Compass className="h-5 w-5" /></button></div>
+      </header>
+      <section className="relative min-h-[calc(100vh-68px)] overflow-hidden" style={{ backgroundImage: `linear-gradient(180deg, rgba(2,10,23,.25), rgba(2,10,23,.72)), url(${brazilWorld})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(3,12,29,.55)_100%)]" />
+        <div className="relative z-10 mx-auto max-w-6xl px-5 pt-7 sm:px-8 sm:pt-10"><p className="text-xs font-black tracking-[.25em] text-cyan-200">MAPA DE AVENTURA</p><h2 className="mt-1 text-3xl font-black sm:text-5xl">Escolha seu próximo território</h2><p className="mt-2 max-w-md text-sm font-medium text-slate-200 sm:text-base">Cada lugar é uma aventura com missões, inimigos e descobertas que liberam sua passagem.</p></div>
+        {TERRITORIES.map((territory) => {
+          const unlocked = profile.unlockedTerritories.includes(territory.id);
+          return <button key={territory.id} disabled={!unlocked} onClick={() => onSelectTerritory(territory.id)} className={`absolute z-10 w-[min(68vw,280px)] text-left transition duration-300 ${territory.position} ${unlocked ? 'group hover:-translate-y-2' : 'cursor-not-allowed opacity-70'}`}>
+            <div className={`relative overflow-hidden rounded-2xl border p-3 shadow-2xl backdrop-blur-md sm:p-4 ${unlocked ? 'border-cyan-200/70 bg-[#071b35]/85 shadow-cyan-950/60' : 'border-white/20 bg-slate-950/80 grayscale'}`}>
+              <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-cyan-300 to-violet-500" />
+              <div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl">{unlocked ? territory.emoji : <Lock className="h-5 w-5" />}</div><div className="min-w-0 flex-1"><p className="truncate text-base font-black">{territory.name}</p><p className="truncate text-xs font-bold text-cyan-200">{territory.subtitle}</p></div>{unlocked ? <Play className="h-7 w-7 shrink-0 fill-yellow-300 text-yellow-300" /> : <span className="text-xs font-black text-slate-300">{territory.level}</span>}</div>
+              {unlocked && <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[11px] font-black text-yellow-200"><span><Crown className="mr-1 inline h-3.5 w-3.5" />MISSÃO DISPONÍVEL</span><span className="group-hover:text-cyan-200">JOGAR</span></div>}
+            </div>
+          </button>;
+        })}
+        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/20 bg-[#071528]/80 px-4 py-2 text-xs font-bold text-slate-200 backdrop-blur"><Sparkles className="h-4 w-4 text-yellow-300" /> Encontre portais e responda aos desafios para avançar</div>
+      </section>
+    </main>
   );
 }

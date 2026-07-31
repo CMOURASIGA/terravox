@@ -75,17 +75,14 @@ function World({ playerPosition, gateOpen, bossDefeated, onAttack, onNavigate }:
   });
   return (
     <>
-      <color attach="background" args={["#0b1630"]} />
-      <fog attach="fog" args={["#0b1630", 13, 34]} />
       <ambientLight intensity={1.35} />
       <directionalLight position={[5, 10, 5]} intensity={2.5} castShadow />
       <pointLight position={[-4, 4, -4]} color="#34d4e8" intensity={18} distance={9} />
       <pointLight position={[6, 3, -5]} color="#ff527f" intensity={14} distance={8} />
       <Stars radius={34} depth={20} count={900} factor={3} saturation={0.5} fade speed={0.7} />
       <group ref={arena}>
-        <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(event) => onNavigate({ x: event.point.x, z: event.point.z })}><circleGeometry args={[11, 64]} /><meshStandardMaterial color="#166a62" roughness={0.9} /></mesh>
-        <mesh receiveShadow position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[10.6, 11, 64]} /><meshStandardMaterial color="#ffd763" emissive="#8d5d00" emissiveIntensity={0.6} /></mesh>
-        <mesh receiveShadow position={[0, 0.03, -1]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[7.8, 48]} /><meshStandardMaterial color="#1aa492" roughness={0.8} /></mesh>
+        <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(event) => onNavigate({ x: event.point.x, z: event.point.z })}><circleGeometry args={[11, 64]} /><meshBasicMaterial transparent opacity={0} /></mesh>
+        <mesh receiveShadow position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[10.6, 11, 64]} /><meshStandardMaterial color="#ffd763" emissive="#8d5d00" emissiveIntensity={0.6} transparent opacity={0.6} /></mesh>
         {[[ -7, 0.6, -3], [-5, 0.55, 5], [2.5, 0.55, 6], [7, 0.6, 2], [-1, 0.5, -7]].map((p, i) => <mesh key={i} position={p as [number, number, number]} castShadow><dodecahedronGeometry args={[0.7, 0]} /><meshStandardMaterial color="#7957c6" /></mesh>)}
         <Crystal position={[-2.7, 1, 1.4]} color="#51f2e6" />
         <Crystal position={[0, 1, -2.3]} color="#a781ff" />
@@ -102,5 +99,5 @@ function World({ playerPosition, gateOpen, bossDefeated, onAttack, onNavigate }:
 }
 
 export function Arena3D(props: Arena3DProps) {
-  return <Canvas shadows camera={{ position: [0, 14, 12], fov: 48 }} dpr={[1, 1.7]} className="h-full w-full"><World {...props} /></Canvas>;
+  return <Canvas shadows gl={{ alpha: true }} camera={{ position: [0, 14, 12], fov: 48 }} dpr={[1, 1.7]} className="h-full w-full"><World {...props} /></Canvas>;
 }

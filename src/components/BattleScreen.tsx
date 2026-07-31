@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Crosshair, Heart, Move, Sparkles, Swords } from 'lucide-react';
 import { Arena3D } from './Arena3D';
 import { PlayerProfile } from '../types';
+import brazilWorld from '../assets/brazil-adventure-world.png';
 
 interface BattleScreenProps { territoryId: string; profile: PlayerProfile; onWin: (xp: number, coins: number) => void; onLeave: () => void; }
 
@@ -60,7 +61,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   };
 
   return (
-    <main className="relative h-screen overflow-hidden bg-[#07152d] text-white select-none">
+    <main className="relative h-screen overflow-hidden bg-[#07152d] text-white select-none" style={{ backgroundImage: `linear-gradient(180deg, rgba(4,14,34,.35), rgba(4,14,34,.6)), url(${brazilWorld})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
       <Arena3D playerPosition={position} gateOpen={gateOpen} bossDefeated={bossHp === 0} onAttack={attack} onNavigate={navigateTo} />
       <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-[#07152d]/95 to-transparent p-4 md:p-6">
         <button onClick={onLeave} className="rounded-xl border border-white/20 bg-slate-950/60 px-3 py-2 text-sm font-black backdrop-blur hover:bg-slate-800"><ArrowLeft className="mr-1 inline h-4 w-4" /> Sair</button>
