@@ -20,10 +20,25 @@ export default function App() {
 
   const [inputName, setInputName] = useState('');
 
+  useEffect(() => {
+    if (!profile.name) return;
+    localStorage.setItem(`terravox.profile.${profile.name.trim().toLowerCase()}`, JSON.stringify(profile));
+  }, [profile]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputName.trim()) {
-      setProfile(prev => ({ ...prev, name: inputName.trim() }));
+      const name = inputName.trim();
+      const stored = localStorage.getItem(`terravox.profile.${name.toLowerCase()}`);
+      if (stored) {
+        try {
+          setProfile(JSON.parse(stored) as PlayerProfile);
+        } catch {
+          setProfile(prev => ({ ...prev, name }));
+        }
+      } else {
+        setProfile(prev => ({ ...prev, name }));
+      }
       setGameState('MAP');
     }
   };
@@ -74,7 +89,7 @@ export default function App() {
             <span className="text-4xl font-black italic -rotate-12">T</span>
           </div>
           <h1 className="text-3xl font-black tracking-tight mb-2">Terravox</h1>
-          <p className="text-slate-400 mb-8">Conhecimento abre caminhos.</p>
+          <p className="text-slate-400 mb-8">Conhecimento abre caminhos. Seu progresso fica salvo neste aparelho.</p>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
