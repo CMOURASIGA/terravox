@@ -27,6 +27,26 @@ const territoryStories: Record<string, { title: string; portal: string; challeng
     { name: 'Ponte da Harmonia', topic: 'Cultura', prompt: 'Por que conhecer outras culturas é importante?', options: ['Para repetir estereótipos', 'Para respeitar diferenças e ampliar conhecimentos', 'Para deixar de aprender história', 'Para escolher apenas um país'], answer: 'Para respeitar diferenças e ampliar conhecimentos' },
     { name: 'Jardim dos Ventos', topic: 'Natureza', prompt: 'Qual atitude ajuda a cuidar de espaços naturais?', options: ['Deixar lixo no chão', 'Observar e preservar plantas e animais', 'Quebrar galhos por diversão', 'Alimentar qualquer animal sem orientação'], answer: 'Observar e preservar plantas e animais' },
   ] },
+  andes: { title: 'Cordilheira dos Andes', portal: 'Portal das Montanhas', challenges: [
+    { name: 'Marco da Altitude', topic: 'Geografia', prompt: 'O que é uma cordilheira?', options: ['Uma grande cadeia de montanhas', 'Um rio que corre no deserto', 'Uma floresta submersa', 'Uma cidade sem estradas'], answer: 'Uma grande cadeia de montanhas' },
+    { name: 'Ponte das Nuvens', topic: 'Natureza', prompt: 'Por que as montanhas são importantes para a água?', options: ['Ajudam a formar nascentes e rios', 'Impedem toda chuva', 'Só guardam areia', 'Não têm relação com o clima'], answer: 'Ajudam a formar nascentes e rios' },
+    { name: 'Eco do Vale', topic: 'Preservação', prompt: 'Como visitar uma área natural com responsabilidade?', options: ['Deixar marcas nas rochas', 'Seguir trilhas e recolher o lixo', 'Alimentar animais silvestres', 'Retirar plantas como lembrança'], answer: 'Seguir trilhas e recolher o lixo' },
+  ] },
+  oceano: { title: 'Recifes do Pacífico', portal: 'Portal das Marés', challenges: [
+    { name: 'Marco do Coral', topic: 'Ciências', prompt: 'Por que os recifes de coral são importantes?', options: ['Servem de abrigo para muitos seres vivos', 'São feitos de plástico', 'Existem apenas em rios', 'Não fazem parte do oceano'], answer: 'Servem de abrigo para muitos seres vivos' },
+    { name: 'Ponte Azul', topic: 'Sustentabilidade', prompt: 'Qual ação ajuda a reduzir a poluição dos oceanos?', options: ['Jogar lixo na praia', 'Reduzir plásticos descartáveis', 'Derramar óleo na água', 'Usar mais embalagens'], answer: 'Reduzir plásticos descartáveis' },
+    { name: 'Farol do Mar', topic: 'Biodiversidade', prompt: 'O que devemos fazer ao observar animais marinhos?', options: ['Respeitar distância e habitat', 'Tentar capturá-los', 'Alimentá-los sem orientação', 'Retirar conchas vivas'], answer: 'Respeitar distância e habitat' },
+  ] },
+  savana: { title: 'Savanas da África', portal: 'Portal dos Baobás', challenges: [
+    { name: 'Marco do Baobá', topic: 'Biomas', prompt: 'O que é uma savana?', options: ['Um bioma com gramíneas e árvores espaçadas', 'Um oceano congelado', 'Uma floresta apenas de pinheiros', 'Uma cidade subterrânea'], answer: 'Um bioma com gramíneas e árvores espaçadas' },
+    { name: 'Ponte da Migração', topic: 'Animais', prompt: 'Por que alguns animais migram?', options: ['Para buscar alimento e condições melhores', 'Porque não precisam de água', 'Para construir prédios', 'Apenas para brincar'], answer: 'Para buscar alimento e condições melhores' },
+    { name: 'Rota do Leão', topic: 'Conservação', prompt: 'Como proteger espécies ameaçadas?', options: ['Preservar habitats e combater a caça ilegal', 'Destruir áreas naturais', 'Comprar animais silvestres', 'Poluir rios próximos'], answer: 'Preservar habitats e combater a caça ilegal' },
+  ] },
+  espaco: { title: 'Estação Estelar', portal: 'Portal das Constelações', challenges: [
+    { name: 'Marco da Órbita', topic: 'Astronomia', prompt: 'O que é uma órbita?', options: ['O caminho de um corpo ao redor de outro', 'Uma estrela que apaga', 'Uma montanha no planeta', 'Um tipo de oceano'], answer: 'O caminho de um corpo ao redor de outro' },
+    { name: 'Ponte Lunar', topic: 'Ciências', prompt: 'Por que a Lua parece mudar de forma no céu?', options: ['Vemos partes iluminadas diferentes ao longo do mês', 'Ela muda de tamanho de verdade', 'Ela desaparece todos os dias', 'As nuvens criam a Lua'], answer: 'Vemos partes iluminadas diferentes ao longo do mês' },
+    { name: 'Código Estelar', topic: 'Exploração', prompt: 'Qual instrumento ajuda cientistas a observar o espaço?', options: ['Telescópio', 'Bússola de papel', 'Termômetro de cozinha', 'Apito'], answer: 'Telescópio' },
+  ] },
 };
 
 const mathChallenges = [
@@ -73,11 +93,12 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
       setPlayerHp(nextHp);
       setFeedback(nextHp ? 'Resposta incorreta. Você perdeu 20 de energia. Tente novamente para seguir pela trilha.' : 'Sua energia acabou. Você voltou ao último marco seguro.');
       if (!nextHp) { setPathStep(Math.max(0, pathStep - 1)); setPlayerHp(100); setModal(null); }
-      return;
+      return false;
     }
     const next = pathStep + 1;
     setPathStep(next); setModal(null);
     setFeedback(next === adventure.challenges.length ? 'Você chegou ao Guardião. Agora cada conta matemática tira energia dele.' : 'Resposta correta! O explorador avançou até o próximo marco.');
+    return true;
   };
   const answerMath = (option: string) => {
     const current = mathChallenges[(100 - bossHp) / 25];
@@ -86,12 +107,13 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
       setPlayerHp(nextHp);
       setFeedback(nextHp ? 'Conta incorreta. O Guardião contra-atacou e você perdeu 15 de energia.' : 'Sua energia acabou. Você retornou ao início do confronto.');
       if (!nextHp) { setBossHp(100); setPlayerHp(100); setModal(null); }
-      return;
+      return false;
     }
     const next = Math.max(0, bossHp - 25);
     setBossHp(next); setModal(null);
     if (!next) { localStorage.removeItem(storageKey); setWon(true); setFeedback('Excelente. O Guardião perdeu toda a energia.'); }
     else setFeedback('Conta correta! O Guardião perdeu 25 pontos de energia.');
+    return true;
   };
 
   const isBoss = pathStep === adventure.challenges.length;
@@ -124,6 +146,8 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   </main>;
 }
 
-function QuestionModal({ eyebrow, title, prompt, options, onAnswer }: { eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string) => void }) {
-  return <div className="absolute inset-0 z-40 grid place-items-center bg-[#071528]/80 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-6 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-9 w-9 text-yellow-200"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow}</p><h2 className="mt-2 text-2xl font-black">{title}</h2><p className="my-5 text-lg font-bold leading-relaxed">{prompt}</p><div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} onClick={() => onAnswer(option)} className="rounded-xl border border-white/20 bg-white/10 p-4 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950">{option}</button>)}</div></section></div>;
+function QuestionModal({ eyebrow, title, prompt, options, onAnswer }: { eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string) => boolean }) {
+  const [error, setError] = useState<string | null>(null);
+  const choose = (option: string) => { const correct = onAnswer(option); setError(correct ? null : 'Resposta incorreta. Você perdeu energia. Escolha outra alternativa para continuar.'); };
+  return <div className="absolute inset-0 z-40 grid place-items-end bg-[#071528]/80 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"><section className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-5 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-8 w-8 text-yellow-200 sm:h-9 sm:w-9"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow}</p><h2 className="mt-2 text-xl font-black sm:text-2xl">{title}</h2><p className="my-4 text-base font-bold leading-relaxed sm:my-5 sm:text-lg">{prompt}</p>{error && <div role="alert" className="mb-4 rounded-xl border border-rose-200/70 bg-rose-950/65 px-4 py-3 text-left text-sm font-bold text-rose-50">{error}</div>}<div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} onClick={() => choose(option)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 sm:p-4">{option}</button>)}</div></section></div>;
 }

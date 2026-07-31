@@ -7,11 +7,15 @@ import { PassportScreen } from './components/PassportScreen';
 import { Camera, Check, Play, UserRound } from 'lucide-react';
 
 const AVATARS = ['🦊', '🐯', '🐼', '🦁', '🦉', '🐸', '🧙', '🧭'];
-const emptyProfile = (): PlayerProfile => ({ name: '', avatar: '🦊', xp: 0, coins: 10, level: 1, unlockedTerritories: ['brasil', 'mexico', 'egito', 'japao'], completedMissions: [], adventureXp: {} });
+const FIRST_LEVEL_TERRITORIES = ['brasil', 'mexico', 'egito', 'japao'];
+const SECOND_LEVEL_TERRITORIES = ['andes', 'oceano', 'savana', 'espaco'];
+const emptyProfile = (): PlayerProfile => ({ name: '', avatar: '🦊', xp: 0, coins: 10, level: 1, unlockedTerritories: FIRST_LEVEL_TERRITORIES, completedMissions: [], adventureXp: {} });
 
 function normalizeProfile(value: Partial<PlayerProfile>): PlayerProfile {
   const base = emptyProfile();
-  return { ...base, ...value, avatar: value.avatar || base.avatar, unlockedTerritories: value.unlockedTerritories?.length ? value.unlockedTerritories : base.unlockedTerritories, adventureXp: value.adventureXp || {} };
+  const completedMissions = value.completedMissions || [];
+  const unlockedSecondLevel = FIRST_LEVEL_TERRITORIES.every((id) => completedMissions.includes(id));
+  return { ...base, ...value, avatar: value.avatar || base.avatar, level: unlockedSecondLevel ? 2 : 1, completedMissions, unlockedTerritories: unlockedSecondLevel ? [...new Set([...(value.unlockedTerritories || base.unlockedTerritories), ...SECOND_LEVEL_TERRITORIES])] : (value.unlockedTerritories?.length ? value.unlockedTerritories : base.unlockedTerritories), adventureXp: value.adventureXp || {} };
 }
 
 export function Avatar({ value, className = '' }: { value: string; className?: string }) {
@@ -65,7 +69,9 @@ export default function App() {
       const alreadyEarned = prev.completedMissions.includes(territory);
       const earnedXp = alreadyEarned ? 0 : xp;
       const newXp = prev.xp + earnedXp;
-      return { ...prev, xp: newXp, coins: prev.coins + (alreadyEarned ? 0 : coins), level: Math.floor(newXp / 200) + 1, completedMissions: alreadyEarned ? prev.completedMissions : [...prev.completedMissions, territory], adventureXp: { ...prev.adventureXp, [territory]: (prev.adventureXp[territory] || 0) + earnedXp } };
+      const completedMissions = alreadyEarned ? prev.completedMissions : [...prev.completedMissions, territory];
+      const unlockedSecondLevel = FIRST_LEVEL_TERRITORIES.every((id) => completedMissions.includes(id));
+      return { ...prev, xp: newXp, coins: prev.coins + (alreadyEarned ? 0 : coins), level: unlockedSecondLevel ? 2 : 1, unlockedTerritories: unlockedSecondLevel ? [...new Set([...prev.unlockedTerritories, ...SECOND_LEVEL_TERRITORIES])] : prev.unlockedTerritories, completedMissions, adventureXp: { ...prev.adventureXp, [territory]: (prev.adventureXp[territory] || 0) + earnedXp } };
     });
     setGameState('MAP'); setActiveTerritory(null);
   };
