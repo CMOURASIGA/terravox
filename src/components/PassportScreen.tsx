@@ -1,57 +1,10 @@
 import React from 'react';
 import { PlayerProfile } from '../types';
-import { ArrowLeft, MapPin, Award, Zap } from 'lucide-react';
+import { ArrowLeft, Award, Pencil, Zap } from 'lucide-react';
+import { TERRITORIES } from './MapScreen';
 
-interface PassportScreenProps {
-  profile: PlayerProfile;
-  onBack: () => void;
-}
+interface PassportScreenProps { profile: PlayerProfile; onBack: () => void; onEditProfile: () => void; }
 
-export function PassportScreen({ profile, onBack }: PassportScreenProps) {
-  return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center p-6">
-      <div className="w-full max-w-2xl mt-4">
-        
-        <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white transition mb-8">
-          <ArrowLeft size={20} /> Voltar ao Mapa
-        </button>
-
-        <h2 className="text-3xl font-bold text-white mb-6">Passaporte Terravox</h2>
-        
-        <div className="bg-slate-800 rounded-3xl p-8 border border-slate-700 shadow-xl mb-8">
-          <div className="flex items-center gap-6 mb-8 border-b border-slate-700 pb-8">
-            <div className="w-20 h-20 bg-indigo-500 rounded-2xl flex items-center justify-center font-bold text-4xl text-white shadow-lg">
-              {profile.name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-white mb-1">{profile.name}</h3>
-              <div className="flex gap-4 text-sm font-medium">
-                <span className="flex items-center gap-1 text-emerald-400"><Award size={16}/> Nível {profile.level}</span>
-                <span className="flex items-center gap-1 text-indigo-400"><Zap size={16}/> {profile.xp} XP</span>
-                <span className="flex items-center gap-1 text-amber-400">
-                   <span className="w-3 h-3 bg-amber-400 rounded-full inline-block"></span>
-                   {profile.coins}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <MapPin size={20} className="text-rose-400" />
-              Territórios Desbloqueados ({profile.unlockedTerritories.length})
-            </h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {profile.unlockedTerritories.map(t => (
-                <div key={t} className="bg-slate-700/50 rounded-xl p-4 border border-slate-600 flex items-center justify-center">
-                  <span className="font-bold text-slate-200 capitalize">{t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
+export function PassportScreen({ profile, onBack, onEditProfile }: PassportScreenProps) {
+  return <div className="min-h-screen bg-[radial-gradient(circle_at_top,#173260,#071528_52%)] p-5 text-slate-200"><div className="mx-auto w-full max-w-2xl pt-4"><button onClick={onBack} className="mb-7 flex items-center gap-2 text-sm font-bold text-cyan-200"><ArrowLeft size={20}/>Voltar ao mapa</button><h2 className="text-3xl font-black text-white">Passaporte Terravox</h2><p className="mt-1 text-sm text-slate-300">Seu histórico de aventuras e conhecimento conquistado.</p><section className="mt-5 rounded-[2rem] border border-white/15 bg-slate-950/55 p-5 shadow-xl backdrop-blur sm:p-7"><div className="flex items-center justify-between gap-3 border-b border-white/10 pb-5"><div className="flex min-w-0 items-center gap-4"><div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-300 to-violet-600 text-3xl">{profile.avatar.startsWith('data:image') ? <img src={profile.avatar} alt="Avatar" className="h-full w-full object-cover" /> : profile.avatar}</div><div className="min-w-0"><h3 className="truncate text-2xl font-black text-white">{profile.name}</h3><p className="text-sm font-bold text-cyan-200">Explorador Terravox</p></div></div><button onClick={onEditProfile} className="grid h-10 w-10 place-items-center rounded-xl border border-white/20 bg-white/10"><Pencil className="h-4 w-4"/></button></div><div className="mt-5 grid grid-cols-3 gap-2"><div className="rounded-2xl bg-cyan-400/10 p-3 text-center"><Zap className="mx-auto h-5 w-5 text-cyan-300"/><p className="mt-1 text-xl font-black text-white">{profile.xp}</p><p className="text-[10px] font-black text-cyan-100">XP TOTAL</p></div><div className="rounded-2xl bg-violet-400/10 p-3 text-center"><Award className="mx-auto h-5 w-5 text-violet-300"/><p className="mt-1 text-xl font-black text-white">{profile.level}</p><p className="text-[10px] font-black text-violet-100">NÍVEL</p></div><div className="rounded-2xl bg-yellow-400/10 p-3 text-center"><span className="text-xl text-yellow-300">●</span><p className="mt-1 text-xl font-black text-white">{profile.coins}</p><p className="text-[10px] font-black text-yellow-100">MOEDAS</p></div></div><h4 className="mt-7 text-lg font-black text-white">XP por aventura</h4><div className="mt-3 space-y-2">{TERRITORIES.map(item => { const xp = profile.adventureXp[item.id] || 0; const completed = profile.completedMissions.includes(item.id); return <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"><span className="text-2xl">{item.emoji}</span><div className="min-w-0 flex-1"><p className="truncate font-black text-white">{item.name}</p><p className="text-xs text-slate-300">{completed ? 'Aventura concluída' : 'Pronta para explorar'}</p></div><strong className={xp ? 'text-cyan-200' : 'text-slate-500'}>{xp} XP</strong></div>; })}</div></section></div></div>;
 }
