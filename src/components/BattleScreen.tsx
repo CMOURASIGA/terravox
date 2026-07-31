@@ -1,46 +1,78 @@
 import { useState } from 'react';
-import { ArrowLeft, Heart, Shield, Sparkles, Swords } from 'lucide-react';
+import { ArrowLeft, Check, Heart, Lock, Shield, Sparkles, Swords } from 'lucide-react';
 import { PlayerProfile } from '../types';
 
 interface BattleScreenProps { territoryId: string; profile: PlayerProfile; onWin: (xp: number, coins: number) => void; onLeave: () => void; }
 
-const challenge = { title: 'Portal das Águas', prompt: 'Qual atitude ajuda diretamente a preservar a Floresta Amazônica?', options: ['Desmatamento sem controle', 'Proteção das áreas e uso sustentável', 'Queimar resíduos', 'Poluir os rios'], answer: 'Proteção das áreas e uso sustentável' };
+const pathChallenges = [
+  { name: 'Marco do Rio', topic: 'Águas da Floresta', prompt: 'Por que os rios da Amazônia são importantes?', options: ['Somente para barcos', 'Ajudam a manter a vida, o clima e comunidades', 'Não têm relação com a floresta', 'Servem apenas como fronteira'], answer: 'Ajudam a manter a vida, o clima e comunidades' },
+  { name: 'Ponte da Vida', topic: 'Biodiversidade', prompt: 'O que significa biodiversidade?', options: ['Ter apenas uma espécie', 'A variedade de seres vivos de um lugar', 'Construir mais cidades', 'Cortar árvores antigas'], answer: 'A variedade de seres vivos de um lugar' },
+  { name: 'Ruína Verde', topic: 'Preservação', prompt: 'Qual escolha protege melhor uma floresta?', options: ['Descartar lixo nos rios', 'Queimar áreas para abrir espaço', 'Respeitar áreas protegidas e usar recursos com cuidado', 'Retirar animais do habitat'], answer: 'Respeitar áreas protegidas e usar recursos com cuidado' },
+];
+
+const mathChallenges = [
+  { prompt: '12 + 8 = ?', options: ['18', '20', '22', '24'], answer: '20' },
+  { prompt: '35 − 9 = ?', options: ['24', '25', '26', '27'], answer: '26' },
+  { prompt: '6 × 7 = ?', options: ['36', '40', '42', '48'], answer: '42' },
+  { prompt: '48 ÷ 6 = ?', options: ['6', '7', '8', '9'], answer: '8' },
+];
+
+const heroStops = [8, 26, 45, 62];
 
 export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScreenProps) {
-  const [stage, setStage] = useState<'portal' | 'battle' | 'question' | 'won'>('portal');
+  const [pathStep, setPathStep] = useState(0);
   const [bossHp, setBossHp] = useState(100);
-  const [feedback, setFeedback] = useState('Encontre o Portal das Águas para iniciar a missão.');
+  const [modal, setModal] = useState<'path' | 'math' | null>(null);
+  const [feedback, setFeedback] = useState('Siga a trilha. Cada marco libera uma pergunta para avançar.');
+  const [won, setWon] = useState(false);
 
-  const attack = () => {
-    if (stage !== 'battle') return setFeedback('Primeiro, desperte o Guardião no portal.');
+  const openNextChallenge = () => {
+    if (pathStep < pathChallenges.length) setModal('path');
+    else setModal('math');
+  };
+  const answerPath = (option: string) => {
+    const current = pathChallenges[pathStep];
+    if (option !== current.answer) { setFeedback('Resposta incorreta. Repare no tema e tente novamente para seguir pela trilha.'); return; }
+    const next = pathStep + 1;
+    setPathStep(next); setModal(null);
+    setFeedback(next === pathChallenges.length ? 'Você chegou ao Guardião. Agora cada conta matemática tira energia dele.' : 'Resposta correta! O explorador avançou até o próximo marco.');
+  };
+  const answerMath = (option: string) => {
+    const current = mathChallenges[(100 - bossHp) / 25];
+    if (option !== current.answer) { setFeedback('Essa conta não está certa. Tente novamente, o Guardião ainda está protegido.'); return; }
     const next = Math.max(0, bossHp - 25);
-    setBossHp(next);
-    setFeedback(next ? 'Impacto de energia! Continue o ataque.' : 'O Guardião foi vencido. Falta uma última pergunta.');
-    if (!next) setStage('question');
+    setBossHp(next); setModal(null);
+    if (!next) { setWon(true); setFeedback('Excelente. O Guardião perdeu toda a energia.'); }
+    else setFeedback('Conta correta! O Guardião perdeu 25 pontos de energia.');
   };
-  const answer = (option: string) => {
-    if (option !== challenge.answer) return setFeedback('Quase. Observe o que realmente protege a floresta e tente de novo.');
-    setStage('won');
-  };
+
+  const isBoss = pathStep === pathChallenges.length;
+  const progressLabel = isBoss ? `Guardião: ${4 - bossHp / 25}/4 contas` : `Trilha: ${pathStep}/${pathChallenges.length} marcos`;
 
   return <main className="relative min-h-[100dvh] overflow-hidden bg-[#08172d] text-white">
     <img src="/assets/brazil-adventure-world.webp" alt="Floresta brasileira com ruínas e portal" className="absolute inset-0 h-full w-full object-cover" />
-    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,12,29,.78)_0%,rgba(3,12,29,.08)_35%,rgba(3,12,29,.68)_100%)]" />
-    <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3 sm:p-5"><button onClick={onLeave} className="rounded-xl border border-white/30 bg-slate-950/65 px-3 py-2 text-sm font-black backdrop-blur"><ArrowLeft className="mr-1 inline h-4 w-4" />Sair</button><div className="text-center"><p className="text-[10px] font-black tracking-[.28em] text-cyan-200">TERRAVOX</p><h1 className="text-lg font-black sm:text-2xl">Ruínas do Brasil</h1></div><div className="rounded-xl bg-slate-950/65 px-3 py-2 text-right text-xs font-bold backdrop-blur">{profile.name}<br/><span className="text-yellow-300">Nível {profile.level}</span></div></header>
+    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,12,29,.76)_0%,rgba(3,12,29,.04)_38%,rgba(3,12,29,.72)_100%)]" />
+    <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between p-3 sm:p-5"><button onClick={onLeave} className="rounded-xl border border-white/30 bg-slate-950/65 px-3 py-2 text-sm font-black backdrop-blur"><ArrowLeft className="mr-1 inline h-4 w-4" />Sair</button><div className="text-center"><p className="text-[10px] font-black tracking-[.28em] text-cyan-200">TERRAVOX</p><h1 className="text-lg font-black sm:text-2xl">Ruínas do {territoryId.toUpperCase()}</h1></div><div className="rounded-xl bg-slate-950/65 px-3 py-2 text-right text-xs font-bold backdrop-blur">{profile.name}<br/><span className="text-yellow-300">Nível {profile.level}</span></div></header>
 
-    <aside className="absolute left-3 top-20 z-20 w-40 rounded-2xl border border-white/25 bg-[#071528]/75 p-3 backdrop-blur sm:left-5 sm:top-24 sm:w-48"><p className="flex items-center gap-1 text-xs font-black"><Heart className="h-4 w-4 text-rose-400" /> EXPLORADOR</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full w-full bg-gradient-to-r from-cyan-400 to-emerald-300" /></div><p className="mt-1 text-right text-xs font-black">100/100</p>{stage !== 'portal' && <><div className="my-3 border-t border-white/15"/><p className="flex items-center gap-1 text-xs font-black text-rose-100"><Swords className="h-4 w-4" /> GUARDIÃO</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full bg-gradient-to-r from-rose-600 to-orange-400 transition-all" style={{ width: `${bossHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{bossHp}/100</p></>}</aside>
+    <aside className="absolute left-3 top-20 z-30 w-40 rounded-2xl border border-white/25 bg-[#071528]/80 p-3 backdrop-blur sm:left-5 sm:top-24 sm:w-48"><p className="flex items-center gap-1 text-xs font-black"><Heart className="h-4 w-4 text-rose-400" /> EXPLORADOR</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full w-full bg-gradient-to-r from-cyan-400 to-emerald-300" /></div><p className="mt-1 text-right text-xs font-black">100/100</p>{isBoss && <><div className="my-3 border-t border-white/15"/><p className="flex items-center gap-1 text-xs font-black text-rose-100"><Swords className="h-4 w-4" /> GUARDIÃO</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full bg-gradient-to-r from-rose-600 to-orange-400 transition-all" style={{ width: `${bossHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{bossHp}/100</p></>}</aside>
 
     <section className="absolute inset-x-0 bottom-0 top-16 z-10 mx-auto max-w-7xl">
-      <img src="/assets/terravox-explorer.webp" alt="Explorador Terravox" className="absolute bottom-[9%] left-[8%] w-[38vw] max-w-[330px] min-w-[170px] drop-shadow-[0_18px_18px_rgba(0,0,0,.55)]" />
-      <div className="absolute bottom-[13%] left-[12%] rounded-full border-2 border-cyan-200/80 bg-cyan-300/20 px-3 py-1 text-[10px] font-black text-cyan-50 backdrop-blur">EXPLORADOR</div>
-      {stage === 'portal' && <button onClick={() => { setStage('battle'); setFeedback('O Guardião acordou. Use o botão ATACAR quando estiver pronto.'); }} className="absolute right-[7%] top-[29%] grid w-[min(33vw,210px)] aspect-square place-items-center rounded-full border-4 border-cyan-200/80 bg-cyan-400/15 p-3 text-center shadow-[0_0_55px_rgba(34,211,238,.85)] backdrop-blur-sm transition hover:scale-105 active:scale-95"><Sparkles className="h-9 w-9 text-yellow-200"/><span className="text-sm font-black sm:text-lg">PORTAL DAS ÁGUAS</span><span className="text-[10px] font-bold text-cyan-100">TOQUE PARA DESPERTAR</span></button>}
-      {stage !== 'portal' && bossHp > 0 && <><img src="/assets/forest-guardian.webp" alt="Guardião da floresta" className="absolute right-[4%] bottom-[12%] w-[43vw] max-w-[360px] min-w-[190px] drop-shadow-[0_20px_20px_rgba(0,0,0,.6)]" /><div className="absolute bottom-[16%] right-[13%] rounded-full border-2 border-rose-200/70 bg-rose-800/35 px-3 py-1 text-[10px] font-black text-rose-50 backdrop-blur">GUARDIÃO DAS RUÍNAS</div></>}
+      <div className="absolute bottom-[20%] left-[15%] right-[19%] h-1 rounded-full border-y border-yellow-100/35 bg-[repeating-linear-gradient(90deg,rgba(250,204,21,.9)_0_14px,transparent_14px_25px)] opacity-90" />
+      {[0, 1, 2].map((index) => <button key={index} onClick={index === pathStep ? openNextChallenge : undefined} disabled={index !== pathStep} className={`absolute bottom-[17%] z-20 grid h-12 w-12 place-items-center rounded-full border-4 text-xs font-black shadow-lg transition sm:h-16 sm:w-16 ${index < pathStep ? 'border-emerald-200 bg-emerald-500 text-white' : index === pathStep ? 'border-yellow-100 bg-yellow-400 text-slate-950 shadow-yellow-400/70 animate-pulse' : 'border-slate-300/50 bg-slate-950/70 text-slate-300'}`} style={{ left: `${26 + index * 19}%` }}>{index < pathStep ? <Check className="h-6 w-6" /> : index === pathStep ? <Sparkles className="h-6 w-6" /> : <Lock className="h-5 w-5" />}<span className="absolute -bottom-6 whitespace-nowrap text-[9px] font-black text-white drop-shadow">{pathChallenges[index].name}</span></button>)}
+      <img src="/assets/terravox-explorer.webp" alt="Explorador Terravox" className="absolute bottom-[9%] z-20 w-[35vw] max-w-[310px] min-w-[145px] drop-shadow-[0_18px_18px_rgba(0,0,0,.6)] transition-all duration-700" style={{ left: `${heroStops[pathStep]}%`, transform: 'translateX(-35%)' }} />
+      <div className="absolute bottom-[10%] z-20 rounded-full border-2 border-cyan-200/80 bg-cyan-300/20 px-3 py-1 text-[10px] font-black text-cyan-50 backdrop-blur transition-all duration-700" style={{ left: `${heroStops[pathStep]}%`, transform: 'translateX(-42%)' }}>EXPLORADOR</div>
+      {isBoss && bossHp > 0 && <><img src="/assets/forest-guardian.webp" alt="Guardião da floresta" className="absolute right-[3%] bottom-[11%] z-20 w-[43vw] max-w-[360px] min-w-[180px] drop-shadow-[0_20px_20px_rgba(0,0,0,.65)]" /><button onClick={openNextChallenge} className="absolute right-[12%] bottom-[38%] z-30 rounded-2xl border-2 border-yellow-100 bg-gradient-to-b from-yellow-300 to-orange-500 px-4 py-3 text-center text-xs font-black text-slate-950 shadow-[0_0_30px_rgba(250,204,21,.8)] active:scale-95"><Swords className="mx-auto mb-1 h-5 w-5"/>RESOLVER CONTA<br/>E ATACAR</button></>}
+      {isBoss && <div className="absolute right-[11%] bottom-[7%] z-20 rounded-full border-2 border-rose-200/70 bg-rose-800/40 px-3 py-1 text-[10px] font-black text-rose-50 backdrop-blur">GUARDIÃO DAS RUÍNAS</div>}
     </section>
 
-    <div className="absolute inset-x-3 bottom-4 z-30 mx-auto max-w-xl rounded-2xl border border-white/25 bg-[#071528]/85 p-3 text-center backdrop-blur sm:bottom-6"><p className="text-sm font-bold sm:text-base">{feedback}</p><p className="mt-1 text-[11px] font-medium text-slate-300">Explore, enfrente o Guardião e use conhecimento para liberar o próximo território.</p></div>
-    <button onClick={attack} className={`absolute bottom-24 right-4 z-30 grid h-20 w-20 place-items-center rounded-full border-4 border-yellow-100 text-center text-xs font-black text-slate-950 shadow-[0_0_32px_rgba(250,204,21,.9)] transition active:scale-95 sm:bottom-28 sm:right-7 ${stage === 'battle' ? 'bg-gradient-to-b from-yellow-300 to-orange-500' : 'bg-slate-400 opacity-80'}`}><Swords className="h-6 w-6"/>ATACAR</button>
+    <div className="absolute inset-x-3 bottom-4 z-30 mx-auto max-w-xl rounded-2xl border border-white/25 bg-[#071528]/90 p-3 text-center backdrop-blur sm:bottom-6"><p className="text-sm font-bold sm:text-base">{feedback}</p><div className="mt-2 inline-flex rounded-full bg-white/10 px-3 py-1 text-[11px] font-black text-cyan-100">{progressLabel}</div></div>
 
-    {stage === 'question' && <div className="absolute inset-0 z-40 grid place-items-center bg-[#071528]/80 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-6 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-9 w-9 text-yellow-200"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">SELO DO CONHECIMENTO</p><h2 className="mt-2 text-2xl font-black">{challenge.title}</h2><p className="my-5 font-bold leading-relaxed">{challenge.prompt}</p><div className="grid gap-3 sm:grid-cols-2">{challenge.options.map(option => <button key={option} onClick={() => answer(option)} className="rounded-xl border border-white/20 bg-white/10 p-4 text-left text-sm font-bold hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950">{option}</button>)}</div></section></div>}
-    {stage === 'won' && <div className="absolute inset-0 z-40 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você abriu o portal, enfrentou o Guardião e respondeu ao desafio final.</p><button onClick={() => onWin(100, 30)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +100 XP</button></section></div>}
+    {modal === 'path' && <QuestionModal eyebrow={pathChallenges[pathStep].topic} title={pathChallenges[pathStep].name} prompt={pathChallenges[pathStep].prompt} options={pathChallenges[pathStep].options} onAnswer={answerPath} />}
+    {modal === 'math' && <QuestionModal eyebrow="ATAQUE DE LÓGICA" title="Conta contra o Guardião" prompt={mathChallenges[(100 - bossHp) / 25].prompt} options={mathChallenges[(100 - bossHp) / 25].options} onAnswer={answerMath} />}
+    {won && <div className="absolute inset-0 z-50 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você percorreu a trilha, respondeu aos desafios ambientais e venceu o Guardião com matemática.</p><button onClick={() => onWin(150, 40)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +150 XP</button></section></div>}
   </main>;
+}
+
+function QuestionModal({ eyebrow, title, prompt, options, onAnswer }: { eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string) => void }) {
+  return <div className="absolute inset-0 z-40 grid place-items-center bg-[#071528]/80 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-6 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-9 w-9 text-yellow-200"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow}</p><h2 className="mt-2 text-2xl font-black">{title}</h2><p className="my-5 text-lg font-bold leading-relaxed">{prompt}</p><div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} onClick={() => onAnswer(option)} className="rounded-xl border border-white/20 bg-white/10 p-4 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950">{option}</button>)}</div></section></div>;
 }
