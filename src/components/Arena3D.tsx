@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Float, Stars } from '@react-three/drei';
 import { useRef } from 'react';
 import type { Mesh, Group } from 'three';
@@ -8,6 +8,7 @@ interface Arena3DProps {
   gateOpen: boolean;
   bossDefeated: boolean;
   onAttack: () => void;
+  onNavigate: (position: { x: number; z: number }) => void;
 }
 
 function Hero({ position }: { position: { x: number; z: number } }) {
@@ -58,7 +59,16 @@ function Guardian({ defeated }: { defeated: boolean }) {
   );
 }
 
-function World({ playerPosition, gateOpen, bossDefeated, onAttack }: Arena3DProps) {
+function CameraFollow({ position }: { position: { x: number; z: number } }) {
+  const { camera } = useThree();
+  useFrame(() => {
+    camera.position.lerp({ x: position.x, y: 14, z: position.z + 12 } as never, 0.035);
+    camera.lookAt(position.x, 0, position.z - 1.8);
+  });
+  return null;
+}
+
+function World({ playerPosition, gateOpen, bossDefeated, onAttack, onNavigate }: Arena3DProps) {
   const arena = useRef<Group>(null);
   useFrame((state) => {
     if (arena.current) arena.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.08) * 0.015;
@@ -73,7 +83,7 @@ function World({ playerPosition, gateOpen, bossDefeated, onAttack }: Arena3DProp
       <pointLight position={[6, 3, -5]} color="#ff527f" intensity={14} distance={8} />
       <Stars radius={34} depth={20} count={900} factor={3} saturation={0.5} fade speed={0.7} />
       <group ref={arena}>
-        <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[11, 64]} /><meshStandardMaterial color="#166a62" roughness={0.9} /></mesh>
+        <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(event) => onNavigate({ x: event.point.x, z: event.point.z })}><circleGeometry args={[11, 64]} /><meshStandardMaterial color="#166a62" roughness={0.9} /></mesh>
         <mesh receiveShadow position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[10.6, 11, 64]} /><meshStandardMaterial color="#ffd763" emissive="#8d5d00" emissiveIntensity={0.6} /></mesh>
         <mesh receiveShadow position={[0, 0.03, -1]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[7.8, 48]} /><meshStandardMaterial color="#1aa492" roughness={0.8} /></mesh>
         {[[ -7, 0.6, -3], [-5, 0.55, 5], [2.5, 0.55, 6], [7, 0.6, 2], [-1, 0.5, -7]].map((p, i) => <mesh key={i} position={p as [number, number, number]} castShadow><dodecahedronGeometry args={[0.7, 0]} /><meshStandardMaterial color="#7957c6" /></mesh>)}
@@ -86,6 +96,7 @@ function World({ playerPosition, gateOpen, bossDefeated, onAttack }: Arena3DProp
       </group>
       <mesh position={[playerPosition.x, 0.07, playerPosition.z]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.65, 0.77, 28]} /><meshBasicMaterial color="#ffffff" transparent opacity={0.85} /></mesh>
       <group onClick={onAttack} />
+      <CameraFollow position={playerPosition} />
     </>
   );
 }
