@@ -21,6 +21,17 @@ export default function App() {
   const [inputName, setInputName] = useState('');
 
   useEffect(() => {
+    const lastPlayer = localStorage.getItem('terravox.last-player');
+    if (!lastPlayer) return;
+    try {
+      setProfile(JSON.parse(lastPlayer) as PlayerProfile);
+      setGameState('MAP');
+    } catch {
+      localStorage.removeItem('terravox.last-player');
+    }
+  }, []);
+
+  useEffect(() => {
     if (!profile.name) return;
     localStorage.setItem(`terravox.profile.${profile.name.trim().toLowerCase()}`, JSON.stringify(profile));
   }, [profile]);
@@ -32,12 +43,18 @@ export default function App() {
       const stored = localStorage.getItem(`terravox.profile.${name.toLowerCase()}`);
       if (stored) {
         try {
-          setProfile(JSON.parse(stored) as PlayerProfile);
+          const savedProfile = JSON.parse(stored) as PlayerProfile;
+          setProfile(savedProfile);
+          localStorage.setItem('terravox.last-player', JSON.stringify(savedProfile));
         } catch {
-          setProfile(prev => ({ ...prev, name }));
+          const newProfile = { ...profile, name };
+          setProfile(newProfile);
+          localStorage.setItem('terravox.last-player', JSON.stringify(newProfile));
         }
       } else {
-        setProfile(prev => ({ ...prev, name }));
+        const newProfile = { ...profile, name };
+        setProfile(newProfile);
+        localStorage.setItem('terravox.last-player', JSON.stringify(newProfile));
       }
       setGameState('MAP');
     }
