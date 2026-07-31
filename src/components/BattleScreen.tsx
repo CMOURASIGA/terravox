@@ -22,6 +22,7 @@ const heroStops = [8, 26, 45, 62];
 export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScreenProps) {
   const [pathStep, setPathStep] = useState(0);
   const [bossHp, setBossHp] = useState(100);
+  const [playerHp, setPlayerHp] = useState(100);
   const [modal, setModal] = useState<'path' | 'math' | null>(null);
   const [feedback, setFeedback] = useState('Siga a trilha. Cada marco libera uma pergunta para avançar.');
   const [won, setWon] = useState(false);
@@ -32,14 +33,26 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   };
   const answerPath = (option: string) => {
     const current = pathChallenges[pathStep];
-    if (option !== current.answer) { setFeedback('Resposta incorreta. Repare no tema e tente novamente para seguir pela trilha.'); return; }
+    if (option !== current.answer) {
+      const nextHp = Math.max(0, playerHp - 20);
+      setPlayerHp(nextHp);
+      setFeedback(nextHp ? 'Resposta incorreta. Você perdeu 20 de energia. Tente novamente para seguir pela trilha.' : 'Sua energia acabou. Você voltou ao último marco seguro.');
+      if (!nextHp) { setPathStep(Math.max(0, pathStep - 1)); setPlayerHp(100); setModal(null); }
+      return;
+    }
     const next = pathStep + 1;
     setPathStep(next); setModal(null);
     setFeedback(next === pathChallenges.length ? 'Você chegou ao Guardião. Agora cada conta matemática tira energia dele.' : 'Resposta correta! O explorador avançou até o próximo marco.');
   };
   const answerMath = (option: string) => {
     const current = mathChallenges[(100 - bossHp) / 25];
-    if (option !== current.answer) { setFeedback('Essa conta não está certa. Tente novamente, o Guardião ainda está protegido.'); return; }
+    if (option !== current.answer) {
+      const nextHp = Math.max(0, playerHp - 15);
+      setPlayerHp(nextHp);
+      setFeedback(nextHp ? 'Conta incorreta. O Guardião contra-atacou e você perdeu 15 de energia.' : 'Sua energia acabou. Você retornou ao início do confronto.');
+      if (!nextHp) { setBossHp(100); setPlayerHp(100); setModal(null); }
+      return;
+    }
     const next = Math.max(0, bossHp - 25);
     setBossHp(next); setModal(null);
     if (!next) { setWon(true); setFeedback('Excelente. O Guardião perdeu toda a energia.'); }
@@ -54,7 +67,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,12,29,.76)_0%,rgba(3,12,29,.04)_38%,rgba(3,12,29,.72)_100%)]" />
     <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between p-3 sm:p-5"><button onClick={onLeave} className="rounded-xl border border-white/30 bg-slate-950/65 px-3 py-2 text-sm font-black backdrop-blur"><ArrowLeft className="mr-1 inline h-4 w-4" />Sair</button><div className="text-center"><p className="text-[10px] font-black tracking-[.28em] text-cyan-200">TERRAVOX</p><h1 className="text-lg font-black sm:text-2xl">Ruínas do {territoryId.toUpperCase()}</h1></div><div className="rounded-xl bg-slate-950/65 px-3 py-2 text-right text-xs font-bold backdrop-blur">{profile.name}<br/><span className="text-yellow-300">Nível {profile.level}</span></div></header>
 
-    <aside className="absolute left-3 top-20 z-30 w-40 rounded-2xl border border-white/25 bg-[#071528]/80 p-3 backdrop-blur sm:left-5 sm:top-24 sm:w-48"><p className="flex items-center gap-1 text-xs font-black"><Heart className="h-4 w-4 text-rose-400" /> EXPLORADOR</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full w-full bg-gradient-to-r from-cyan-400 to-emerald-300" /></div><p className="mt-1 text-right text-xs font-black">100/100</p>{isBoss && <><div className="my-3 border-t border-white/15"/><p className="flex items-center gap-1 text-xs font-black text-rose-100"><Swords className="h-4 w-4" /> GUARDIÃO</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full bg-gradient-to-r from-rose-600 to-orange-400 transition-all" style={{ width: `${bossHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{bossHp}/100</p></>}</aside>
+    <aside className="absolute left-3 top-20 z-30 w-40 rounded-2xl border border-white/25 bg-[#071528]/80 p-3 backdrop-blur sm:left-5 sm:top-24 sm:w-48"><p className="flex items-center gap-1 text-xs font-black"><Heart className="h-4 w-4 text-rose-400" /> EXPLORADOR</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className={`h-full bg-gradient-to-r transition-all ${playerHp > 35 ? 'from-cyan-400 to-emerald-300' : 'from-orange-400 to-rose-500'}`} style={{ width: `${playerHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{playerHp}/100</p>{isBoss && <><div className="my-3 border-t border-white/15"/><p className="flex items-center gap-1 text-xs font-black text-rose-100"><Swords className="h-4 w-4" /> GUARDIÃO</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full bg-gradient-to-r from-rose-600 to-orange-400 transition-all" style={{ width: `${bossHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{bossHp}/100</p></>}</aside>
 
     <section className="absolute inset-x-0 bottom-0 top-16 z-10 mx-auto max-w-7xl">
       <div className="absolute bottom-[20%] left-[15%] right-[19%] h-1 rounded-full border-y border-yellow-100/35 bg-[repeating-linear-gradient(90deg,rgba(250,204,21,.9)_0_14px,transparent_14px_25px)] opacity-90" />
