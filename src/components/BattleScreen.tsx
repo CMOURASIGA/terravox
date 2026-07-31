@@ -1,85 +1,46 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Crosshair, Heart, Move, Sparkles, Swords } from 'lucide-react';
-import { Arena3D } from './Arena3D';
+import { useState } from 'react';
+import { ArrowLeft, Heart, Shield, Sparkles, Swords } from 'lucide-react';
 import { PlayerProfile } from '../types';
-import brazilWorld from '../assets/brazil-adventure-world.png';
 
 interface BattleScreenProps { territoryId: string; profile: PlayerProfile; onWin: (xp: number, coins: number) => void; onLeave: () => void; }
 
-const challenges = [
-  { title: 'Portal da Floresta', prompt: 'Qual atitude ajuda diretamente a preservar a Floresta Amazônica?', options: ['Desmatamento sem controle', 'Proteção das áreas e uso sustentável', 'Queimar resíduos', 'Poluir os rios'], answer: 'Proteção das áreas e uso sustentável', unlock: 'O portal se abriu. O Guardião surgiu na arena!' },
-  { title: 'Selo do Guardião', prompt: 'O Brasil está localizado em qual continente?', options: ['Europa', 'África', 'América do Sul', 'Ásia'], answer: 'América do Sul', unlock: 'Conhecimento confirmado. A energia do Guardião foi quebrada!' },
-];
+const challenge = { title: 'Portal das Águas', prompt: 'Qual atitude ajuda diretamente a preservar a Floresta Amazônica?', options: ['Desmatamento sem controle', 'Proteção das áreas e uso sustentável', 'Queimar resíduos', 'Poluir os rios'], answer: 'Proteção das áreas e uso sustentável' };
 
 export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScreenProps) {
-  const [position, setPosition] = useState({ x: -5.2, z: 3.6 });
-  const [playerHp, setPlayerHp] = useState(100);
+  const [stage, setStage] = useState<'portal' | 'battle' | 'question' | 'won'>('portal');
   const [bossHp, setBossHp] = useState(100);
-  const [gateOpen, setGateOpen] = useState(false);
-  const [challengeIndex, setChallengeIndex] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState('');
-  const [won, setWon] = useState(false);
-
-  useEffect(() => {
-    const move = (event: KeyboardEvent) => {
-      if (challengeIndex !== null || won) return;
-      const key = event.key.toLowerCase();
-      const delta = 0.65;
-      if (!['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) return;
-      event.preventDefault();
-      setPosition(current => ({ x: Math.max(-8.5, Math.min(8.5, current.x + (key === 'd' || key === 'arrowright' ? delta : key === 'a' || key === 'arrowleft' ? -delta : 0))), z: Math.max(-8.2, Math.min(8.2, current.z + (key === 's' || key === 'arrowdown' ? delta : key === 'w' || key === 'arrowup' ? -delta : 0))) }));
-    };
-    window.addEventListener('keydown', move);
-    return () => window.removeEventListener('keydown', move);
-  }, [challengeIndex, won]);
-
-  const movePlayer = (x: number, z: number) => setPosition(current => ({ x: Math.max(-8.5, Math.min(8.5, current.x + x)), z: Math.max(-8.2, Math.min(8.2, current.z + z)) }));
-  const navigateTo = (target: { x: number; z: number }) => {
-    if (challengeIndex !== null || won) return;
-    setPosition({ x: Math.max(-8.5, Math.min(8.5, target.x)), z: Math.max(-8.2, Math.min(8.2, target.z)) });
-  };
-  const canOpenGate = useMemo(() => Math.hypot(position.x - 2.3, position.z + 3.8) < 2.15, [position]);
-  const nearBoss = useMemo(() => Math.hypot(position.x - 5.5, position.z + 4.8) < 3.1, [position]);
-
-  useEffect(() => { if (canOpenGate && !gateOpen && challengeIndex === null) setChallengeIndex(0); }, [canOpenGate, gateOpen, challengeIndex]);
+  const [feedback, setFeedback] = useState('Encontre o Portal das Águas para iniciar a missão.');
 
   const attack = () => {
-    if (!gateOpen || won || challengeIndex !== null) return;
-    if (!nearBoss) { setFeedback('Aproxime-se do Guardião para atacá-lo.'); return; }
-    setBossHp(hp => Math.max(0, hp - 25));
-    setPlayerHp(hp => Math.max(0, hp - 7));
-    setFeedback('Ataque de energia aplicado!');
+    if (stage !== 'battle') return setFeedback('Primeiro, desperte o Guardião no portal.');
+    const next = Math.max(0, bossHp - 25);
+    setBossHp(next);
+    setFeedback(next ? 'Impacto de energia! Continue o ataque.' : 'O Guardião foi vencido. Falta uma última pergunta.');
+    if (!next) setStage('question');
   };
-
-  useEffect(() => { if (bossHp === 0 && !won) setChallengeIndex(1); }, [bossHp, won]);
-
   const answer = (option: string) => {
-    const challenge = challenges[challengeIndex!];
-    if (option !== challenge.answer) { setFeedback('Ainda não. Leia com atenção e tente novamente.'); return; }
-    if (challengeIndex === 0) { setGateOpen(true); setChallengeIndex(null); setFeedback(challenge.unlock); }
-    else { setWon(true); setChallengeIndex(null); setFeedback(challenge.unlock); }
+    if (option !== challenge.answer) return setFeedback('Quase. Observe o que realmente protege a floresta e tente de novo.');
+    setStage('won');
   };
 
-  return (
-    <main className="relative h-screen overflow-hidden bg-[#07152d] text-white select-none" style={{ backgroundImage: `linear-gradient(180deg, rgba(4,14,34,.35), rgba(4,14,34,.6)), url(${brazilWorld})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-      <Arena3D playerPosition={position} gateOpen={gateOpen} bossDefeated={bossHp === 0} onAttack={attack} onNavigate={navigateTo} />
-      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-[#07152d]/95 to-transparent p-4 md:p-6">
-        <button onClick={onLeave} className="rounded-xl border border-white/20 bg-slate-950/60 px-3 py-2 text-sm font-black backdrop-blur hover:bg-slate-800"><ArrowLeft className="mr-1 inline h-4 w-4" /> Sair</button>
-        <div className="text-center"><p className="text-[10px] font-black tracking-[.25em] text-cyan-300">TERRAVOX 3D</p><h1 className="text-lg font-black md:text-2xl">Arena do {territoryId.toUpperCase()}</h1></div>
-        <div className="hidden rounded-xl bg-slate-950/60 px-3 py-2 text-right text-xs font-bold backdrop-blur sm:block">{profile.name}<br/><span className="text-yellow-300">Nível {profile.level}</span></div>
-      </header>
-      <aside className="absolute left-4 top-24 z-10 w-44 rounded-2xl border border-white/15 bg-slate-950/70 p-3 backdrop-blur md:left-6">
-        <p className="mb-1 flex items-center gap-1 text-xs font-black"><Heart className="h-4 w-4 text-rose-400" /> EXPLORADOR</p><div className="h-3 overflow-hidden rounded-full bg-slate-800"><div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-300" style={{ width: `${playerHp}%` }} /></div><p className="mt-1 text-right text-xs font-bold">{playerHp}/100</p>
-        <div className="mt-3 border-t border-white/10 pt-3"><p className="mb-1 flex items-center gap-1 text-xs font-black text-rose-200"><Swords className="h-4 w-4" /> GUARDIÃO</p><div className="h-3 overflow-hidden rounded-full bg-slate-800"><div className="h-full bg-gradient-to-r from-rose-600 to-orange-400" style={{ width: `${bossHp}%` }} /></div><p className="mt-1 text-right text-xs font-bold">{bossHp}/100</p></div>
-      </aside>
-      <div className="absolute bottom-5 left-1/2 z-10 w-[min(94%,540px)] -translate-x-1/2 rounded-2xl border border-white/15 bg-slate-950/75 p-3 text-center text-sm font-bold backdrop-blur"><p>{feedback || (gateOpen ? 'Toque no cenário para se mover até o Guardião.' : 'Toque no cenário para explorar e chegar ao portal brilhante.')}</p><div className="mt-2 flex justify-center gap-4 text-xs text-slate-300"><span><Move className="mr-1 inline h-4 w-4 text-cyan-300" />Toque no cenário ou use WASD</span><span><Crosshair className="mr-1 inline h-4 w-4 text-yellow-300" />Ataque perto do Guardião</span></div></div>
-      <div className="absolute bottom-28 left-4 z-10 grid w-28 grid-cols-3 gap-1 md:hidden">
-        <span /><button aria-label="Mover para cima" onPointerDown={() => movePlayer(0, -1)} className="h-10 rounded-lg bg-slate-950/75 font-black">▲</button><span />
-        <button aria-label="Mover para esquerda" onPointerDown={() => movePlayer(-1, 0)} className="h-10 rounded-lg bg-slate-950/75 font-black">◀</button><button aria-label="Mover para baixo" onPointerDown={() => movePlayer(0, 1)} className="h-10 rounded-lg bg-slate-950/75 font-black">▼</button><button aria-label="Mover para direita" onPointerDown={() => movePlayer(1, 0)} className="h-10 rounded-lg bg-slate-950/75 font-black">▶</button>
-      </div>
-      <button onClick={attack} className="absolute bottom-24 right-5 z-10 grid h-20 w-20 place-items-center rounded-full border-4 border-yellow-200 bg-gradient-to-b from-yellow-400 to-orange-500 text-center text-xs font-black text-slate-950 shadow-[0_0_30px_#fbbf24] active:scale-95 md:right-8"><Sparkles className="h-6 w-6" />ATACAR</button>
-      {challengeIndex !== null && <div className="absolute inset-0 z-30 grid place-items-center bg-[#07152d]/80 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-[2rem] border-2 border-yellow-300/60 bg-gradient-to-br from-[#1b3159] to-[#24164b] p-6 text-center shadow-2xl md:p-9"><p className="mb-2 text-xs font-black tracking-[.2em] text-yellow-300">DESAFIO DE CONHECIMENTO</p><h2 className="text-2xl font-black">{challenges[challengeIndex].title}</h2><p className="my-6 text-lg font-bold leading-relaxed">{challenges[challengeIndex].prompt}</p><div className="grid gap-3 sm:grid-cols-2">{challenges[challengeIndex].options.map(option => <button key={option} onClick={() => answer(option)} className="rounded-xl border border-white/15 bg-white/10 p-4 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-300 hover:bg-yellow-300 hover:text-slate-950">{option}</button>)}</div>{feedback && <p className="mt-5 text-sm font-bold text-cyan-200">{feedback}</p>}</section></div>}
-      {won && <div className="absolute inset-0 z-40 grid place-items-center bg-[#07152d]/80 p-5 backdrop-blur-sm"><section className="max-w-md rounded-[2rem] border-2 border-emerald-300 bg-gradient-to-br from-emerald-600 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-200" /><h2 className="mt-3 text-3xl font-black">Fase concluída!</h2><p className="my-4 font-medium">Você combinou exploração, combate e conhecimento para restaurar o território.</p><div className="mb-6 flex justify-center gap-3 text-sm font-black"><span className="rounded-full bg-black/20 px-3 py-2">+100 XP</span><span className="rounded-full bg-black/20 px-3 py-2">+30 moedas</span></div><button onClick={() => onWin(100, 30)} className="w-full rounded-xl bg-yellow-300 py-4 font-black text-slate-950 hover:bg-yellow-200">COLETAR RECOMPENSAS</button></section></div>}
-    </main>
-  );
+  return <main className="relative min-h-[100dvh] overflow-hidden bg-[#08172d] text-white">
+    <img src="/assets/brazil-adventure-world.webp" alt="Floresta brasileira com ruínas e portal" className="absolute inset-0 h-full w-full object-cover" />
+    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,12,29,.78)_0%,rgba(3,12,29,.08)_35%,rgba(3,12,29,.68)_100%)]" />
+    <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3 sm:p-5"><button onClick={onLeave} className="rounded-xl border border-white/30 bg-slate-950/65 px-3 py-2 text-sm font-black backdrop-blur"><ArrowLeft className="mr-1 inline h-4 w-4" />Sair</button><div className="text-center"><p className="text-[10px] font-black tracking-[.28em] text-cyan-200">TERRAVOX</p><h1 className="text-lg font-black sm:text-2xl">Ruínas do Brasil</h1></div><div className="rounded-xl bg-slate-950/65 px-3 py-2 text-right text-xs font-bold backdrop-blur">{profile.name}<br/><span className="text-yellow-300">Nível {profile.level}</span></div></header>
+
+    <aside className="absolute left-3 top-20 z-20 w-40 rounded-2xl border border-white/25 bg-[#071528]/75 p-3 backdrop-blur sm:left-5 sm:top-24 sm:w-48"><p className="flex items-center gap-1 text-xs font-black"><Heart className="h-4 w-4 text-rose-400" /> EXPLORADOR</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full w-full bg-gradient-to-r from-cyan-400 to-emerald-300" /></div><p className="mt-1 text-right text-xs font-black">100/100</p>{stage !== 'portal' && <><div className="my-3 border-t border-white/15"/><p className="flex items-center gap-1 text-xs font-black text-rose-100"><Swords className="h-4 w-4" /> GUARDIÃO</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full bg-gradient-to-r from-rose-600 to-orange-400 transition-all" style={{ width: `${bossHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{bossHp}/100</p></>}</aside>
+
+    <section className="absolute inset-x-0 bottom-0 top-16 z-10 mx-auto max-w-7xl">
+      <img src="/assets/terravox-explorer.webp" alt="Explorador Terravox" className="absolute bottom-[9%] left-[8%] w-[38vw] max-w-[330px] min-w-[170px] drop-shadow-[0_18px_18px_rgba(0,0,0,.55)]" />
+      <div className="absolute bottom-[13%] left-[12%] rounded-full border-2 border-cyan-200/80 bg-cyan-300/20 px-3 py-1 text-[10px] font-black text-cyan-50 backdrop-blur">EXPLORADOR</div>
+      {stage === 'portal' && <button onClick={() => { setStage('battle'); setFeedback('O Guardião acordou. Use o botão ATACAR quando estiver pronto.'); }} className="absolute right-[7%] top-[29%] grid w-[min(33vw,210px)] aspect-square place-items-center rounded-full border-4 border-cyan-200/80 bg-cyan-400/15 p-3 text-center shadow-[0_0_55px_rgba(34,211,238,.85)] backdrop-blur-sm transition hover:scale-105 active:scale-95"><Sparkles className="h-9 w-9 text-yellow-200"/><span className="text-sm font-black sm:text-lg">PORTAL DAS ÁGUAS</span><span className="text-[10px] font-bold text-cyan-100">TOQUE PARA DESPERTAR</span></button>}
+      {stage !== 'portal' && bossHp > 0 && <><img src="/assets/forest-guardian.webp" alt="Guardião da floresta" className="absolute right-[4%] bottom-[12%] w-[43vw] max-w-[360px] min-w-[190px] drop-shadow-[0_20px_20px_rgba(0,0,0,.6)]" /><div className="absolute bottom-[16%] right-[13%] rounded-full border-2 border-rose-200/70 bg-rose-800/35 px-3 py-1 text-[10px] font-black text-rose-50 backdrop-blur">GUARDIÃO DAS RUÍNAS</div></>}
+    </section>
+
+    <div className="absolute inset-x-3 bottom-4 z-30 mx-auto max-w-xl rounded-2xl border border-white/25 bg-[#071528]/85 p-3 text-center backdrop-blur sm:bottom-6"><p className="text-sm font-bold sm:text-base">{feedback}</p><p className="mt-1 text-[11px] font-medium text-slate-300">Explore, enfrente o Guardião e use conhecimento para liberar o próximo território.</p></div>
+    <button onClick={attack} className={`absolute bottom-24 right-4 z-30 grid h-20 w-20 place-items-center rounded-full border-4 border-yellow-100 text-center text-xs font-black text-slate-950 shadow-[0_0_32px_rgba(250,204,21,.9)] transition active:scale-95 sm:bottom-28 sm:right-7 ${stage === 'battle' ? 'bg-gradient-to-b from-yellow-300 to-orange-500' : 'bg-slate-400 opacity-80'}`}><Swords className="h-6 w-6"/>ATACAR</button>
+
+    {stage === 'question' && <div className="absolute inset-0 z-40 grid place-items-center bg-[#071528]/80 p-4 backdrop-blur-sm"><section className="w-full max-w-xl rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-6 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-9 w-9 text-yellow-200"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">SELO DO CONHECIMENTO</p><h2 className="mt-2 text-2xl font-black">{challenge.title}</h2><p className="my-5 font-bold leading-relaxed">{challenge.prompt}</p><div className="grid gap-3 sm:grid-cols-2">{challenge.options.map(option => <button key={option} onClick={() => answer(option)} className="rounded-xl border border-white/20 bg-white/10 p-4 text-left text-sm font-bold hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950">{option}</button>)}</div></section></div>}
+    {stage === 'won' && <div className="absolute inset-0 z-40 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você abriu o portal, enfrentou o Guardião e respondeu ao desafio final.</p><button onClick={() => onWin(100, 30)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +100 XP</button></section></div>}
+  </main>;
 }

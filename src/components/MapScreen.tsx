@@ -1,7 +1,6 @@
 import React from 'react';
 import { PlayerProfile } from '../types';
 import { Compass, Crown, Lock, MapPin, Play, Sparkles } from 'lucide-react';
-import brazilWorld from '../assets/brazil-adventure-world.png';
 
 interface MapScreenProps { profile: PlayerProfile; onSelectTerritory: (territoryId: string) => void; onOpenPassport: () => void; }
 
@@ -18,7 +17,9 @@ export function MapScreen({ profile, onSelectTerritory, onOpenPassport }: MapScr
         <div className="flex min-w-0 items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-300 to-violet-600 font-black shadow-lg shadow-cyan-500/20">{profile.name.charAt(0).toUpperCase()}</div><div className="min-w-0"><h1 className="truncate font-black">{profile.name}</h1><p className="text-sm font-bold text-cyan-300">Nível {profile.level} · {profile.xp} XP</p></div></div>
         <div className="flex items-center gap-2"><div className="rounded-xl bg-white/10 px-3 py-2 text-sm font-black text-yellow-300"><span className="mr-1">●</span>{profile.coins}</div><button onClick={onOpenPassport} aria-label="Abrir passaporte" className="grid h-10 w-10 place-items-center rounded-xl bg-violet-600 hover:bg-violet-500"><Compass className="h-5 w-5" /></button></div>
       </header>
-      <section className="relative min-h-[calc(100vh-68px)] overflow-hidden" style={{ backgroundImage: `linear-gradient(180deg, rgba(2,10,23,.25), rgba(2,10,23,.72)), url(${brazilWorld})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <section className="relative min-h-[calc(100vh-68px)] overflow-hidden">
+        <img src="/assets/brazil-adventure-world.webp" alt="Mapa de aventura da floresta brasileira" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,10,23,.25),rgba(2,10,23,.72))]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(3,12,29,.55)_100%)]" />
         <div className="relative z-10 mx-auto max-w-6xl px-5 pt-7 sm:px-8 sm:pt-10"><p className="text-xs font-black tracking-[.25em] text-cyan-200">MAPA DE AVENTURA</p><h2 className="mt-1 text-3xl font-black sm:text-5xl">Escolha seu próximo território</h2><p className="mt-2 max-w-md text-sm font-medium text-slate-200 sm:text-base">Cada lugar é uma aventura com missões, inimigos e descobertas que liberam sua passagem.</p></div>
         {TERRITORIES.map((territory) => {
