@@ -68,7 +68,20 @@ const extraChallenges = [
 export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScreenProps) {
   const story = territoryStories[territoryId] ?? territoryStories.brasil;
   const adventure = { ...story, challenges: [...story.challenges, ...extraChallenges] };
-  const routeStops = Array.from({ length: adventure.challenges.length + 2 }, (_, index) => ({ left: `${22 + index * 5.2}%`, bottom: `${16 + index * 5}%` }));
+  const routeStops = [
+    { left: '17%', bottom: '15%' },
+    { left: '30%', bottom: '23%' },
+    { left: '55%', bottom: '19%' },
+    { left: '69%', bottom: '31%' },
+    { left: '47%', bottom: '38%' },
+    { left: '22%', bottom: '35%' },
+    { left: '31%', bottom: '50%' },
+    { left: '56%', bottom: '47%' },
+    { left: '76%', bottom: '55%' },
+    { left: '62%', bottom: '64%' },
+    { left: '39%', bottom: '62%' },
+    { left: '79%', bottom: '72%' },
+  ];
   const storageKey = `terravox.route.${profile.name.trim().toLowerCase()}.${territoryId}`;
   const [savedRoute] = useState(() => {
     try { return JSON.parse(localStorage.getItem(storageKey) || '{}') as { pathStep?: number; bossHp?: number; playerHp?: number }; } catch { return {}; }
@@ -130,7 +143,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     <aside className="absolute left-3 top-20 z-30 w-40 rounded-2xl border border-white/25 bg-[#071528]/80 p-3 backdrop-blur sm:left-5 sm:top-24 sm:w-48"><p className="flex items-center gap-1 text-xs font-black"><Heart className="h-4 w-4 text-rose-400" /> EXPLORADOR</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className={`h-full bg-gradient-to-r transition-all ${playerHp > 35 ? 'from-cyan-400 to-emerald-300' : 'from-orange-400 to-rose-500'}`} style={{ width: `${playerHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{playerHp}/100</p>{isBoss && <><div className="my-3 border-t border-white/15"/><p className="flex items-center gap-1 text-xs font-black text-rose-100"><Swords className="h-4 w-4" /> GUARDIÃO</p><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-900"><div className="h-full bg-gradient-to-r from-rose-600 to-orange-400 transition-all" style={{ width: `${bossHp}%` }} /></div><p className="mt-1 text-right text-xs font-black">{bossHp}/100</p></>}</aside>
 
     <section className="absolute inset-x-0 bottom-0 top-16 z-10 mx-auto max-w-7xl">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"><path d="M22 84 C38 70, 56 53, 79 29" fill="none" stroke="rgba(255,222,104,.95)" strokeWidth=".7" strokeDasharray="2.2 1.5" className="drop-shadow-[0_0_7px_rgba(250,204,21,.85)]" /></svg>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"><polyline points="17,85 30,77 55,81 69,69 47,62 22,65 31,50 56,53 76,45 62,36 39,38 79,28" fill="none" stroke="rgba(255,222,104,.95)" strokeWidth=".7" strokeLinejoin="round" strokeDasharray="2.2 1.5" className="drop-shadow-[0_0_7px_rgba(250,204,21,.85)]" /></svg>
       <div className="absolute left-[23%] bottom-[11%] rounded-xl border border-white/25 bg-slate-950/65 px-2 py-1 text-[9px] font-black text-cyan-100 backdrop-blur"><Footprints className="mr-1 inline h-3 w-3 text-yellow-300"/>TRILHA DAS RUÍNAS</div>
       {adventure.challenges.map((challenge, index) => { const stop = routeStops[index + 1]; return <button key={challenge.name} onClick={index === pathStep ? openNextChallenge : undefined} disabled={index !== pathStep} aria-label={index === pathStep ? `Responder desafio ${index + 1}: ${challenge.name}` : `Desafio ${index + 1} bloqueado`} className={`absolute z-30 grid h-9 w-9 place-items-center rounded-full border-2 text-xs font-black shadow-lg transition sm:h-12 sm:w-12 sm:border-4 ${index < pathStep ? 'border-emerald-200 bg-emerald-500 text-white' : index === pathStep ? 'border-yellow-100 bg-yellow-400 text-slate-950 shadow-yellow-400/70 animate-pulse' : 'border-slate-300/50 bg-slate-950/75 text-slate-300'}`} style={{ left: stop.left, bottom: stop.bottom, transform: 'translate(-50%, 50%)' }}>{index < pathStep ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : index === pathStep ? <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" /> : <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}{index === pathStep && <span className="absolute -bottom-6 whitespace-nowrap rounded bg-slate-950/75 px-1.5 py-0.5 text-[8px] font-black text-white">{index + 1}/10</span>}</button>; })}
       <button onClick={isBoss ? openNextChallenge : undefined} disabled={!isBoss} aria-label={isBoss ? `Abrir ${adventure.portal}` : `${adventure.portal} bloqueado`} className={`absolute z-30 grid h-14 w-14 place-items-center rounded-full border-4 text-cyan-50 shadow-[0_0_30px_rgba(34,211,238,.65)] sm:h-16 sm:w-16 ${isBoss ? 'border-yellow-100 bg-cyan-400/45 animate-pulse' : 'border-cyan-100 bg-cyan-400/30'}`} style={{ left: routeStops[adventure.challenges.length + 1].left, bottom: routeStops[adventure.challenges.length + 1].bottom, transform: 'translate(-50%, 50%)' }}><MapPin className="h-7 w-7 sm:h-8 sm:w-8" /><span className="absolute -bottom-6 whitespace-nowrap text-[8px] font-black sm:text-[9px]">{adventure.portal}</span></button>
