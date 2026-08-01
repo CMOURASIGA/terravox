@@ -1,0 +1,12 @@
+{
+  "name": "Terravox",
+  "short_name": "Terravox",
+  "description": "Aventuras educativas de exploração e conhecimento.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#071528",
+  "theme_color": "#071528",
+  "icons": [
+    { "src": "/terravox-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
