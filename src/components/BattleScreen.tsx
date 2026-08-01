@@ -49,12 +49,6 @@ const territoryStories: Record<string, { title: string; portal: string; challeng
   ] },
 };
 
-const mathChallenges = [
-  { prompt: '12 + 8 = ?', options: ['18', '20', '22', '24'], answer: '20' },
-  { prompt: '35 − 9 = ?', options: ['24', '25', '26', '27'], answer: '26' },
-  { prompt: '6 × 7 = ?', options: ['36', '40', '42', '48'], answer: '42' },
-  { prompt: '48 ÷ 6 = ?', options: ['6', '7', '8', '9'], answer: '8' },
-];
 const extraChallenges = [
   { name: 'Olhar Atento', topic: 'Investigação', prompt: 'Qual é uma boa atitude antes de tirar uma conclusão sobre a natureza?', options: ['Observar e buscar informações confiáveis', 'Acreditar no primeiro boato', 'Ignorar todas as evidências', 'Escolher sem pensar'], answer: 'Observar e buscar informações confiáveis' },
   { name: 'Escolha Consciente', topic: 'Sustentabilidade', prompt: 'O que significa usar um recurso com responsabilidade?', options: ['Usar sem limites', 'Evitar desperdícios e pensar no futuro', 'Descartar quando quiser', 'Impedir que todos usem'], answer: 'Evitar desperdícios e pensar no futuro' },
@@ -101,8 +95,8 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   const [pathStep, setPathStep] = useState(savedRoute.pathStep ?? 0);
   const [bossHp, setBossHp] = useState(savedRoute.bossHp ?? 100);
   const [playerHp, setPlayerHp] = useState(savedRoute.playerHp ?? 100);
-  const [modal, setModal] = useState<'path' | 'math' | null>(null);
-  const [feedback, setFeedback] = useState('Siga a trilha. Cada marco libera uma pergunta para avançar.');
+  const [modal, setModal] = useState<'path' | 'boss' | null>(null);
+  const [feedback, setFeedback] = useState('Siga a trilha. Cada marco traz uma descoberta, uma ação ou um desafio de conhecimento.');
   const [won, setWon] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -112,11 +106,11 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
 
   const openNextChallenge = () => {
     if (pathStep < adventure.challenges.length) setModal('path');
-    else setModal('math');
+    else setModal('boss');
   };
-  const answerPath = (option: string) => {
+  const answerPath = (option: string, completedInteraction = false) => {
     const current = adventure.challenges[pathStep];
-    if (option !== current.answer) {
+    if (!completedInteraction && option !== current.answer) {
       const nextHp = Math.max(0, playerHp - 20);
       setPlayerHp(nextHp);
       setFeedback(nextHp ? 'Resposta incorreta. Você perdeu 20 de energia. Tente novamente para seguir pela trilha.' : 'Sua energia acabou. Você voltou ao último marco seguro.');
@@ -125,27 +119,27 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     }
     const next = pathStep + 1;
     setPathStep(next); setModal(null);
-    setFeedback(next === adventure.challenges.length ? 'Você chegou ao Guardião. Agora cada conta matemática tira energia dele.' : 'Resposta correta! O explorador avançou até o próximo marco.');
+    setFeedback(next === adventure.challenges.length ? 'Você chegou ao Guardião. Use o que descobriu no território para enfraquecê-lo.' : 'Desafio concluído! O explorador avançou até o próximo marco.');
     return true;
   };
-  const answerMath = (option: string) => {
-    const current = mathChallenges[(100 - bossHp) / 25];
+  const answerBoss = (option: string) => {
+    const current = adventure.challenges[(100 - bossHp) / 25];
     if (option !== current.answer) {
       const nextHp = Math.max(0, playerHp - 15);
       setPlayerHp(nextHp);
-      setFeedback(nextHp ? 'Conta incorreta. O Guardião contra-atacou e você perdeu 15 de energia.' : 'Sua energia acabou. Você retornou ao início do confronto.');
+      setFeedback(nextHp ? 'O Guardião contra-atacou. Reveja as pistas da missão e tente novamente.' : 'Sua energia acabou. Você retornou ao início do confronto.');
       if (!nextHp) { setBossHp(100); setPlayerHp(100); setModal(null); }
       return false;
     }
     const next = Math.max(0, bossHp - 25);
     setBossHp(next); setModal(null);
     if (!next) { localStorage.removeItem(storageKey); setWon(true); setFeedback('Excelente. O Guardião perdeu toda a energia.'); }
-    else setFeedback('Conta correta! O Guardião perdeu 25 pontos de energia.');
+    else setFeedback('Ataque de conhecimento certeiro! O Guardião perdeu 25 pontos de energia.');
     return true;
   };
 
   const isBoss = pathStep >= adventure.challenges.length;
-  const progressLabel = isBoss ? `Guardião: ${4 - bossHp / 25}/4 contas` : `Trilha: ${pathStep}/${adventure.challenges.length} marcos`;
+  const progressLabel = isBoss ? `Guardião: ${4 - bossHp / 25}/4 ataques de conhecimento` : `Trilha: ${pathStep}/${adventure.challenges.length} marcos`;
 
   return <main className="relative min-h-[100dvh] overflow-hidden bg-[#08172d] text-white">
     <img src={background} alt={`Cenário da aventura ${story.title}`} className="absolute inset-0 h-full w-full object-cover" />
@@ -160,21 +154,35 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
       {adventure.challenges.map((challenge, index) => { const stop = routeStops[index + 1]; return <button key={challenge.name} onClick={index === pathStep ? openNextChallenge : undefined} disabled={index !== pathStep} aria-label={index === pathStep ? `Responder desafio ${index + 1}: ${challenge.name}` : `Desafio ${index + 1} bloqueado`} className={`absolute z-30 grid h-9 w-9 place-items-center rounded-full border-2 text-xs font-black shadow-lg transition sm:h-12 sm:w-12 sm:border-4 ${index < pathStep ? 'border-emerald-200 bg-emerald-500 text-white' : index === pathStep ? 'border-yellow-100 bg-yellow-400 text-slate-950 shadow-yellow-400/70 animate-pulse' : 'border-slate-300/50 bg-slate-950/75 text-slate-300'}`} style={{ left: stop.left, bottom: stop.bottom, transform: 'translate(-50%, 50%)' }}>{index < pathStep ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : index === pathStep ? <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" /> : <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}{index === pathStep && <span className="absolute -bottom-6 whitespace-nowrap rounded bg-slate-950/75 px-1.5 py-0.5 text-[8px] font-black text-white">{index + 1}/10</span>}</button>; })}
       <button onClick={isBoss ? openNextChallenge : undefined} disabled={!isBoss} aria-label={isBoss ? `Abrir ${adventure.portal}` : `${adventure.portal} bloqueado`} className={`absolute z-30 grid h-14 w-14 place-items-center rounded-full border-4 text-cyan-50 shadow-[0_0_30px_rgba(34,211,238,.65)] sm:h-16 sm:w-16 ${isBoss ? 'border-yellow-100 bg-cyan-400/45 animate-pulse' : 'border-cyan-100 bg-cyan-400/30'}`} style={{ left: routeStops[adventure.challenges.length + 1].left, bottom: routeStops[adventure.challenges.length + 1].bottom, transform: 'translate(-50%, 50%)' }}><MapPin className="h-7 w-7 sm:h-8 sm:w-8" /><span className="absolute -bottom-6 whitespace-nowrap text-[8px] font-black sm:text-[9px]">{adventure.portal}</span></button>
       <img src="/assets/terravox-explorer.webp" alt="Explorador Terravox" className="pointer-events-none absolute z-20 w-20 drop-shadow-[0_16px_14px_rgba(0,0,0,.7)] transition-all duration-700 sm:w-[14vw] sm:max-w-[130px] sm:min-w-[76px]" style={{ left: routeStops[Math.min(pathStep, adventure.challenges.length)].left, bottom: routeStops[Math.min(pathStep, adventure.challenges.length)].bottom, transform: 'translate(-96%, 16%)' }} />
-      {isBoss && bossHp > 0 && <><img src="/assets/forest-guardian.webp" alt="Guardião da floresta" className="absolute right-[5%] top-[19%] z-20 w-[28vw] max-w-[270px] min-w-[130px] drop-shadow-[0_20px_20px_rgba(0,0,0,.65)]" /><button onClick={openNextChallenge} className="absolute right-[10%] top-[45%] z-30 rounded-2xl border-2 border-yellow-100 bg-gradient-to-b from-yellow-300 to-orange-500 px-4 py-3 text-center text-xs font-black text-slate-950 shadow-[0_0_30px_rgba(250,204,21,.8)] active:scale-95"><Swords className="mx-auto mb-1 h-5 w-5"/>RESOLVER CONTA<br/>E ATACAR</button></>}
+      {isBoss && bossHp > 0 && <><img src="/assets/forest-guardian.webp" alt="Guardião da floresta" className="absolute right-[5%] top-[19%] z-20 w-[28vw] max-w-[270px] min-w-[130px] drop-shadow-[0_20px_20px_rgba(0,0,0,.65)]" /><button onClick={openNextChallenge} className="absolute right-[10%] top-[45%] z-30 rounded-2xl border-2 border-yellow-100 bg-gradient-to-b from-yellow-300 to-orange-500 px-4 py-3 text-center text-xs font-black text-slate-950 shadow-[0_0_30px_rgba(250,204,21,.8)] active:scale-95"><Swords className="mx-auto mb-1 h-5 w-5"/>USAR CONHECIMENTO<br/>E ATACAR</button></>}
       {isBoss && <div className="absolute right-[8%] top-[16%] z-20 rounded-full border-2 border-rose-200/70 bg-rose-800/40 px-3 py-1 text-[10px] font-black text-rose-50 backdrop-blur">GUARDIÃO DAS RUÍNAS</div>}
     </section>
 
     <button onClick={() => setShowHelp(true)} aria-label="Como jogar" className="absolute bottom-5 right-5 z-30 grid h-12 w-12 place-items-center rounded-2xl border-2 border-cyan-100/70 bg-[#071528]/90 text-cyan-100 shadow-lg backdrop-blur"><CircleHelp className="h-6 w-6"/></button>
-    {showHelp && <div className="absolute inset-0 z-40 grid place-items-end bg-slate-950/35 p-4 backdrop-blur-sm sm:place-items-center"><section className="w-full max-w-sm rounded-3xl border border-cyan-100/40 bg-[#071528]/95 p-5 shadow-2xl"><button onClick={() => setShowHelp(false)} className="float-right rounded-lg p-1"><X className="h-5 w-5"/></button><p className="text-xs font-black tracking-[.18em] text-cyan-200">COMO JOGAR</p><h2 className="mt-2 text-xl font-black">Siga a trilha até {adventure.portal}</h2><p className="mt-3 text-sm leading-relaxed text-slate-200">Toque no marco brilhante para responder a pergunta do território. Acertou, você avança. Errou, perde energia. Ao chegar no Guardião, resolva contas para vencê-lo.</p><div className="mt-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-[11px] font-black text-cyan-100">{progressLabel}</div></section></div>}
+    {showHelp && <div className="absolute inset-0 z-40 grid place-items-end bg-slate-950/35 p-4 backdrop-blur-sm sm:place-items-center"><section className="w-full max-w-sm rounded-3xl border border-cyan-100/40 bg-[#071528]/95 p-5 shadow-2xl"><button onClick={() => setShowHelp(false)} className="float-right rounded-lg p-1"><X className="h-5 w-5"/></button><p className="text-xs font-black tracking-[.18em] text-cyan-200">COMO JOGAR</p><h2 className="mt-2 text-xl font-black">Explore a trilha até {adventure.portal}</h2><p className="mt-3 text-sm leading-relaxed text-slate-200">Cada marco alterna entre investigar uma pista, organizar uma estratégia, escolher um recurso ou responder uma pergunta. Ao chegar ao Guardião, use o conhecimento conquistado para atacar.</p><div className="mt-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-[11px] font-black text-cyan-100">{progressLabel}</div></section></div>}
 
-    {modal === 'path' && <QuestionModal eyebrow={adventure.challenges[pathStep].topic} title={adventure.challenges[pathStep].name} prompt={adventure.challenges[pathStep].prompt} options={adventure.challenges[pathStep].options} onAnswer={answerPath} />}
-    {modal === 'math' && <QuestionModal eyebrow="ATAQUE DE LÓGICA" title="Conta contra o Guardião" prompt={mathChallenges[(100 - bossHp) / 25].prompt} options={mathChallenges[(100 - bossHp) / 25].options} onAnswer={answerMath} />}
-    {won && <div className="absolute inset-0 z-50 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você percorreu a trilha, respondeu aos desafios do território e venceu o Guardião com matemática.</p><button onClick={() => onWin(territoryId, 150, 40)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +150 XP</button></section></div>}
+    {modal === 'path' && <MissionChallengeModal mode={pathStep % 4} eyebrow={adventure.challenges[pathStep].topic} title={adventure.challenges[pathStep].name} prompt={adventure.challenges[pathStep].prompt} options={adventure.challenges[pathStep].options} onAnswer={answerPath} />}
+    {modal === 'boss' && <MissionChallengeModal mode={0} eyebrow="ATAQUE DE CONHECIMENTO" title="Enfrente o Guardião" prompt={adventure.challenges[(100 - bossHp) / 25].prompt} options={adventure.challenges[(100 - bossHp) / 25].options} onAnswer={answerBoss} />}
+    {won && <div className="absolute inset-0 z-50 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você explorou a trilha, conquistou pistas e usou o conhecimento do território para vencer o Guardião.</p><button onClick={() => onWin(territoryId, 150, 40)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +150 XP</button></section></div>}
   </main>;
 }
 
-function QuestionModal({ eyebrow, title, prompt, options, onAnswer }: { eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string) => boolean }) {
+function MissionChallengeModal({ mode, eyebrow, title, prompt, options, onAnswer }: { mode: number; eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string, completedInteraction?: boolean) => boolean }) {
   const [error, setError] = useState<string | null>(null);
+  const [sequence, setSequence] = useState<string[]>([]);
   const choose = (option: string) => { const correct = onAnswer(option); setError(correct ? null : 'Resposta incorreta. Você perdeu energia. Escolha outra alternativa para continuar.'); };
-  return <div className="absolute inset-0 z-40 grid place-items-end bg-[#071528]/80 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"><section className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-5 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-8 w-8 text-yellow-200 sm:h-9 sm:w-9"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow}</p><h2 className="mt-2 text-xl font-black sm:text-2xl">{title}</h2><p className="my-4 text-base font-bold leading-relaxed sm:my-5 sm:text-lg">{prompt}</p>{error && <div role="alert" className="mb-4 rounded-xl border border-rose-200/70 bg-rose-950/65 px-4 py-3 text-left text-sm font-bold text-rose-50">{error}</div>}<div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} onClick={() => choose(option)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 sm:p-4">{option}</button>)}</div></section></div>;
+  const sequenceWords = ['OBSERVAR', 'PENSAR', 'PROTEGER'];
+  const addWord = (word: string) => {
+    const next = [...sequence, word];
+    setSequence(next);
+    if (next.length === sequenceWords.length) {
+      const correct = next.every((item, index) => item === sequenceWords[index]);
+      const complete = correct && onAnswer('', true);
+      setError(complete ? null : 'A estratégia não está na ordem certa. Tente novamente.');
+      if (!complete) setSequence([]);
+    }
+  };
+  const labels = ['PERGUNTA RÁPIDA', 'INVESTIGUE A PISTA', 'MONTE A ESTRATÉGIA', 'ESCOLHA O RECURSO'];
+  const instructions = [prompt, `Observe a pista do território e identifique a descoberta que abre ${title}.`, 'Organize a estratégia do explorador: primeiro observe, depois pense e então proteja.', `Escolha o recurso mais adequado para o explorador resolver este obstáculo.`];
+  return <div className="absolute inset-0 z-40 grid place-items-end bg-[#071528]/80 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"><section className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-5 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-8 w-8 text-yellow-200 sm:h-9 sm:w-9"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow} · {labels[mode]}</p><h2 className="mt-2 text-xl font-black sm:text-2xl">{title}</h2><p className="my-4 text-base font-bold leading-relaxed sm:my-5 sm:text-lg">{instructions[mode]}</p>{mode === 1 && <div className="mb-4 rounded-2xl border border-cyan-100/40 bg-cyan-300/10 p-4 text-left"><p className="text-xs font-black tracking-[.16em] text-cyan-100">PISTA ENCONTRADA</p><p className="mt-2 text-sm text-slate-100">O cenário guarda uma resposta. Leia as alternativas como um explorador e encontre a descoberta que faz sentido para este lugar.</p></div>}{mode === 2 && <><div className="mb-4 min-h-14 rounded-2xl border border-cyan-100/40 bg-slate-950/35 p-3 text-sm font-black text-cyan-100">{sequence.length ? sequence.map((word, index) => <span key={`${word}-${index}`} className="mr-2 inline-block rounded-lg bg-cyan-400/20 px-2 py-1">{index + 1}. {word}</span>) : 'Toque nas ações na ordem correta'}</div><div className="grid grid-cols-3 gap-2">{['PROTEGER', 'OBSERVAR', 'PENSAR'].map(word => <button key={word} disabled={sequence.includes(word)} onClick={() => addWord(word)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-xs font-black transition hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-35">{word}</button>)}</div></>}{error && <div role="alert" className="my-4 rounded-xl border border-rose-200/70 bg-rose-950/65 px-4 py-3 text-left text-sm font-bold text-rose-50">{error}</div>}{mode !== 2 && <div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} onClick={() => choose(option)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 sm:p-4">{option}</button>)}</div>}</section></div>;
 }
