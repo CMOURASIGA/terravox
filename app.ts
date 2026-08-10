@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import express from 'express';
-import { GoogleGenAI } from '@google/genai';
+import { generateOpenAIText, parseJsonResponse } from './openai.js';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // Named import ({ decode } from 'he') fails at runtime under Vercel's Node
 // ESM function runtime with "SyntaxError: The requested module 'he' does
@@ -124,11 +124,11 @@ async function fetchOpenTdbQuestions(params: { amount: number; categoryId?: numb
   return body.results;
 }
 
-async function translateQuestion(ai: GoogleGenAI | null, question: OpenTdbQuestion) {
+async function translateQuestion(question: OpenTdbQuestion) {
   const originalQuestion = decodeText(question.question);
   const originalCorrect = decodeText(question.correct_answer);
   const originalIncorrect = question.incorrect_answers.map(decodeText);
-  if (!ai) {
+  if (!process.env.OPENAI_API_KEY) {
     return {
       question_pt_br: originalQuestion,
       correct_answer_pt_br: originalCorrect,
@@ -137,10 +137,11 @@ async function translateQuestion(ai: GoogleGenAI | null, question: OpenTdbQuesti
       translation_status: 'pending',
     };
   }
-  const prompt = `Traduza para pt-BR esta questão de múltipla escolha para revisão humana em um jogo educativo. Preserve fatos, nomes próprios, datas e a alternativa correta. Gere uma explicação factual curta em 2 a 4 frases. Responda somente JSON: {"question_pt_br":"","correct_answer_pt_br":"","incorrect_answers_pt_br":[""],"explanation_pt_br":""}.\nCategoria: ${decodeText(question.category)}\nPergunta: ${originalQuestion}\nCorreta: ${originalCorrect}\nIncorretas: ${JSON.stringify(originalIncorrect)}`;
-  const result = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
+  const instructions = 'Você traduz perguntas de trivia para pt-BR, para revisão humana em um jogo educativo. Preserve fatos, nomes próprios, datas e a alternativa correta. Gere uma explicação factual curta em 2 a 4 frases. Responda somente com JSON válido, sem comentários nem markdown.';
+  const input = `Categoria: ${decodeText(question.category)}\nPergunta: ${originalQuestion}\nCorreta: ${originalCorrect}\nIncorretas: ${JSON.stringify(originalIncorrect)}\n\nFormato exato da resposta: {"question_pt_br":"","correct_answer_pt_br":"","incorrect_answers_pt_br":[""],"explanation_pt_br":""}`;
+  const text = await generateOpenAIText(instructions, input);
   try {
-    const translated = JSON.parse(result.text || '{}');
+    const translated = parseJsonResponse(text) as any;
     if (!translated.question_pt_br || !translated.correct_answer_pt_br || !Array.isArray(translated.incorrect_answers_pt_br)) throw new Error('Resposta incompleta');
     return { ...translated, translation_status: 'translated' };
   } catch {
@@ -162,9 +163,6 @@ async function translateQuestion(ai: GoogleGenAI | null, question: OpenTdbQuesti
 export async function buildApp(): Promise<express.Express> {
   const app = express();
   app.use(express.json());
-
-  let ai: GoogleGenAI | null = null;
-  if (process.env.GEMINI_API_KEY) ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   app.get('/api/content-attribution', (_req, res) => {
     res.json({ text: 'Parte das perguntas deste sistema utiliza conteúdo da Open Trivia Database, disponibilizado sob a licença Creative Commons Attribution-ShareAlike 4.0.', sourceUrl: OPENTDB_SOURCE_URL });
@@ -204,7 +202,7 @@ export async function buildApp(): Promise<express.Express> {
       let imported = 0; let duplicates = 0; let failures = 0;
       for (const item of fetched) {
         try {
-          const translated = await translateQuestion(ai, item);
+          const translated = await translateQuestion(item);
           const hash = contentHash(item);
           const payload = { external_source: 'opentdb', external_id: hash, category: CATEGORY_MAP[decodeText(item.category)] ?? decodeText(item.category), subcategory: decodeText(item.category), question_original: decodeText(item.question), question_pt_br: translated.question_pt_br, correct_answer_original: decodeText(item.correct_answer), correct_answer_pt_br: translated.correct_answer_pt_br, incorrect_answers_original: item.incorrect_answers.map(decodeText), incorrect_answers_pt_br: translated.incorrect_answers_pt_br, difficulty: item.difficulty, question_type: item.type, explanation_pt_br: translated.explanation_pt_br, tags: [decodeText(item.category)], source_url: OPENTDB_SOURCE_URL, source_license: OPENTDB_LICENSE, translation_status: translated.translation_status, review_status: 'pending', is_active: false, content_hash: hash };
           const { error } = await supabase.from('questions').insert(payload);
@@ -253,11 +251,12 @@ export async function buildApp(): Promise<express.Express> {
 
   app.post('/api/generate-questions', async (req, res) => {
     try {
-      if (!ai) return res.status(500).json({ error: 'GEMINI_API_KEY is not configured' });
+      if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY is not configured' });
       const { territory, theme, difficulty, count = 3 } = req.body;
-      const prompt = `Gere ${count} perguntas de múltipla escolha para um jogo estilo RPG educativo, focadas no território "${territory}" e tema "${theme}". A dificuldade deve ser ${difficulty}. Retorne somente JSON no formato [{"id":"q1","prompt":"","options":[""],"correct_answer":"","explanation":""}].`;
-      const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
-      res.json({ questions: JSON.parse(response.text || '[]') });
+      const instructions = 'Você gera perguntas de múltipla escolha para um jogo estilo RPG educativo. Responda somente com um array JSON válido, sem comentários nem markdown.';
+      const input = `Gere ${count} perguntas de múltipla escolha focadas no território "${territory}" e tema "${theme}". A dificuldade deve ser ${difficulty}. Formato de cada item: {"id":"q1","prompt":"","options":[""],"correct_answer":"","explanation":""}. Responda com um array JSON contendo esses objetos, e nada além disso.`;
+      const text = await generateOpenAIText(instructions, input);
+      res.json({ questions: parseJsonResponse(text) });
     } catch (error) {
       console.error('Error generating questions:', error);
       res.status(500).json({ error: 'Failed to generate questions' });
