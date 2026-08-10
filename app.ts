@@ -2,7 +2,16 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { decode } from 'he';
+// Named import ({ decode } from 'he') fails at runtime under Vercel's Node
+// ESM function runtime with "SyntaxError: The requested module 'he' does
+// not provide an export named 'decode'" — he's CJS build assigns its whole
+// exports object in one shot (module.exports = { encode, decode, ... }),
+// which Node's static named-export detection for CJS-from-ESM interop
+// can't see through. The default import always works (Node's interop
+// unconditionally exposes the whole module.exports as the default),
+// so destructure at runtime instead of at the import binding.
+import he from 'he';
+const { decode } = he;
 
 const OPENTDB_API = 'https://opentdb.com/api.php';
 const OPENTDB_TOKEN_API = 'https://opentdb.com/api_token.php';
