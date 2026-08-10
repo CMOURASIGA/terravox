@@ -1,62 +1,69 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Check, CircleHelp, Footprints, Heart, Lock, MapPin, Shield, Sparkles, Swords, X } from 'lucide-react';
+import { ArrowLeft, Check, CircleHelp, Footprints, Heart, Loader2, Lock, MapPin, Shield, Sparkles, Swords, X } from 'lucide-react';
 import { PlayerProfile } from '../types';
+import { checkAnswer, fetchTerritoryQuestions, SourcedQuestion } from '../lib/questionSource';
 
 interface BattleScreenProps { territoryId: string; profile: PlayerProfile; onWin: (territory: string, xp: number, coins: number) => void; onLeave: () => void; }
 
-const pathChallenges = [
-  { name: 'Marco do Rio', topic: 'Águas da Floresta', prompt: 'Por que os rios da Amazônia são importantes?', options: ['Somente para barcos', 'Ajudam a manter a vida, o clima e comunidades', 'Não têm relação com a floresta', 'Servem apenas como fronteira'], answer: 'Ajudam a manter a vida, o clima e comunidades' },
-  { name: 'Ponte da Vida', topic: 'Biodiversidade', prompt: 'O que significa biodiversidade?', options: ['Ter apenas uma espécie', 'A variedade de seres vivos de um lugar', 'Construir mais cidades', 'Cortar árvores antigas'], answer: 'A variedade de seres vivos de um lugar' },
-  { name: 'Ruína Verde', topic: 'Preservação', prompt: 'Qual escolha protege melhor uma floresta?', options: ['Descartar lixo nos rios', 'Queimar áreas para abrir espaço', 'Respeitar áreas protegidas e usar recursos com cuidado', 'Retirar animais do habitat'], answer: 'Respeitar áreas protegidas e usar recursos com cuidado' },
-];
+type MarcoLabel = { name: string; topic: string };
+type Marco = MarcoLabel & { question: SourcedQuestion };
 
-const territoryStories: Record<string, { title: string; portal: string; challenges: typeof pathChallenges }> = {
-  brasil: { title: 'Ruínas do Brasil', portal: 'Portal das Águas', challenges: pathChallenges },
-  mexico: { title: 'Vale do México', portal: 'Portal do Sol', challenges: [
-    { name: 'Marco do Milho', topic: 'Civilizações', prompt: 'Por que o milho foi importante para muitos povos antigos do México?', options: ['Era usado apenas como enfeite', 'Foi uma base de alimentação e cultura', 'Não era cultivado na região', 'Servia somente para construir casas'], answer: 'Foi uma base de alimentação e cultura' },
-    { name: 'Ponte dos Povos', topic: 'História', prompt: 'O que podemos aprender ao preservar sítios arqueológicos?', options: ['Nada sobre o passado', 'Como viviam povos de diferentes épocas', 'Somente nomes de cidades modernas', 'Apenas regras de esportes'], answer: 'Como viviam povos de diferentes épocas' },
-    { name: 'Templo Vivo', topic: 'Patrimônio', prompt: 'Qual atitude respeita um patrimônio histórico?', options: ['Pichar paredes antigas', 'Retirar objetos para levar para casa', 'Cuidar do local e aprender com sua história', 'Ignorar orientações de visita'], answer: 'Cuidar do local e aprender com sua história' },
+// Nomes e temas narrativos de cada marco da trilha. O conteúdo da pergunta
+// em si (prompt/alternativas) não fica mais fixo aqui — vem do banco de
+// perguntas aprovadas do território (ex.: México → Geografia/História),
+// com geração por IA como fallback quando o banco não tem o suficiente.
+// Ver src/lib/questionSource.ts.
+const territoryLabels: Record<string, { title: string; portal: string; marcos: MarcoLabel[] }> = {
+  brasil: { title: 'Ruínas do Brasil', portal: 'Portal das Águas', marcos: [
+    { name: 'Marco do Rio', topic: 'Águas da Floresta' },
+    { name: 'Ponte da Vida', topic: 'Biodiversidade' },
+    { name: 'Ruína Verde', topic: 'Preservação' },
   ] },
-  egito: { title: 'Areias do Egito', portal: 'Portal do Nilo', challenges: [
-    { name: 'Marco do Nilo', topic: 'Geografia', prompt: 'Por que o rio Nilo foi tão importante para o Egito Antigo?', options: ['Levava neve o ano todo', 'Ajudava no cultivo e na vida das comunidades', 'Separava países da Europa', 'Era um rio sem água'], answer: 'Ajudava no cultivo e na vida das comunidades' },
-    { name: 'Ponte das Estrelas', topic: 'Ciência', prompt: 'Como os povos antigos observavam o céu?', options: ['Para criar videogames', 'Para marcar tempo e orientar viagens', 'Apenas para escolher roupas', 'Para esconder monumentos'], answer: 'Para marcar tempo e orientar viagens' },
-    { name: 'Câmara do Saber', topic: 'História', prompt: 'O que as pirâmides revelam sobre seus construtores?', options: ['Que não conheciam medidas', 'Organização, conhecimento e trabalho coletivo', 'Que viviam somente no mar', 'Que não construíam cidades'], answer: 'Organização, conhecimento e trabalho coletivo' },
+  mexico: { title: 'Vale do México', portal: 'Portal do Sol', marcos: [
+    { name: 'Marco do Milho', topic: 'Civilizações' },
+    { name: 'Ponte dos Povos', topic: 'História' },
+    { name: 'Templo Vivo', topic: 'Patrimônio' },
   ] },
-  japao: { title: 'Ilhas do Japão', portal: 'Portal dos Ventos', challenges: [
-    { name: 'Marco das Ilhas', topic: 'Geografia', prompt: 'O Japão é formado principalmente por quê?', options: ['Uma grande planície única', 'Um conjunto de ilhas', 'Um deserto sem montanhas', 'Uma ilha no oceano Atlântico'], answer: 'Um conjunto de ilhas' },
-    { name: 'Ponte da Harmonia', topic: 'Cultura', prompt: 'Por que conhecer outras culturas é importante?', options: ['Para repetir estereótipos', 'Para respeitar diferenças e ampliar conhecimentos', 'Para deixar de aprender história', 'Para escolher apenas um país'], answer: 'Para respeitar diferenças e ampliar conhecimentos' },
-    { name: 'Jardim dos Ventos', topic: 'Natureza', prompt: 'Qual atitude ajuda a cuidar de espaços naturais?', options: ['Deixar lixo no chão', 'Observar e preservar plantas e animais', 'Quebrar galhos por diversão', 'Alimentar qualquer animal sem orientação'], answer: 'Observar e preservar plantas e animais' },
+  egito: { title: 'Areias do Egito', portal: 'Portal do Nilo', marcos: [
+    { name: 'Marco do Nilo', topic: 'Geografia' },
+    { name: 'Ponte das Estrelas', topic: 'Ciência' },
+    { name: 'Câmara do Saber', topic: 'História' },
   ] },
-  andes: { title: 'Cordilheira dos Andes', portal: 'Portal das Montanhas', challenges: [
-    { name: 'Marco da Altitude', topic: 'Geografia', prompt: 'O que é uma cordilheira?', options: ['Uma grande cadeia de montanhas', 'Um rio que corre no deserto', 'Uma floresta submersa', 'Uma cidade sem estradas'], answer: 'Uma grande cadeia de montanhas' },
-    { name: 'Ponte das Nuvens', topic: 'Natureza', prompt: 'Por que as montanhas são importantes para a água?', options: ['Ajudam a formar nascentes e rios', 'Impedem toda chuva', 'Só guardam areia', 'Não têm relação com o clima'], answer: 'Ajudam a formar nascentes e rios' },
-    { name: 'Eco do Vale', topic: 'Preservação', prompt: 'Como visitar uma área natural com responsabilidade?', options: ['Deixar marcas nas rochas', 'Seguir trilhas e recolher o lixo', 'Alimentar animais silvestres', 'Retirar plantas como lembrança'], answer: 'Seguir trilhas e recolher o lixo' },
+  japao: { title: 'Ilhas do Japão', portal: 'Portal dos Ventos', marcos: [
+    { name: 'Marco das Ilhas', topic: 'Geografia' },
+    { name: 'Ponte da Harmonia', topic: 'Cultura' },
+    { name: 'Jardim dos Ventos', topic: 'Natureza' },
   ] },
-  oceano: { title: 'Recifes do Pacífico', portal: 'Portal das Marés', challenges: [
-    { name: 'Marco do Coral', topic: 'Ciências', prompt: 'Por que os recifes de coral são importantes?', options: ['Servem de abrigo para muitos seres vivos', 'São feitos de plástico', 'Existem apenas em rios', 'Não fazem parte do oceano'], answer: 'Servem de abrigo para muitos seres vivos' },
-    { name: 'Ponte Azul', topic: 'Sustentabilidade', prompt: 'Qual ação ajuda a reduzir a poluição dos oceanos?', options: ['Jogar lixo na praia', 'Reduzir plásticos descartáveis', 'Derramar óleo na água', 'Usar mais embalagens'], answer: 'Reduzir plásticos descartáveis' },
-    { name: 'Farol do Mar', topic: 'Biodiversidade', prompt: 'O que devemos fazer ao observar animais marinhos?', options: ['Respeitar distância e habitat', 'Tentar capturá-los', 'Alimentá-los sem orientação', 'Retirar conchas vivas'], answer: 'Respeitar distância e habitat' },
+  andes: { title: 'Cordilheira dos Andes', portal: 'Portal das Montanhas', marcos: [
+    { name: 'Marco da Altitude', topic: 'Geografia' },
+    { name: 'Ponte das Nuvens', topic: 'Natureza' },
+    { name: 'Eco do Vale', topic: 'Preservação' },
   ] },
-  savana: { title: 'Savanas da África', portal: 'Portal dos Baobás', challenges: [
-    { name: 'Marco do Baobá', topic: 'Biomas', prompt: 'O que é uma savana?', options: ['Um bioma com gramíneas e árvores espaçadas', 'Um oceano congelado', 'Uma floresta apenas de pinheiros', 'Uma cidade subterrânea'], answer: 'Um bioma com gramíneas e árvores espaçadas' },
-    { name: 'Ponte da Migração', topic: 'Animais', prompt: 'Por que alguns animais migram?', options: ['Para buscar alimento e condições melhores', 'Porque não precisam de água', 'Para construir prédios', 'Apenas para brincar'], answer: 'Para buscar alimento e condições melhores' },
-    { name: 'Rota do Leão', topic: 'Conservação', prompt: 'Como proteger espécies ameaçadas?', options: ['Preservar habitats e combater a caça ilegal', 'Destruir áreas naturais', 'Comprar animais silvestres', 'Poluir rios próximos'], answer: 'Preservar habitats e combater a caça ilegal' },
+  oceano: { title: 'Recifes do Pacífico', portal: 'Portal das Marés', marcos: [
+    { name: 'Marco do Coral', topic: 'Ciências' },
+    { name: 'Ponte Azul', topic: 'Sustentabilidade' },
+    { name: 'Farol do Mar', topic: 'Biodiversidade' },
   ] },
-  espaco: { title: 'Estação Estelar', portal: 'Portal das Constelações', challenges: [
-    { name: 'Marco da Órbita', topic: 'Astronomia', prompt: 'O que é uma órbita?', options: ['O caminho de um corpo ao redor de outro', 'Uma estrela que apaga', 'Uma montanha no planeta', 'Um tipo de oceano'], answer: 'O caminho de um corpo ao redor de outro' },
-    { name: 'Ponte Lunar', topic: 'Ciências', prompt: 'Por que a Lua parece mudar de forma no céu?', options: ['Vemos partes iluminadas diferentes ao longo do mês', 'Ela muda de tamanho de verdade', 'Ela desaparece todos os dias', 'As nuvens criam a Lua'], answer: 'Vemos partes iluminadas diferentes ao longo do mês' },
-    { name: 'Código Estelar', topic: 'Exploração', prompt: 'Qual instrumento ajuda cientistas a observar o espaço?', options: ['Telescópio', 'Bússola de papel', 'Termômetro de cozinha', 'Apito'], answer: 'Telescópio' },
+  savana: { title: 'Savanas da África', portal: 'Portal dos Baobás', marcos: [
+    { name: 'Marco do Baobá', topic: 'Biomas' },
+    { name: 'Ponte da Migração', topic: 'Animais' },
+    { name: 'Rota do Leão', topic: 'Conservação' },
+  ] },
+  espaco: { title: 'Estação Estelar', portal: 'Portal das Constelações', marcos: [
+    { name: 'Marco da Órbita', topic: 'Astronomia' },
+    { name: 'Ponte Lunar', topic: 'Ciências' },
+    { name: 'Código Estelar', topic: 'Exploração' },
   ] },
 };
 
-const extraChallenges = [
-  { name: 'Olhar Atento', topic: 'Investigação', prompt: 'Qual é uma boa atitude antes de tirar uma conclusão sobre a natureza?', options: ['Observar e buscar informações confiáveis', 'Acreditar no primeiro boato', 'Ignorar todas as evidências', 'Escolher sem pensar'], answer: 'Observar e buscar informações confiáveis' },
-  { name: 'Escolha Consciente', topic: 'Sustentabilidade', prompt: 'O que significa usar um recurso com responsabilidade?', options: ['Usar sem limites', 'Evitar desperdícios e pensar no futuro', 'Descartar quando quiser', 'Impedir que todos usem'], answer: 'Evitar desperdícios e pensar no futuro' },
-  { name: 'Memória do Lugar', topic: 'Patrimônio', prompt: 'Por que preservar a história de um lugar é importante?', options: ['Ajuda a compreender pessoas e culturas', 'Só serve para decorar livros', 'Não tem relação com o presente', 'Impede novos aprendizados'], answer: 'Ajuda a compreender pessoas e culturas' },
-  { name: 'Água em Movimento', topic: 'Ciências', prompt: 'Qual atitude ajuda a proteger a água?', options: ['Evitar poluir rios e nascentes', 'Jogar resíduos na rua', 'Desperdiçar água potável', 'Ignorar vazamentos'], answer: 'Evitar poluir rios e nascentes' },
-  { name: 'Vida em Equilíbrio', topic: 'Biodiversidade', prompt: 'O que pode acontecer quando uma espécie desaparece?', options: ['O equilíbrio do ambiente pode ser afetado', 'Nada muda no ambiente', 'Todas as plantas crescem mais', 'Os rios deixam de existir'], answer: 'O equilíbrio do ambiente pode ser afetado' },
-  { name: 'Rota do Conhecimento', topic: 'Geografia', prompt: 'Mapas são úteis porque ajudam a quê?', options: ['Localizar lugares e compreender espaços', 'Substituir todas as viagens', 'Criar animais novos', 'Mudar o clima'], answer: 'Localizar lugares e compreender espaços' },
-  { name: 'Guardião da Missão', topic: 'Cidadania', prompt: 'Qual escolha demonstra cuidado com um espaço coletivo?', options: ['Respeitar regras e colaborar com outras pessoas', 'Danificar o que é de todos', 'Deixar lixo pelo caminho', 'Ignorar quem precisa de ajuda'], answer: 'Respeitar regras e colaborar com outras pessoas' },
+const extraMarcos: MarcoLabel[] = [
+  { name: 'Olhar Atento', topic: 'Investigação' },
+  { name: 'Escolha Consciente', topic: 'Sustentabilidade' },
+  { name: 'Memória do Lugar', topic: 'Patrimônio' },
+  { name: 'Água em Movimento', topic: 'Ciências' },
+  { name: 'Vida em Equilíbrio', topic: 'Biodiversidade' },
+  { name: 'Rota do Conhecimento', topic: 'Geografia' },
+  { name: 'Guardião da Missão', topic: 'Cidadania' },
 ];
 
 const territoryBackgrounds: Record<string, string> = {
@@ -70,10 +77,14 @@ const territoryBackgrounds: Record<string, string> = {
   espaco: '/assets/worlds/espaco-world.webp',
 };
 
+// Precisa de pelo menos 4 marcos com pergunta carregada: 4 é o número de
+// ataques de conhecimento do confronto com o Guardião (ver answerBoss).
+const MIN_MARCOS = 4;
+
 export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScreenProps) {
-  const story = territoryStories[territoryId] ?? territoryStories.brasil;
+  const labels = territoryLabels[territoryId] ?? territoryLabels.brasil;
   const background = territoryBackgrounds[territoryId] ?? territoryBackgrounds.brasil;
-  const adventure = { ...story, challenges: [...story.challenges, ...extraChallenges] };
+  const marcoLabels = [...labels.marcos, ...extraMarcos];
   const routeStops = [
     { left: '17%', bottom: '15%' },
     { left: '30%', bottom: '23%' },
@@ -99,18 +110,70 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   const [feedback, setFeedback] = useState('Siga a trilha. Cada marco traz uma descoberta, uma ação ou um desafio de conhecimento.');
   const [won, setWon] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [questions, setQuestions] = useState<SourcedQuestion[]>([]);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify({ pathStep, bossHp, playerHp }));
   }, [bossHp, pathStep, playerHp, storageKey]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadQuestions() {
+      setLoadingQuestions(true);
+      try {
+        // Fonte principal: banco aprovado, filtrado pela categoria do
+        // território. IA entra só como fallback quando faltam perguntas.
+        const loaded = await fetchTerritoryQuestions({
+          territoryId,
+          theme: 'Batalha, Conhecimento Rápido, Matemática e Lógica',
+          difficulty: 3,
+          count: marcoLabels.length,
+        });
+        if (!cancelled) setQuestions(loaded);
+      } finally {
+        if (!cancelled) setLoadingQuestions(false);
+      }
+    }
+    loadQuestions();
+    return () => { cancelled = true; };
+    // marcoLabels tem o mesmo tamanho para todo territoryId, então não
+    // precisa entrar nas deps além do próprio território.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [territoryId]);
+
+  const adventure = {
+    title: labels.title,
+    portal: labels.portal,
+    challenges: marcoLabels.slice(0, questions.length).map((label, index): Marco => ({ ...label, question: questions[index] })),
+  };
+
+  if (loadingQuestions) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
+        <Loader2 className="w-12 h-12 animate-spin text-rose-500 mb-4" />
+        <h2 className="text-xl font-bold">Iniciando Batalha...</h2>
+      </div>
+    );
+  }
+
+  if (adventure.challenges.length < MIN_MARCOS) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white gap-4 p-6 text-center">
+        <p className="text-lg font-bold text-rose-300">Não foi possível carregar os desafios deste território agora.</p>
+        <button onClick={onLeave} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold">Voltar ao Mapa</button>
+      </div>
+    );
+  }
+
   const openNextChallenge = () => {
     if (pathStep < adventure.challenges.length) setModal('path');
     else setModal('boss');
   };
-  const answerPath = (option: string, completedInteraction = false) => {
+  const answerPath = async (option: string, completedInteraction = false): Promise<boolean> => {
     const current = adventure.challenges[pathStep];
-    if (!completedInteraction && option !== current.answer) {
+    const correct = completedInteraction || (await checkAnswer(current.question, option)).correct;
+    if (!correct) {
       const nextHp = Math.max(0, playerHp - 20);
       setPlayerHp(nextHp);
       setFeedback(nextHp ? 'Resposta incorreta. Você perdeu 20 de energia. Tente novamente para seguir pela trilha.' : 'Sua energia acabou. Você voltou ao último marco seguro.');
@@ -122,9 +185,10 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     setFeedback(next === adventure.challenges.length ? 'Você chegou ao Guardião. Use o que descobriu no território para enfraquecê-lo.' : 'Desafio concluído! O explorador avançou até o próximo marco.');
     return true;
   };
-  const answerBoss = (option: string) => {
+  const answerBoss = async (option: string): Promise<boolean> => {
     const current = adventure.challenges[(100 - bossHp) / 25];
-    if (option !== current.answer) {
+    const { correct } = await checkAnswer(current.question, option);
+    if (!correct) {
       const nextHp = Math.max(0, playerHp - 15);
       setPlayerHp(nextHp);
       setFeedback(nextHp ? 'O Guardião contra-atacou. Reveja as pistas da missão e tente novamente.' : 'Sua energia acabou. Você retornou ao início do confronto.');
@@ -142,7 +206,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   const progressLabel = isBoss ? `Guardião: ${4 - bossHp / 25}/4 ataques de conhecimento` : `Trilha: ${pathStep}/${adventure.challenges.length} marcos`;
 
   return <main className="relative min-h-[100dvh] overflow-hidden bg-[#08172d] text-white">
-    <img src={background} alt={`Cenário da aventura ${story.title}`} className="absolute inset-0 h-full w-full object-cover" />
+    <img src={background} alt={`Cenário da aventura ${adventure.title}`} className="absolute inset-0 h-full w-full object-cover" />
     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,12,29,.76)_0%,rgba(3,12,29,.04)_38%,rgba(3,12,29,.72)_100%)]" />
     <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between p-3 sm:p-5"><button onClick={onLeave} className="rounded-xl border border-white/30 bg-slate-950/65 px-3 py-2 text-sm font-black backdrop-blur"><ArrowLeft className="mr-1 inline h-4 w-4" />Sair</button><div className="text-center"><p className="text-[10px] font-black tracking-[.28em] text-cyan-200">TERRAVOX</p><h1 className="text-lg font-black sm:text-2xl">{adventure.title}</h1></div><div className="rounded-xl bg-slate-950/65 px-3 py-2 text-right text-xs font-bold backdrop-blur">{profile.name}<br/><span className="text-yellow-300">Nível {profile.level}</span></div></header>
 
@@ -151,7 +215,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     <section className="absolute inset-x-0 bottom-0 top-16 z-10 mx-auto max-w-7xl">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"><polyline points="17,85 30,77 55,81 69,69 47,62 22,65 31,50 56,53 76,45 62,36 39,38 79,28" fill="none" stroke="rgba(255,222,104,.95)" strokeWidth=".7" strokeLinejoin="round" strokeDasharray="2.2 1.5" className="drop-shadow-[0_0_7px_rgba(250,204,21,.85)]" /></svg>
       <div className="absolute left-[23%] bottom-[11%] rounded-xl border border-white/25 bg-slate-950/65 px-2 py-1 text-[9px] font-black text-cyan-100 backdrop-blur"><Footprints className="mr-1 inline h-3 w-3 text-yellow-300"/>TRILHA DAS RUÍNAS</div>
-      {adventure.challenges.map((challenge, index) => { const stop = routeStops[index + 1]; return <button key={challenge.name} onClick={index === pathStep ? openNextChallenge : undefined} disabled={index !== pathStep} aria-label={index === pathStep ? `Responder desafio ${index + 1}: ${challenge.name}` : `Desafio ${index + 1} bloqueado`} className={`absolute z-30 grid h-9 w-9 place-items-center rounded-full border-2 text-xs font-black shadow-lg transition sm:h-12 sm:w-12 sm:border-4 ${index < pathStep ? 'border-emerald-200 bg-emerald-500 text-white' : index === pathStep ? 'border-yellow-100 bg-yellow-400 text-slate-950 shadow-yellow-400/70 animate-pulse' : 'border-slate-300/50 bg-slate-950/75 text-slate-300'}`} style={{ left: stop.left, bottom: stop.bottom, transform: 'translate(-50%, 50%)' }}>{index < pathStep ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : index === pathStep ? <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" /> : <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}{index === pathStep && <span className="absolute -bottom-6 whitespace-nowrap rounded bg-slate-950/75 px-1.5 py-0.5 text-[8px] font-black text-white">{index + 1}/10</span>}</button>; })}
+      {adventure.challenges.map((challenge, index) => { const stop = routeStops[index + 1]; return <button key={challenge.name} onClick={index === pathStep ? openNextChallenge : undefined} disabled={index !== pathStep} aria-label={index === pathStep ? `Responder desafio ${index + 1}: ${challenge.name}` : `Desafio ${index + 1} bloqueado`} className={`absolute z-30 grid h-9 w-9 place-items-center rounded-full border-2 text-xs font-black shadow-lg transition sm:h-12 sm:w-12 sm:border-4 ${index < pathStep ? 'border-emerald-200 bg-emerald-500 text-white' : index === pathStep ? 'border-yellow-100 bg-yellow-400 text-slate-950 shadow-yellow-400/70 animate-pulse' : 'border-slate-300/50 bg-slate-950/75 text-slate-300'}`} style={{ left: stop.left, bottom: stop.bottom, transform: 'translate(-50%, 50%)' }}>{index < pathStep ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : index === pathStep ? <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" /> : <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}{index === pathStep && <span className="absolute -bottom-6 whitespace-nowrap rounded bg-slate-950/75 px-1.5 py-0.5 text-[8px] font-black text-white">{index + 1}/{adventure.challenges.length}</span>}</button>; })}
       <button onClick={isBoss ? openNextChallenge : undefined} disabled={!isBoss} aria-label={isBoss ? `Abrir ${adventure.portal}` : `${adventure.portal} bloqueado`} className={`absolute z-30 grid h-14 w-14 place-items-center rounded-full border-4 text-cyan-50 shadow-[0_0_30px_rgba(34,211,238,.65)] sm:h-16 sm:w-16 ${isBoss ? 'border-yellow-100 bg-cyan-400/45 animate-pulse' : 'border-cyan-100 bg-cyan-400/30'}`} style={{ left: routeStops[adventure.challenges.length + 1].left, bottom: routeStops[adventure.challenges.length + 1].bottom, transform: 'translate(-50%, 50%)' }}><MapPin className="h-7 w-7 sm:h-8 sm:w-8" /><span className="absolute -bottom-6 whitespace-nowrap text-[8px] font-black sm:text-[9px]">{adventure.portal}</span></button>
       <img src="/assets/terravox-explorer.webp" alt="Explorador Terravox" className="pointer-events-none absolute z-20 w-20 drop-shadow-[0_16px_14px_rgba(0,0,0,.7)] transition-all duration-700 sm:w-[14vw] sm:max-w-[130px] sm:min-w-[76px]" style={{ left: routeStops[Math.min(pathStep, adventure.challenges.length)].left, bottom: routeStops[Math.min(pathStep, adventure.challenges.length)].bottom, transform: 'translate(-96%, 16%)' }} />
       {isBoss && bossHp > 0 && <><img src="/assets/forest-guardian.webp" alt="Guardião da floresta" className="absolute right-[5%] top-[19%] z-20 w-[28vw] max-w-[270px] min-w-[130px] drop-shadow-[0_20px_20px_rgba(0,0,0,.65)]" /><button onClick={openNextChallenge} className="absolute right-[10%] top-[45%] z-30 rounded-2xl border-2 border-yellow-100 bg-gradient-to-b from-yellow-300 to-orange-500 px-4 py-3 text-center text-xs font-black text-slate-950 shadow-[0_0_30px_rgba(250,204,21,.8)] active:scale-95"><Swords className="mx-auto mb-1 h-5 w-5"/>USAR CONHECIMENTO<br/>E ATACAR</button></>}
@@ -161,28 +225,35 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     <button onClick={() => setShowHelp(true)} aria-label="Como jogar" className="absolute bottom-5 right-5 z-30 grid h-12 w-12 place-items-center rounded-2xl border-2 border-cyan-100/70 bg-[#071528]/90 text-cyan-100 shadow-lg backdrop-blur"><CircleHelp className="h-6 w-6"/></button>
     {showHelp && <div className="absolute inset-0 z-40 grid place-items-end bg-slate-950/35 p-4 backdrop-blur-sm sm:place-items-center"><section className="w-full max-w-sm rounded-3xl border border-cyan-100/40 bg-[#071528]/95 p-5 shadow-2xl"><button onClick={() => setShowHelp(false)} className="float-right rounded-lg p-1"><X className="h-5 w-5"/></button><p className="text-xs font-black tracking-[.18em] text-cyan-200">COMO JOGAR</p><h2 className="mt-2 text-xl font-black">Explore a trilha até {adventure.portal}</h2><p className="mt-3 text-sm leading-relaxed text-slate-200">Cada marco alterna entre investigar uma pista, organizar uma estratégia, escolher um recurso ou responder uma pergunta. Ao chegar ao Guardião, use o conhecimento conquistado para atacar.</p><div className="mt-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-[11px] font-black text-cyan-100">{progressLabel}</div></section></div>}
 
-    {modal === 'path' && <MissionChallengeModal mode={pathStep % 4} eyebrow={adventure.challenges[pathStep].topic} title={adventure.challenges[pathStep].name} prompt={adventure.challenges[pathStep].prompt} options={adventure.challenges[pathStep].options} onAnswer={answerPath} />}
-    {modal === 'boss' && <MissionChallengeModal mode={0} eyebrow="ATAQUE DE CONHECIMENTO" title="Enfrente o Guardião" prompt={adventure.challenges[(100 - bossHp) / 25].prompt} options={adventure.challenges[(100 - bossHp) / 25].options} onAnswer={answerBoss} />}
+    {modal === 'path' && <MissionChallengeModal mode={pathStep % 4} eyebrow={adventure.challenges[pathStep].topic} title={adventure.challenges[pathStep].name} prompt={adventure.challenges[pathStep].question.prompt} options={adventure.challenges[pathStep].question.options} onAnswer={answerPath} />}
+    {modal === 'boss' && <MissionChallengeModal mode={0} eyebrow="ATAQUE DE CONHECIMENTO" title="Enfrente o Guardião" prompt={adventure.challenges[(100 - bossHp) / 25].question.prompt} options={adventure.challenges[(100 - bossHp) / 25].question.options} onAnswer={answerBoss} />}
     {won && <div className="absolute inset-0 z-50 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você explorou a trilha, conquistou pistas e usou o conhecimento do território para vencer o Guardião.</p><button onClick={() => onWin(territoryId, 150, 40)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +150 XP</button></section></div>}
   </main>;
 }
 
-function MissionChallengeModal({ mode, eyebrow, title, prompt, options, onAnswer }: { mode: number; eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string, completedInteraction?: boolean) => boolean }) {
+function MissionChallengeModal({ mode, eyebrow, title, prompt, options, onAnswer }: { mode: number; eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string, completedInteraction?: boolean) => Promise<boolean> }) {
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [sequence, setSequence] = useState<string[]>([]);
-  const choose = (option: string) => { const correct = onAnswer(option); setError(correct ? null : 'Resposta incorreta. Você perdeu energia. Escolha outra alternativa para continuar.'); };
+  const choose = async (option: string) => {
+    setChecking(true);
+    const correct = await onAnswer(option);
+    setChecking(false);
+    setError(correct ? null : 'Resposta incorreta. Você perdeu energia. Escolha outra alternativa para continuar.');
+  };
   const sequenceWords = ['OBSERVAR', 'PENSAR', 'PROTEGER'];
-  const addWord = (word: string) => {
+  const addWord = async (word: string) => {
     const next = [...sequence, word];
     setSequence(next);
     if (next.length === sequenceWords.length) {
-      const correct = next.every((item, index) => item === sequenceWords[index]);
-      const complete = correct && onAnswer('', true);
+      const correctOrder = next.every((item, index) => item === sequenceWords[index]);
+      let complete = false;
+      if (correctOrder) { setChecking(true); complete = await onAnswer('', true); setChecking(false); }
       setError(complete ? null : 'A estratégia não está na ordem certa. Tente novamente.');
       if (!complete) setSequence([]);
     }
   };
   const labels = ['PERGUNTA RÁPIDA', 'INVESTIGUE A PISTA', 'MONTE A ESTRATÉGIA', 'ESCOLHA O RECURSO'];
   const instructions = [prompt, `Observe a pista do território e identifique a descoberta que abre ${title}.`, 'Organize a estratégia do explorador: primeiro observe, depois pense e então proteja.', `Escolha o recurso mais adequado para o explorador resolver este obstáculo.`];
-  return <div className="absolute inset-0 z-40 grid place-items-end bg-[#071528]/80 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"><section className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-5 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-8 w-8 text-yellow-200 sm:h-9 sm:w-9"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow} · {labels[mode]}</p><h2 className="mt-2 text-xl font-black sm:text-2xl">{title}</h2><p className="my-4 text-base font-bold leading-relaxed sm:my-5 sm:text-lg">{instructions[mode]}</p>{mode === 1 && <div className="mb-4 rounded-2xl border border-cyan-100/40 bg-cyan-300/10 p-4 text-left"><p className="text-xs font-black tracking-[.16em] text-cyan-100">PISTA ENCONTRADA</p><p className="mt-2 text-sm text-slate-100">O cenário guarda uma resposta. Leia as alternativas como um explorador e encontre a descoberta que faz sentido para este lugar.</p></div>}{mode === 2 && <><div className="mb-4 min-h-14 rounded-2xl border border-cyan-100/40 bg-slate-950/35 p-3 text-sm font-black text-cyan-100">{sequence.length ? sequence.map((word, index) => <span key={`${word}-${index}`} className="mr-2 inline-block rounded-lg bg-cyan-400/20 px-2 py-1">{index + 1}. {word}</span>) : 'Toque nas ações na ordem correta'}</div><div className="grid grid-cols-3 gap-2">{['PROTEGER', 'OBSERVAR', 'PENSAR'].map(word => <button key={word} disabled={sequence.includes(word)} onClick={() => addWord(word)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-xs font-black transition hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-35">{word}</button>)}</div></>}{error && <div role="alert" className="my-4 rounded-xl border border-rose-200/70 bg-rose-950/65 px-4 py-3 text-left text-sm font-bold text-rose-50">{error}</div>}{mode !== 2 && <div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} onClick={() => choose(option)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 sm:p-4">{option}</button>)}</div>}</section></div>;
+  return <div className="absolute inset-0 z-40 grid place-items-end bg-[#071528]/80 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"><section className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-5 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-8 w-8 text-yellow-200 sm:h-9 sm:w-9"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow} · {labels[mode]}</p><h2 className="mt-2 text-xl font-black sm:text-2xl">{title}</h2><p className="my-4 text-base font-bold leading-relaxed sm:my-5 sm:text-lg">{instructions[mode]}</p>{mode === 1 && <div className="mb-4 rounded-2xl border border-cyan-100/40 bg-cyan-300/10 p-4 text-left"><p className="text-xs font-black tracking-[.16em] text-cyan-100">PISTA ENCONTRADA</p><p className="mt-2 text-sm text-slate-100">O cenário guarda uma resposta. Leia as alternativas como um explorador e encontre a descoberta que faz sentido para este lugar.</p></div>}{mode === 2 && <><div className="mb-4 min-h-14 rounded-2xl border border-cyan-100/40 bg-slate-950/35 p-3 text-sm font-black text-cyan-100">{sequence.length ? sequence.map((word, index) => <span key={`${word}-${index}`} className="mr-2 inline-block rounded-lg bg-cyan-400/20 px-2 py-1">{index + 1}. {word}</span>) : 'Toque nas ações na ordem correta'}</div><div className="grid grid-cols-3 gap-2">{['PROTEGER', 'OBSERVAR', 'PENSAR'].map(word => <button key={word} disabled={sequence.includes(word) || checking} onClick={() => addWord(word)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-xs font-black transition hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-35">{word}</button>)}</div></>}{checking && <div className="my-4 flex items-center justify-center gap-2 text-sm font-bold text-cyan-100"><Loader2 className="h-4 w-4 animate-spin" /> Verificando resposta...</div>}{error && <div role="alert" className="my-4 rounded-xl border border-rose-200/70 bg-rose-950/65 px-4 py-3 text-left text-sm font-bold text-rose-50">{error}</div>}{mode !== 2 && <div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} disabled={checking} onClick={() => choose(option)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-50 sm:p-4">{option}</button>)}</div>}</section></div>;
 }

@@ -171,10 +171,16 @@ export async function buildApp(): Promise<express.Express> {
   app.get('/api/game/questions', async (req, res) => {
     const supabase = getSupabase();
     if (!supabase) return res.status(503).json({ error: 'Banco de perguntas ainda não configurado.' });
-    const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+    // `category` aceita uma ou mais categorias separadas por vírgula (ex.:
+    // "Geografia,História") — os territórios do jogo mapeiam para mais de
+    // uma categoria da OpenTDB, e as telas de Batalha/Expedição precisam de
+    // um único round trip para cobrir todas elas.
+    const categoryParam = typeof req.query.category === 'string' ? req.query.category : undefined;
+    const categories = categoryParam ? categoryParam.split(',').map((value) => value.trim()).filter(Boolean) : undefined;
     const difficulty = typeof req.query.difficulty === 'string' ? req.query.difficulty : undefined;
-    let query = supabase.from('questions').select('id, category, question_pt_br, correct_answer_pt_br, incorrect_answers_pt_br, explanation_pt_br').eq('is_active', true).eq('review_status', 'approved').eq('translation_status', 'translated').limit(20);
-    if (category) query = query.eq('category', category);
+    const amount = Math.min(Math.max(Number(req.query.amount) || 20, 1), 50);
+    let query = supabase.from('questions').select('id, category, question_pt_br, correct_answer_pt_br, incorrect_answers_pt_br, explanation_pt_br').eq('is_active', true).eq('review_status', 'approved').eq('translation_status', 'translated').limit(amount);
+    if (categories?.length) query = query.in('category', categories);
     if (difficulty) query = query.eq('difficulty', difficulty);
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: 'Não foi possível obter as perguntas.' });
