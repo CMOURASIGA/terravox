@@ -9,14 +9,56 @@ import { Question } from '../types';
  * 'Esportes', 'Artes', 'Cinema', 'Música', 'Literatura', 'Jogos', 'Animais'.
  */
 const TERRITORY_CATEGORIES: Record<string, string[]> = {
+  // Nível 1
   brasil: ['Geografia', 'Ciências'],
   mexico: ['Geografia', 'História'],
   egito: ['História', 'Geografia'],
   japao: ['Geografia', 'Artes'],
+  // Nível 2
   andes: ['Geografia', 'Ciências'],
   oceano: ['Ciências', 'Animais'],
   savana: ['Animais', 'Ciências'],
   espaco: ['Ciências', 'Tecnologia'],
+  // Nível 3
+  india: ['História', 'Artes'],
+  china: ['História', 'Geografia'],
+  grecia: ['História', 'Artes'],
+  australia: ['Animais', 'Geografia'],
+  // Nível 4
+  canada: ['Geografia', 'Animais'],
+  russia: ['Geografia', 'História'],
+  italia: ['Artes', 'História'],
+  marrocos: ['Geografia', 'Artes'],
+  // Nível 5
+  peru: ['História', 'Geografia'],
+  quenia: ['Animais', 'Geografia'],
+  noruega: ['Geografia', 'Ciências'],
+  tailandia: ['Artes', 'Geografia'],
+  // Nível 6
+  eua: ['Tecnologia', 'Geografia'],
+  franca: ['Artes', 'História'],
+  novazelandia: ['Animais', 'Geografia'],
+  indonesia: ['Animais', 'Geografia'],
+  // Nível 7
+  galapagos: ['Animais', 'Ciências'],
+  antartida: ['Ciências', 'Geografia'],
+  islandia: ['Geografia', 'Ciências'],
+  turquia: ['História', 'Artes'],
+  // Nível 8
+  coreia: ['Tecnologia', 'Artes'],
+  vietna: ['Geografia', 'História'],
+  escocia: ['História', 'Geografia'],
+  chile: ['Geografia', 'Ciências'],
+  // Nível 9
+  suica: ['Geografia', 'Esportes'],
+  holanda: ['Artes', 'Geografia'],
+  portugal: ['História', 'Geografia'],
+  argentina: ['Esportes', 'Geografia'],
+  // Nível 10 (final)
+  alasca: ['Animais', 'Geografia'],
+  havai: ['Geografia', 'Animais'],
+  estacaolunar: ['Ciências', 'Tecnologia'],
+  templodosaber: ['Conhecimentos Gerais', 'Jogos'],
 };
 const DEFAULT_CATEGORIES = ['Conhecimentos Gerais'];
 

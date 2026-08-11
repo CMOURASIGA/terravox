@@ -54,6 +54,166 @@ const territoryLabels: Record<string, { title: string; portal: string; marcos: M
     { name: 'Ponte Lunar', topic: 'Ciências' },
     { name: 'Código Estelar', topic: 'Exploração' },
   ] },
+  india: { title: 'Templos Sagrados da Índia', portal: 'Portal do Lótus', marcos: [
+    { name: 'Marco do Lótus', topic: 'Espiritualidade' },
+    { name: 'Ponte das Especiarias', topic: 'Comércio Antigo' },
+    { name: 'Templo de Mármore', topic: 'Arquitetura' },
+  ] },
+  china: { title: 'Grande Muralha da China', portal: 'Portal do Dragão', marcos: [
+    { name: 'Marco da Muralha', topic: 'Engenharia Antiga' },
+    { name: 'Ponte da Seda', topic: 'Rotas Comerciais' },
+    { name: 'Pagode do Dragão', topic: 'Tradição' },
+  ] },
+  grecia: { title: 'Colunas da Grécia Antiga', portal: 'Portal dos Deuses', marcos: [
+    { name: 'Marco das Colunas', topic: 'Arquitetura Clássica' },
+    { name: 'Ponte dos Filósofos', topic: 'Pensamento' },
+    { name: 'Ágora Antiga', topic: 'Democracia' },
+  ] },
+  australia: { title: 'Outback da Austrália', portal: 'Portal do Deserto Vermelho', marcos: [
+    { name: 'Marco do Deserto Vermelho', topic: 'Geologia' },
+    { name: 'Ponte dos Marsupiais', topic: 'Fauna Única' },
+    { name: 'Recife Distante', topic: 'Vida Marinha' },
+  ] },
+  canada: { title: 'Bosques Gelados do Canadá', portal: 'Portal da Aurora', marcos: [
+    { name: 'Marco da Aurora', topic: 'Fenômenos Naturais' },
+    { name: 'Ponte dos Ursos', topic: 'Fauna do Norte' },
+    { name: 'Floresta Boreal', topic: 'Biomas Frios' },
+  ] },
+  russia: { title: 'Planícies da Rússia', portal: 'Portal de Inverno', marcos: [
+    { name: 'Marco da Estepe', topic: 'Paisagens Abertas' },
+    { name: 'Ponte de Inverno', topic: 'Clima Extremo' },
+    { name: 'Torre do Kremlin', topic: 'História' },
+  ] },
+  italia: { title: 'Ateliês da Itália', portal: 'Portal da Renascença', marcos: [
+    { name: 'Marco do Afresco', topic: 'Pintura Clássica' },
+    { name: 'Ponte da Escultura', topic: 'Arte Renascentista' },
+    { name: 'Ateliê Antigo', topic: 'Técnicas Artísticas' },
+  ] },
+  marrocos: { title: 'Dunas de Marrocos', portal: 'Portal das Especiarias', marcos: [
+    { name: 'Marco das Dunas', topic: 'Deserto' },
+    { name: 'Ponte das Especiarias', topic: 'Mercados' },
+    { name: 'Pátio Azul', topic: 'Arquitetura' },
+  ] },
+  peru: { title: 'Caminhos Incas', portal: 'Portal do Sol Dourado', marcos: [
+    { name: 'Marco da Trilha Inca', topic: 'Civilização Andina' },
+    { name: 'Ponte de Pedra', topic: 'Engenharia Antiga' },
+    { name: 'Terraço Sagrado', topic: 'Agricultura' },
+  ] },
+  quenia: { title: 'Manada do Quênia', portal: 'Portal da Grande Migração', marcos: [
+    { name: 'Marco da Savana', topic: 'Ecossistema' },
+    { name: 'Ponte da Migração', topic: 'Comportamento Animal' },
+    { name: 'Vigia da Manada', topic: 'Conservação' },
+  ] },
+  noruega: { title: 'Fiordes Gelados', portal: 'Portal das Luzes do Norte', marcos: [
+    { name: 'Marco do Fiorde', topic: 'Geografia Costeira' },
+    { name: 'Ponte das Luzes', topic: 'Fenômenos do Céu' },
+    { name: 'Farol do Norte', topic: 'Navegação' },
+  ] },
+  tailandia: { title: 'Templos Dourados', portal: 'Portal do Lótus Branco', marcos: [
+    { name: 'Marco do Templo Dourado', topic: 'Arquitetura Sagrada' },
+    { name: 'Ponte do Rio', topic: 'Cultura Fluvial' },
+    { name: 'Mercado Flutuante', topic: 'Tradições' },
+  ] },
+  eua: { title: 'Laboratórios da Inovação', portal: 'Portal do Futuro', marcos: [
+    { name: 'Marco da Inovação', topic: 'Tecnologia' },
+    { name: 'Ponte dos Foguetes', topic: 'Exploração Espacial' },
+    { name: 'Laboratório Aberto', topic: 'Ciência Aplicada' },
+  ] },
+  franca: { title: 'Galerias da França', portal: 'Portal das Artes', marcos: [
+    { name: 'Marco da Galeria', topic: 'Pintura' },
+    { name: 'Ponte das Estátuas', topic: 'Escultura' },
+    { name: 'Ateliê de Paris', topic: 'Movimentos Artísticos' },
+  ] },
+  novazelandia: { title: 'Vulcões da Nova Zelândia', portal: 'Portal Maori', marcos: [
+    { name: 'Marco Vulcânico', topic: 'Geologia Ativa' },
+    { name: 'Ponte Maori', topic: 'Cultura Indígena' },
+    { name: 'Baía dos Golfinhos', topic: 'Vida Marinha' },
+  ] },
+  indonesia: { title: 'Ilhas de Fogo', portal: 'Portal dos Vulcões', marcos: [
+    { name: 'Marco do Vulcão', topic: 'Ilhas Vulcânicas' },
+    { name: 'Ponte do Arquipélago', topic: 'Geografia Insular' },
+    { name: 'Recife Tropical', topic: 'Biodiversidade' },
+  ] },
+  galapagos: { title: 'Laboratório Vivo de Galápagos', portal: 'Portal de Darwin', marcos: [
+    { name: 'Marco de Darwin', topic: 'Evolução' },
+    { name: 'Ponte das Tartarugas', topic: 'Espécies Únicas' },
+    { name: 'Costa Selvagem', topic: 'Conservação' },
+  ] },
+  antartida: { title: 'Base Polar da Antártida', portal: 'Portal do Gelo Eterno', marcos: [
+    { name: 'Marco do Gelo Eterno', topic: 'Clima Polar' },
+    { name: 'Ponte dos Pinguins', topic: 'Vida Extrema' },
+    { name: 'Base de Pesquisa', topic: 'Ciência Polar' },
+  ] },
+  islandia: { title: 'Terra do Gelo e Fogo', portal: 'Portal Geotérmico', marcos: [
+    { name: 'Marco Geotérmico', topic: 'Vulcanismo' },
+    { name: 'Ponte das Geleiras', topic: 'Gelo e Fogo' },
+    { name: 'Fonte Termal', topic: 'Fenômenos Naturais' },
+  ] },
+  turquia: { title: 'Bazares de Istambul', portal: 'Portal dos Dois Continentes', marcos: [
+    { name: 'Marco dos Dois Continentes', topic: 'Geografia' },
+    { name: 'Ponte do Bazar', topic: 'Comércio Histórico' },
+    { name: 'Cúpula Otomana', topic: 'Arquitetura' },
+  ] },
+  coreia: { title: 'Distrito Digital da Coreia', portal: 'Portal Neon', marcos: [
+    { name: 'Marco Digital', topic: 'Tecnologia' },
+    { name: 'Ponte Neon', topic: 'Inovação Urbana' },
+    { name: 'Estúdio Criativo', topic: 'Cultura Pop' },
+  ] },
+  vietna: { title: 'Deltas do Vietnã', portal: 'Portal das Águas Verdes', marcos: [
+    { name: 'Marco do Delta', topic: 'Rios e Agricultura' },
+    { name: 'Ponte das Águas Verdes', topic: 'Paisagem Fluvial' },
+    { name: 'Vila Flutuante', topic: 'Modo de Vida' },
+  ] },
+  escocia: { title: 'Highlands da Escócia', portal: 'Portal das Lendas', marcos: [
+    { name: 'Marco do Castelo', topic: 'História Medieval' },
+    { name: 'Ponte das Terras Altas', topic: 'Geografia' },
+    { name: 'Lago das Lendas', topic: 'Folclore' },
+  ] },
+  chile: { title: 'Observatório do Atacama', portal: 'Portal das Estrelas do Sul', marcos: [
+    { name: 'Marco do Deserto Seco', topic: 'Clima Extremo' },
+    { name: 'Ponte das Estrelas', topic: 'Astronomia' },
+    { name: 'Observatório do Atacama', topic: 'Ciência do Céu' },
+  ] },
+  suica: { title: 'Picos Suíços', portal: 'Portal Alpino', marcos: [
+    { name: 'Marco Alpino', topic: 'Montanhismo' },
+    { name: 'Ponte das Neves', topic: 'Esportes de Inverno' },
+    { name: 'Trilha dos Picos', topic: 'Resistência' },
+  ] },
+  holanda: { title: 'Moinhos da Holanda', portal: 'Portal das Tulipas', marcos: [
+    { name: 'Marco dos Moinhos', topic: 'Engenharia Hidráulica' },
+    { name: 'Ponte das Tulipas', topic: 'Agricultura' },
+    { name: 'Canal Histórico', topic: 'Urbanismo' },
+  ] },
+  portugal: { title: 'Porto das Navegações', portal: 'Portal do Atlântico', marcos: [
+    { name: 'Marco das Caravelas', topic: 'Navegações' },
+    { name: 'Ponte do Atlântico', topic: 'Exploração Marítima' },
+    { name: 'Farol Antigo', topic: 'História Naval' },
+  ] },
+  argentina: { title: 'Campos da Argentina', portal: 'Portal do Tango', marcos: [
+    { name: 'Marco dos Pampas', topic: 'Paisagem Aberta' },
+    { name: 'Ponte do Tango', topic: 'Cultura' },
+    { name: 'Campo de Treino', topic: 'Esporte' },
+  ] },
+  alasca: { title: 'Fronteira Selvagem do Alasca', portal: 'Portal Ártico', marcos: [
+    { name: 'Marco Ártico', topic: 'Fauna Polar' },
+    { name: 'Ponte das Geleiras', topic: 'Paisagem Gelada' },
+    { name: 'Trilha dos Ursos', topic: 'Vida Selvagem' },
+  ] },
+  havai: { title: 'Ilhas de Fogo do Pacífico', portal: 'Portal do Vulcão Sagrado', marcos: [
+    { name: 'Marco Vulcânico', topic: 'Formação de Ilhas' },
+    { name: 'Ponte das Ondas', topic: 'Oceano Pacífico' },
+    { name: 'Cratera Sagrada', topic: 'Geologia' },
+  ] },
+  estacaolunar: { title: 'Estação Lunar', portal: 'Portal das Crateras', marcos: [
+    { name: 'Marco da Cratera', topic: 'Exploração Lunar' },
+    { name: 'Ponte Gravitacional', topic: 'Física Espacial' },
+    { name: 'Laboratório Orbital', topic: 'Tecnologia Espacial' },
+  ] },
+  templodosaber: { title: 'Templo Final do Conhecimento', portal: 'Portal da Sabedoria', marcos: [
+    { name: 'Marco da Sabedoria', topic: 'Conhecimento Geral' },
+    { name: 'Ponte dos Desafios', topic: 'Raciocínio' },
+    { name: 'Salão Final', topic: 'Grande Prova' },
+  ] },
 };
 
 const extraMarcos: MarcoLabel[] = [
@@ -66,6 +226,10 @@ const extraMarcos: MarcoLabel[] = [
   { name: 'Guardião da Missão', topic: 'Cidadania' },
 ];
 
+// Só os 8 territórios originais têm arte ilustrada própria. Os demais (a
+// partir do Nível 3) usam um gradiente temático em vez de uma imagem nova
+// — evita depender de assets que ainda não existem, mantendo a tela
+// funcional e visualmente coerente pra qualquer território futuro.
 const territoryBackgrounds: Record<string, string> = {
   brasil: '/assets/brazil-adventure-world.webp',
   mexico: '/assets/worlds/mexico-world.webp',
@@ -77,13 +241,50 @@ const territoryBackgrounds: Record<string, string> = {
   espaco: '/assets/worlds/espaco-world.webp',
 };
 
+const territoryGradients: Record<string, string> = {
+  india: 'linear-gradient(160deg,#7c2d12,#f59e0b)',
+  china: 'linear-gradient(160deg,#7f1d1d,#b91c1c)',
+  grecia: 'linear-gradient(160deg,#1e3a5f,#60a5fa)',
+  australia: 'linear-gradient(160deg,#7c2d12,#dc2626)',
+  canada: 'linear-gradient(160deg,#0f2027,#2c5364)',
+  russia: 'linear-gradient(160deg,#1e293b,#64748b)',
+  italia: 'linear-gradient(160deg,#134e4a,#eab308)',
+  marrocos: 'linear-gradient(160deg,#78350f,#f59e0b)',
+  peru: 'linear-gradient(160deg,#422006,#facc15)',
+  quenia: 'linear-gradient(160deg,#78350f,#fbbf24)',
+  noruega: 'linear-gradient(160deg,#0c1e3d,#22d3ee)',
+  tailandia: 'linear-gradient(160deg,#7c2d12,#fbbf24)',
+  eua: 'linear-gradient(160deg,#1e1b4b,#6366f1)',
+  franca: 'linear-gradient(160deg,#312e81,#a78bfa)',
+  novazelandia: 'linear-gradient(160deg,#052e2b,#10b981)',
+  indonesia: 'linear-gradient(160deg,#7c2d12,#f97316)',
+  galapagos: 'linear-gradient(160deg,#083344,#06b6d4)',
+  antartida: 'linear-gradient(160deg,#1e293b,#e2e8f0)',
+  islandia: 'linear-gradient(160deg,#1e293b,#38bdf8)',
+  turquia: 'linear-gradient(160deg,#7c2d12,#dc2626)',
+  coreia: 'linear-gradient(160deg,#1e1b4b,#ec4899)',
+  vietna: 'linear-gradient(160deg,#052e16,#22c55e)',
+  escocia: 'linear-gradient(160deg,#134e4a,#4ade80)',
+  chile: 'linear-gradient(160deg,#1e1b4b,#f59e0b)',
+  suica: 'linear-gradient(160deg,#0c4a6e,#e0f2fe)',
+  holanda: 'linear-gradient(160deg,#831843,#f472b6)',
+  portugal: 'linear-gradient(160deg,#0c4a6e,#38bdf8)',
+  argentina: 'linear-gradient(160deg,#1e3a8a,#93c5fd)',
+  alasca: 'linear-gradient(160deg,#0f172a,#38bdf8)',
+  havai: 'linear-gradient(160deg,#7c2d12,#fb923c)',
+  estacaolunar: 'linear-gradient(160deg,#0f0c29,#302b63)',
+  templodosaber: 'linear-gradient(160deg,#451a03,#fbbf24)',
+  default: 'linear-gradient(160deg,#0f172a,#1e3a5f)',
+};
+
 // Precisa de pelo menos 4 marcos com pergunta carregada: 4 é o número de
 // ataques de conhecimento do confronto com o Guardião (ver answerBoss).
 const MIN_MARCOS = 4;
 
 export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScreenProps) {
   const labels = territoryLabels[territoryId] ?? territoryLabels.brasil;
-  const background = territoryBackgrounds[territoryId] ?? territoryBackgrounds.brasil;
+  const background = territoryBackgrounds[territoryId];
+  const backgroundGradient = territoryGradients[territoryId] ?? territoryGradients.default;
   const marcoLabels = [...labels.marcos, ...extraMarcos];
   const routeStops = [
     { left: '17%', bottom: '15%' },
@@ -206,7 +407,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   const progressLabel = isBoss ? `Guardião: ${4 - bossHp / 25}/4 ataques de conhecimento` : `Trilha: ${pathStep}/${adventure.challenges.length} marcos`;
 
   return <main className="relative min-h-[100dvh] overflow-hidden bg-[#08172d] text-white">
-    <img src={background} alt={`Cenário da aventura ${adventure.title}`} className="absolute inset-0 h-full w-full object-cover" />
+    {background ? <img src={background} alt={`Cenário da aventura ${adventure.title}`} className="absolute inset-0 h-full w-full object-cover" /> : <div aria-hidden style={{ background: backgroundGradient }} className="absolute inset-0 h-full w-full" />}
     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,12,29,.76)_0%,rgba(3,12,29,.04)_38%,rgba(3,12,29,.72)_100%)]" />
     <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between p-3 sm:p-5"><button onClick={onLeave} className="rounded-xl border border-white/30 bg-slate-950/65 px-3 py-2 text-sm font-black backdrop-blur"><ArrowLeft className="mr-1 inline h-4 w-4" />Sair</button><div className="text-center"><p className="text-[10px] font-black tracking-[.28em] text-cyan-200">TERRAVOX</p><h1 className="text-lg font-black sm:text-2xl">{adventure.title}</h1></div><div className="rounded-xl bg-slate-950/65 px-3 py-2 text-right text-xs font-bold backdrop-blur">{profile.name}<br/><span className="text-yellow-300">Nível {profile.level}</span></div></header>
 

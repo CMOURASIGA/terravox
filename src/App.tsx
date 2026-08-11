@@ -1,21 +1,46 @@
 import { ChangeEvent, Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { GameState, PlayerProfile } from './types';
-import { MapScreen } from './components/MapScreen';
+import { MapScreen, MAX_LEVEL, TERRITORIES } from './components/MapScreen';
 import { ExpeditionScreen } from './components/ExpeditionScreen';
 import { BattleScreen } from './components/BattleScreen';
 import { PassportScreen } from './components/PassportScreen';
 import { Camera, Check, Play, Share2 } from 'lucide-react';
 
 const AVATARS = ['🦊', '🐯', '🐼', '🦁', '🦉', '🐸', '🧙', '🧭'];
-const FIRST_LEVEL_TERRITORIES = ['brasil', 'mexico', 'egito', 'japao'];
-const SECOND_LEVEL_TERRITORIES = ['andes', 'oceano', 'savana', 'espaco'];
-const emptyProfile = (): PlayerProfile => ({ name: '', avatar: '🦊', xp: 0, coins: 10, level: 1, unlockedTerritories: FIRST_LEVEL_TERRITORIES, completedMissions: [], adventureXp: {} });
+
+// Progressão de nível generalizada: TERRITORIES (MapScreen.tsx) já é a
+// fonte única da verdade de quais territórios pertencem a cada nível — daí
+// pra cá é só derivar. Isso é o que permite ir até o Nível 10 (ou além, se
+// mais territórios forem adicionados no catálogo) sem tocar em nenhuma
+// dessas funções de novo.
+function territoriesForLevel(level: number): string[] {
+  return TERRITORIES.filter((territory) => territory.chapter === level).map((territory) => territory.id);
+}
+function isLevelComplete(level: number, completedMissions: string[]): boolean {
+  const territories = territoriesForLevel(level);
+  return territories.length > 0 && territories.every((id) => completedMissions.includes(id));
+}
+// Maior nível cujas missões já foram TODAS concluídas, +1 (ou MAX_LEVEL, se
+// já tiver terminado tudo) — é o nível atualmente jogável.
+function unlockedLevelFor(completedMissions: string[]): number {
+  let level = 1;
+  while (level < MAX_LEVEL && isLevelComplete(level, completedMissions)) level += 1;
+  return level;
+}
+// Territórios acumulam: todo território de todo nível já alcançado (não só
+// o atual) permanece jogável/rejogável.
+function unlockedTerritoriesFor(completedMissions: string[]): string[] {
+  const level = unlockedLevelFor(completedMissions);
+  return TERRITORIES.filter((territory) => territory.chapter <= level).map((territory) => territory.id);
+}
+
+const emptyProfile = (): PlayerProfile => ({ name: '', avatar: '🦊', xp: 0, coins: 10, level: 1, unlockedTerritories: territoriesForLevel(1), completedMissions: [], adventureXp: {} });
 
 function normalizeProfile(value: Partial<PlayerProfile>): PlayerProfile {
   const base = emptyProfile();
   const completedMissions = value.completedMissions || [];
-  const unlockedSecondLevel = FIRST_LEVEL_TERRITORIES.every((id) => completedMissions.includes(id));
-  return { ...base, ...value, avatar: value.avatar || base.avatar, level: unlockedSecondLevel ? 2 : 1, completedMissions, unlockedTerritories: unlockedSecondLevel ? [...new Set([...(value.unlockedTerritories || base.unlockedTerritories), ...SECOND_LEVEL_TERRITORIES])] : (value.unlockedTerritories?.length ? value.unlockedTerritories : base.unlockedTerritories), adventureXp: value.adventureXp || {} };
+  const level = unlockedLevelFor(completedMissions);
+  return { ...base, ...value, avatar: value.avatar || base.avatar, level, completedMissions, unlockedTerritories: [...new Set([...(value.unlockedTerritories || base.unlockedTerritories), ...unlockedTerritoriesFor(completedMissions)])], adventureXp: value.adventureXp || {} };
 }
 
 export function Avatar({ value, className = '' }: { value: string; className?: string }) {
@@ -70,8 +95,8 @@ export default function App() {
       const earnedXp = alreadyEarned ? 0 : xp;
       const newXp = prev.xp + earnedXp;
       const completedMissions = alreadyEarned ? prev.completedMissions : [...prev.completedMissions, territory];
-      const unlockedSecondLevel = FIRST_LEVEL_TERRITORIES.every((id) => completedMissions.includes(id));
-      return { ...prev, xp: newXp, coins: prev.coins + (alreadyEarned ? 0 : coins), level: unlockedSecondLevel ? 2 : 1, unlockedTerritories: unlockedSecondLevel ? [...new Set([...prev.unlockedTerritories, ...SECOND_LEVEL_TERRITORIES])] : prev.unlockedTerritories, completedMissions, adventureXp: { ...prev.adventureXp, [territory]: (prev.adventureXp[territory] || 0) + earnedXp } };
+      const level = unlockedLevelFor(completedMissions);
+      return { ...prev, xp: newXp, coins: prev.coins + (alreadyEarned ? 0 : coins), level, unlockedTerritories: [...new Set([...prev.unlockedTerritories, ...unlockedTerritoriesFor(completedMissions)])], completedMissions, adventureXp: { ...prev.adventureXp, [territory]: (prev.adventureXp[territory] || 0) + earnedXp } };
     });
     setGameState('MAP'); setActiveTerritory(null);
   };

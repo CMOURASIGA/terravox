@@ -4,22 +4,76 @@ import { Compass, Crown, LogOut, Pencil, Play, Sparkles } from 'lucide-react';
 
 interface MapScreenProps { profile: PlayerProfile; onSelectTerritory: (territoryId: string) => void; onOpenPassport: () => void; onEditProfile: () => void; onLogout: () => void; }
 
+// Catálogo único de territórios/missões, agrupados por `chapter` (= nível
+// do jogador que os libera). Fonte da verdade tanto pra este mapa quanto
+// pra progressão de nível em App.tsx (MAX_LEVEL e as funções de
+// desbloqueio derivam direto daqui) — adicionar um nível novo é só
+// adicionar mais entradas com o próximo `chapter`, nada mais precisa
+// mudar nesses dois arquivos. Nomes/temas narrativos de cada território
+// (marcos da trilha) ficam em BattleScreen.tsx; categorias do banco de
+// perguntas em src/lib/questionSource.ts — os três precisam da mesma
+// lista de ids.
 export const TERRITORIES = [
+  // Nível 1
   { id: 'brasil', name: 'Floresta do Brasil', subtitle: 'Ruínas do Saber', emoji: '🌿', chapter: 1 },
   { id: 'mexico', name: 'Vale do México', subtitle: 'Templos do Sol', emoji: '🌵', chapter: 1 },
   { id: 'egito', name: 'Areias do Egito', subtitle: 'Enigma das Pirâmides', emoji: '🏺', chapter: 1 },
   { id: 'japao', name: 'Ilhas do Japão', subtitle: 'Jardim dos Ventos', emoji: '⛩️', chapter: 1 },
+  // Nível 2
   { id: 'andes', name: 'Cordilheira dos Andes', subtitle: 'Ecos das Montanhas', emoji: '🏔️', chapter: 2 },
   { id: 'oceano', name: 'Recifes do Pacífico', subtitle: 'Guardiões do Mar', emoji: '🐠', chapter: 2 },
   { id: 'savana', name: 'Savanas da África', subtitle: 'Rota dos Baobás', emoji: '🦒', chapter: 2 },
   { id: 'espaco', name: 'Estação Estelar', subtitle: 'Código das Constelações', emoji: '🚀', chapter: 2 },
+  // Nível 3
+  { id: 'india', name: 'Templos da Índia', subtitle: 'Templos Sagrados', emoji: '🛕', chapter: 3 },
+  { id: 'china', name: 'Muralhas da China', subtitle: 'Muralha Infinita', emoji: '🏯', chapter: 3 },
+  { id: 'grecia', name: 'Ruínas da Grécia', subtitle: 'Berço da Filosofia', emoji: '🏛️', chapter: 3 },
+  { id: 'australia', name: 'Outback da Austrália', subtitle: 'Terra dos Cangurus', emoji: '🦘', chapter: 3 },
+  // Nível 4
+  { id: 'canada', name: 'Florestas do Canadá', subtitle: 'Bosques Gelados', emoji: '🍁', chapter: 4 },
+  { id: 'russia', name: 'Estepes da Rússia', subtitle: 'Planícies Imensas', emoji: '❄️', chapter: 4 },
+  { id: 'italia', name: 'Ateliês da Itália', subtitle: 'Ateliê da Renascença', emoji: '🎨', chapter: 4 },
+  { id: 'marrocos', name: 'Desertos de Marrocos', subtitle: 'Dunas Douradas', emoji: '🐫', chapter: 4 },
+  // Nível 5
+  { id: 'peru', name: 'Trilhas do Peru', subtitle: 'Trilha do Sol Dourado', emoji: '🦙', chapter: 5 },
+  { id: 'quenia', name: 'Savana do Quênia', subtitle: 'Grande Migração', emoji: '🦁', chapter: 5 },
+  { id: 'noruega', name: 'Fiordes da Noruega', subtitle: 'Luzes do Norte', emoji: '🌌', chapter: 5 },
+  { id: 'tailandia', name: 'Templos da Tailândia', subtitle: 'Templos Dourados', emoji: '🐘', chapter: 5 },
+  // Nível 6
+  { id: 'eua', name: 'Inovação dos EUA', subtitle: 'Laboratório do Futuro', emoji: '🚀', chapter: 6 },
+  { id: 'franca', name: 'Museus da França', subtitle: 'Galerias de Paris', emoji: '🖼️', chapter: 6 },
+  { id: 'novazelandia', name: 'Ilhas da Nova Zelândia', subtitle: 'Ilhas Vulcânicas', emoji: '🐬', chapter: 6 },
+  { id: 'indonesia', name: 'Arquipélago da Indonésia', subtitle: 'Arquipélago de Fogo', emoji: '🌋', chapter: 6 },
+  // Nível 7
+  { id: 'galapagos', name: 'Ilhas Galápagos', subtitle: 'Laboratório Vivo', emoji: '🐢', chapter: 7 },
+  { id: 'antartida', name: 'Gelo da Antártida', subtitle: 'Gelo Eterno', emoji: '🐧', chapter: 7 },
+  { id: 'islandia', name: 'Vulcões da Islândia', subtitle: 'Terra do Gelo e Fogo', emoji: '♨️', chapter: 7 },
+  { id: 'turquia', name: 'Encruzilhada da Turquia', subtitle: 'Dois Continentes', emoji: '🕌', chapter: 7 },
+  // Nível 8
+  { id: 'coreia', name: 'Tecnologia da Coreia do Sul', subtitle: 'Distrito Neon', emoji: '🤖', chapter: 8 },
+  { id: 'vietna', name: 'Rios do Vietnã', subtitle: 'Deltas Verdes', emoji: '🚣', chapter: 8 },
+  { id: 'escocia', name: 'Castelos da Escócia', subtitle: 'Terras Altas', emoji: '🏰', chapter: 8 },
+  { id: 'chile', name: 'Deserto do Chile', subtitle: 'Observatório do Atacama', emoji: '🔭', chapter: 8 },
+  // Nível 9
+  { id: 'suica', name: 'Alpes da Suíça', subtitle: 'Picos Alpinos', emoji: '🏔️', chapter: 9 },
+  { id: 'holanda', name: 'Canais da Holanda', subtitle: 'Moinhos e Tulipas', emoji: '🌷', chapter: 9 },
+  { id: 'portugal', name: 'Caravelas de Portugal', subtitle: 'Porto das Navegações', emoji: '⛵', chapter: 9 },
+  { id: 'argentina', name: 'Pampas da Argentina', subtitle: 'Campos do Tango', emoji: '⚽', chapter: 9 },
+  // Nível 10 (final)
+  { id: 'alasca', name: 'Gelo do Alasca', subtitle: 'Fronteira Selvagem', emoji: '🐻', chapter: 10 },
+  { id: 'havai', name: 'Vulcões do Havaí', subtitle: 'Ilhas de Fogo', emoji: '🌺', chapter: 10 },
+  { id: 'estacaolunar', name: 'Base Lunar', subtitle: 'Crateras Silenciosas', emoji: '🌙', chapter: 10 },
+  { id: 'templodosaber', name: 'Templo Final do Saber', subtitle: 'A Grande Prova Final', emoji: '📜', chapter: 10 },
 ];
+
+export const MAX_LEVEL = Math.max(...TERRITORIES.map((territory) => territory.chapter));
 
 function PlayerAvatar({ profile }: { profile: PlayerProfile }) { return <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-300 to-violet-600 text-xl font-black shadow-lg shadow-cyan-500/20">{profile.avatar.startsWith('data:image') ? <img src={profile.avatar} alt="Avatar" className="h-full w-full object-cover" /> : profile.avatar}</div>; }
 
 export function MapScreen({ profile, onSelectTerritory, onOpenPassport, onEditProfile, onLogout }: MapScreenProps) {
-  const chapter = Math.min(profile.level, 2);
+  const chapter = Math.min(profile.level, MAX_LEVEL);
   const missions = TERRITORIES.filter((territory) => territory.chapter === chapter);
   const completedInChapter = missions.filter((territory) => profile.completedMissions.includes(territory.id)).length;
-  return <main className="min-h-[100dvh] bg-[#071528] text-white"><header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#071528]/95 px-3 py-3 backdrop-blur md:px-8"><button onClick={onEditProfile} className="flex min-w-0 items-center gap-3 text-left"><PlayerAvatar profile={profile}/><div className="min-w-0"><h1 className="truncate font-black">{profile.name}</h1><p className="text-sm font-bold text-cyan-300">Nível {profile.level} · {profile.xp} XP</p></div><Pencil className="h-4 w-4 shrink-0 text-cyan-200" /></button><div className="flex items-center gap-2"><div className="hidden rounded-xl bg-white/10 px-3 py-2 text-sm font-black text-yellow-300 sm:block"><span className="mr-1">●</span>{profile.coins}</div><button onClick={onOpenPassport} aria-label="Abrir passaporte e XP" className="grid h-10 w-10 place-items-center rounded-xl bg-violet-600 hover:bg-violet-500"><Compass className="h-5 w-5" /></button><button onClick={onLogout} aria-label="Trocar jogador" className="grid h-10 w-10 place-items-center rounded-xl border border-white/20 bg-white/10 text-slate-100"><LogOut className="h-5 w-5" /></button></div></header><section className="relative min-h-[calc(100dvh-68px)] overflow-hidden"><img src="/assets/brazil-adventure-world.webp" alt="Mapa de aventura Terravox" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,10,23,.35),rgba(2,10,23,.82))]" /><div className="relative z-10 mx-auto max-w-6xl px-4 py-7 sm:px-8 sm:py-10"><p className="text-xs font-black tracking-[.25em] text-cyan-200">MAPA DE AVENTURA</p><h2 className="mt-1 max-w-2xl text-3xl font-black leading-tight sm:text-5xl">Escolha sua próxima aventura</h2><div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-100"><span className="rounded-full border border-cyan-200/30 bg-slate-950/55 px-3 py-1">Nível {chapter}</span><span className="rounded-full border border-yellow-200/25 bg-slate-950/55 px-3 py-1 text-yellow-100">{completedInChapter}/4 missões concluídas</span></div><p className="mt-3 max-w-xl text-sm font-medium text-slate-200 sm:text-base">Conclua as quatro missões deste nível para liberar o próximo conjunto de aventuras.</p><div className="mt-7 grid gap-4 sm:grid-cols-2 lg:gap-6">{missions.map((territory) => { const xp = profile.adventureXp[territory.id] || 0; const completed = profile.completedMissions.includes(territory.id); return <button key={territory.id} onClick={() => onSelectTerritory(territory.id)} className="group w-full text-left transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200"><div className="relative min-h-36 overflow-hidden rounded-2xl border border-cyan-200/70 bg-[#071b35]/90 p-4 shadow-2xl shadow-cyan-950/60 backdrop-blur-md sm:p-5"><div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-cyan-300 to-violet-500"/><div className="flex items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl">{territory.emoji}</div><div className="min-w-0 flex-1"><p className="truncate text-lg font-black">{territory.name}</p><p className="truncate text-sm font-bold text-cyan-200">{territory.subtitle}</p></div><Play className="h-8 w-8 shrink-0 fill-yellow-300 text-yellow-300"/></div><div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-xs font-black text-yellow-100"><span><Crown className="mr-1 inline h-4 w-4" />{completed ? `${xp} XP conquistados` : 'MISSÃO DISPONÍVEL'}</span><span className="text-cyan-100">{completed ? 'REJOGAR' : 'JOGAR'}</span></div></div></button>; })}</div><div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#071528]/80 px-4 py-2 text-xs font-bold text-slate-200 backdrop-blur"><Sparkles className="h-4 w-4 text-yellow-300" /> O próximo nível é liberado ao concluir 4 missões.</div></div></section></main>;
+  const isFinalLevel = chapter >= MAX_LEVEL && completedInChapter === missions.length;
+  return <main className="min-h-[100dvh] bg-[#071528] text-white"><header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#071528]/95 px-3 py-3 backdrop-blur md:px-8"><button onClick={onEditProfile} className="flex min-w-0 items-center gap-3 text-left"><PlayerAvatar profile={profile}/><div className="min-w-0"><h1 className="truncate font-black">{profile.name}</h1><p className="text-sm font-bold text-cyan-300">Nível {profile.level} · {profile.xp} XP</p></div><Pencil className="h-4 w-4 shrink-0 text-cyan-200" /></button><div className="flex items-center gap-2"><div className="hidden rounded-xl bg-white/10 px-3 py-2 text-sm font-black text-yellow-300 sm:block"><span className="mr-1">●</span>{profile.coins}</div><button onClick={onOpenPassport} aria-label="Abrir passaporte e XP" className="grid h-10 w-10 place-items-center rounded-xl bg-violet-600 hover:bg-violet-500"><Compass className="h-5 w-5" /></button><button onClick={onLogout} aria-label="Trocar jogador" className="grid h-10 w-10 place-items-center rounded-xl border border-white/20 bg-white/10 text-slate-100"><LogOut className="h-5 w-5" /></button></div></header><section className="relative min-h-[calc(100dvh-68px)] overflow-hidden"><img src="/assets/brazil-adventure-world.webp" alt="Mapa de aventura Terravox" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,10,23,.35),rgba(2,10,23,.82))]" /><div className="relative z-10 mx-auto max-w-6xl px-4 py-7 sm:px-8 sm:py-10"><p className="text-xs font-black tracking-[.25em] text-cyan-200">MAPA DE AVENTURA</p><h2 className="mt-1 max-w-2xl text-3xl font-black leading-tight sm:text-5xl">Escolha sua próxima aventura</h2><div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-100"><span className="rounded-full border border-cyan-200/30 bg-slate-950/55 px-3 py-1">Nível {chapter}</span><span className="rounded-full border border-yellow-200/25 bg-slate-950/55 px-3 py-1 text-yellow-100">{completedInChapter}/{missions.length} missões concluídas</span></div><p className="mt-3 max-w-xl text-sm font-medium text-slate-200 sm:text-base">{chapter < MAX_LEVEL ? `Conclua as ${missions.length} missões deste nível para liberar o próximo conjunto de aventuras.` : 'A última etapa da jornada. Conclua todas as missões e torne-se o maior explorador do Terravox.'}</p><div className="mt-7 grid gap-4 sm:grid-cols-2 lg:gap-6">{missions.map((territory) => { const xp = profile.adventureXp[territory.id] || 0; const completed = profile.completedMissions.includes(territory.id); return <button key={territory.id} onClick={() => onSelectTerritory(territory.id)} className="group w-full text-left transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200"><div className="relative min-h-36 overflow-hidden rounded-2xl border border-cyan-200/70 bg-[#071b35]/90 p-4 shadow-2xl shadow-cyan-950/60 backdrop-blur-md sm:p-5"><div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-cyan-300 to-violet-500"/><div className="flex items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl">{territory.emoji}</div><div className="min-w-0 flex-1"><p className="truncate text-lg font-black">{territory.name}</p><p className="truncate text-sm font-bold text-cyan-200">{territory.subtitle}</p></div><Play className="h-8 w-8 shrink-0 fill-yellow-300 text-yellow-300"/></div><div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-xs font-black text-yellow-100"><span><Crown className="mr-1 inline h-4 w-4" />{completed ? `${xp} XP conquistados` : 'MISSÃO DISPONÍVEL'}</span><span className="text-cyan-100">{completed ? 'REJOGAR' : 'JOGAR'}</span></div></div></button>; })}</div><div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#071528]/80 px-4 py-2 text-xs font-bold text-slate-200 backdrop-blur"><Sparkles className="h-4 w-4 text-yellow-300" /> {isFinalLevel ? 'Você completou todas as missões do Terravox!' : chapter < MAX_LEVEL ? `O próximo nível é liberado ao concluir ${missions.length} missões.` : `Conclua as ${missions.length} missões pra fechar sua jornada.`}</div></div></section></main>;
 }
