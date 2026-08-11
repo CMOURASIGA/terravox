@@ -1,10 +1,51 @@
 import React from 'react';
 import { PlayerProfile } from '../types';
-import { ArrowLeft, Award, Pencil, Zap } from 'lucide-react';
-import { TERRITORIES } from './MapScreen';
+import { ArrowLeft, Award, Lock, Pencil, Zap } from 'lucide-react';
+import { MAX_LEVEL, TERRITORIES } from './MapScreen';
 
 interface PassportScreenProps { profile: PlayerProfile; onBack: () => void; onEditProfile: () => void; }
 
+const LEVELS = Array.from({ length: MAX_LEVEL }, (_, index) => index + 1);
+
 export function PassportScreen({ profile, onBack, onEditProfile }: PassportScreenProps) {
-  return <div className="min-h-screen bg-[radial-gradient(circle_at_top,#173260,#071528_52%)] p-5 text-slate-200"><div className="mx-auto w-full max-w-2xl pt-4"><button onClick={onBack} className="mb-7 flex items-center gap-2 text-sm font-bold text-cyan-200"><ArrowLeft size={20}/>Voltar ao mapa</button><h2 className="text-3xl font-black text-white">Passaporte Terravox</h2><p className="mt-1 text-sm text-slate-300">Seu histórico de aventuras e conhecimento conquistado.</p><section className="mt-5 rounded-[2rem] border border-white/15 bg-slate-950/55 p-5 shadow-xl backdrop-blur sm:p-7"><div className="flex items-center justify-between gap-3 border-b border-white/10 pb-5"><div className="flex min-w-0 items-center gap-4"><div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-300 to-violet-600 text-3xl">{profile.avatar.startsWith('data:image') ? <img src={profile.avatar} alt="Avatar" className="h-full w-full object-cover" /> : profile.avatar}</div><div className="min-w-0"><h3 className="truncate text-2xl font-black text-white">{profile.name}</h3><p className="text-sm font-bold text-cyan-200">Explorador Terravox</p></div></div><button onClick={onEditProfile} className="grid h-10 w-10 place-items-center rounded-xl border border-white/20 bg-white/10"><Pencil className="h-4 w-4"/></button></div><div className="mt-5 grid grid-cols-3 gap-2"><div className="rounded-2xl bg-cyan-400/10 p-3 text-center"><Zap className="mx-auto h-5 w-5 text-cyan-300"/><p className="mt-1 text-xl font-black text-white">{profile.xp}</p><p className="text-[10px] font-black text-cyan-100">XP TOTAL</p></div><div className="rounded-2xl bg-violet-400/10 p-3 text-center"><Award className="mx-auto h-5 w-5 text-violet-300"/><p className="mt-1 text-xl font-black text-white">{profile.level}</p><p className="text-[10px] font-black text-violet-100">NÍVEL</p></div><div className="rounded-2xl bg-yellow-400/10 p-3 text-center"><span className="text-xl text-yellow-300">●</span><p className="mt-1 text-xl font-black text-white">{profile.coins}</p><p className="text-[10px] font-black text-yellow-100">MOEDAS</p></div></div><h4 className="mt-7 text-lg font-black text-white">XP por aventura</h4><div className="mt-3 space-y-2">{TERRITORIES.map(item => { const xp = profile.adventureXp[item.id] || 0; const completed = profile.completedMissions.includes(item.id); return <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"><span className="text-2xl">{item.emoji}</span><div className="min-w-0 flex-1"><p className="truncate font-black text-white">{item.name}</p><p className="text-xs text-slate-300">{completed ? 'Aventura concluída' : 'Pronta para explorar'}</p></div><strong className={xp ? 'text-cyan-200' : 'text-slate-500'}>{xp} XP</strong></div>; })}</div></section></div></div>;
+  return <div className="min-h-screen bg-[radial-gradient(circle_at_top,#173260,#071528_52%)] p-5 text-slate-200"><div className="mx-auto w-full max-w-2xl pt-4"><button onClick={onBack} className="mb-7 flex items-center gap-2 text-sm font-bold text-cyan-200"><ArrowLeft size={20}/>Voltar ao mapa</button><h2 className="text-3xl font-black text-white">Passaporte Terravox</h2><p className="mt-1 text-sm text-slate-300">Seu histórico de aventuras e conhecimento conquistado.</p><section className="mt-5 rounded-[2rem] border border-white/15 bg-slate-950/55 p-5 shadow-xl backdrop-blur sm:p-7"><div className="flex items-center justify-between gap-3 border-b border-white/10 pb-5"><div className="flex min-w-0 items-center gap-4"><div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-300 to-violet-600 text-3xl">{profile.avatar.startsWith('data:image') ? <img src={profile.avatar} alt="Avatar" className="h-full w-full object-cover" /> : profile.avatar}</div><div className="min-w-0"><h3 className="truncate text-2xl font-black text-white">{profile.name}</h3><p className="text-sm font-bold text-cyan-200">Explorador Terravox</p></div></div><button onClick={onEditProfile} className="grid h-10 w-10 place-items-center rounded-xl border border-white/20 bg-white/10"><Pencil className="h-4 w-4"/></button></div><div className="mt-5 grid grid-cols-3 gap-2"><div className="rounded-2xl bg-cyan-400/10 p-3 text-center"><Zap className="mx-auto h-5 w-5 text-cyan-300"/><p className="mt-1 text-xl font-black text-white">{profile.xp}</p><p className="text-[10px] font-black text-cyan-100">XP TOTAL</p></div><div className="rounded-2xl bg-violet-400/10 p-3 text-center"><Award className="mx-auto h-5 w-5 text-violet-300"/><p className="mt-1 text-xl font-black text-white">{profile.level}/{MAX_LEVEL}</p><p className="text-[10px] font-black text-violet-100">NÍVEL</p></div><div className="rounded-2xl bg-yellow-400/10 p-3 text-center"><span className="text-xl text-yellow-300">●</span><p className="mt-1 text-xl font-black text-white">{profile.coins}</p><p className="text-[10px] font-black text-yellow-100">MOEDAS</p></div></div>
+
+    {/* Territórios agrupados por nível, incluindo os ainda bloqueados —
+        assim o jogador enxerga logo de cara quantas fases o jogo tem no
+        total (hoje {MAX_LEVEL}), não só o que já desbloqueou. */}
+    {LEVELS.map((level) => {
+      const levelTerritories = TERRITORIES.filter((territory) => territory.chapter === level);
+      const unlocked = level <= profile.level;
+      const completedInLevel = levelTerritories.filter((territory) => profile.completedMissions.includes(territory.id)).length;
+      return (
+        <div key={level} className="mt-7">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="flex items-center gap-2 text-lg font-black text-white">
+              {!unlocked && <Lock className="h-4 w-4 text-slate-500" />}
+              Nível {level}
+            </h4>
+            <span className={`text-xs font-bold ${unlocked ? 'text-cyan-200' : 'text-slate-500'}`}>
+              {unlocked ? `${completedInLevel}/${levelTerritories.length} concluídas` : 'Bloqueado'}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {levelTerritories.map((item) => {
+              const xp = profile.adventureXp[item.id] || 0;
+              const completed = profile.completedMissions.includes(item.id);
+              return (
+                <div key={item.id} className={`flex items-center gap-3 rounded-2xl border border-white/10 p-3 ${unlocked ? 'bg-white/5' : 'bg-white/[0.03] opacity-60'}`}>
+                  <span className="text-2xl">{unlocked ? item.emoji : '🔒'}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-black text-white">{unlocked ? item.name : '???'}</p>
+                    <p className="text-xs text-slate-300">{!unlocked ? 'Libere o nível anterior para revelar' : completed ? 'Aventura concluída' : 'Pronta para explorar'}</p>
+                  </div>
+                  <strong className={xp ? 'text-cyan-200' : 'text-slate-500'}>{unlocked ? `${xp} XP` : '—'}</strong>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    })}
+  </section></div></div>;
 }
