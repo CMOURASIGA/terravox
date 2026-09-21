@@ -205,7 +205,64 @@ A progressão atual deve ser desacoplada da apresentação visual para permitir:
 
 Sem monetização nesta fase.
 
-## 12. Estratégia de migração
+## 12. Gamification Preservation Contract
+
+Durante P1-P10, a reconstrução 3D NÃO autoriza alteração livre da gamificação existente.
+
+### Obrigatório preservar até a P10
+
+- 10 níveis;
+- 40 territórios/missões;
+- 4 territórios por nível;
+- progressão por conclusão do nível;
+- XP total;
+- XP por aventura;
+- moedas;
+- replay de territórios já concluídos;
+- perfil do jogador;
+- passaporte;
+- níveis futuros visíveis como bloqueados;
+- banco de perguntas como fonte principal;
+- OpenAI como fallback quando necessário;
+- categorias de conhecimento associadas a cada território;
+- validação segura de respostas;
+- conhecimento como núcleo da experiência.
+
+### Pode mudar durante P1-P10
+
+Somente a forma de apresentação e interação:
+- mapa;
+- HUD;
+- personagem;
+- câmera;
+- ambiente;
+- combate;
+- animações;
+- feedback visual;
+- áudio;
+- forma como as perguntas entram na exploração e na batalha.
+
+### Não alterar sem aprovação explícita
+
+- economia de moedas;
+- fórmula de XP;
+- número de níveis;
+- número de territórios;
+- regra de desbloqueio;
+- exigência pedagógica das perguntas;
+- criação de ranking competitivo;
+- streaks persistentes;
+- estrelas;
+- colecionáveis;
+- skins;
+- missões secundárias;
+- daily rewards;
+- monetização;
+- qualquer mecânica de retenção baseada em pressão, FOMO ou compra.
+
+Essas evoluções só serão avaliadas depois da homologação do vertical slice.
+
+## 13. Estratégia de migração
 
 1. congelar o estado atual em main;
 2. desenvolver a nova experiência em develop;
@@ -215,17 +272,18 @@ Sem monetização nesta fase.
 6. manter feature flags temporárias quando necessário;
 7. só remover código legado após homologação.
 
-## 13. Definition of Done P0
+## 14. Definition of Done P0
 
 P0 está aprovada quando:
 - arquitetura estiver documentada;
 - vertical slice Brasil estiver definido;
 - responsabilidades DOM x 3D x backend estiverem claras;
-- roadmap P1-P10 estiver criado;
+- roadmap P1-P11 estiver criado;
 - cada fase tiver modelo e esforço definidos;
+- Gamification Preservation Contract estiver registrado;
 - nenhuma implementação 3D nova tiver sido iniciada antes da aprovação.
 
-## 14. Regra de execução
+## 15. Regra de execução
 
 Astra deve ser usado onde houver decisões arquiteturais, game loop, física, câmera, renderização, performance ou refatoração transversal.
 
