@@ -15,6 +15,7 @@
 | P8 | VFX, Audio & Game Feel | GPT-5.6 Sol | HIGH |
 | P9 | Performance & Device Quality | GPT-6 Astra | MEDIUM |
 | P10 | QA, Release & Human Validation | GPT-5.6 Sol | MEDIUM |
+| P11 | Gamification Preservation & Expansion Review | GPT-5.6 Sol | MEDIUM |
 
 ## Uso racional da franquia Plus
 
@@ -34,6 +35,7 @@ Sol deve absorver:
 - HUD;
 - telas;
 - QA;
+- gamification preservation review;
 - testes;
 - polish delimitado;
 - acessibilidade.
