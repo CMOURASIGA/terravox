@@ -1,6 +1,12 @@
 # TerraVox Blender MCP
 
-Control plane MCP do pipeline Blender do TerraVox. O checkpoint B1 mantém a simulação da operação Blender, mas grava os jobs em Supabase/Postgres.
+Este pacote vive em `blender-mcp/` no monorepositório
+`CMOURASIGA/terravox`. Ele possui instalação, build e execução independentes
+da aplicação principal.
+
+Control plane MCP do pipeline Blender do TerraVox. O endpoint público mantém o
+contrato B1 de criação de jobs, enquanto o worker Linux B2, já presente neste
+pacote, processa operações autorizadas fora da Vercel.
 
 ## B1 disponível
 

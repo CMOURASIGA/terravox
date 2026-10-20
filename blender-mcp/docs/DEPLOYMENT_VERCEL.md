@@ -1,5 +1,15 @@
 # Vercel Deployment - B1
 
+## Monorepositório
+
+Este projeto está em `blender-mcp/` no repositório
+`CMOURASIGA/terravox`. O projeto Vercel do MCP deve usar:
+
+- repositório: `CMOURASIGA/terravox`;
+- branch de desenvolvimento: `develop`;
+- Root Directory: `blender-mcp`;
+- deployments independentes do projeto Vercel da aplicação principal.
+
 ## Escopo publicado
 
 Vercel hospeda apenas o control plane:
@@ -31,7 +41,7 @@ Antes do deploy, aplique `supabase/migrations/20260922151056_create_blender_jobs
 
 ## Deploy
 
-Conecte o repositório à Vercel e use as configurações automáticas do projeto. A função é descoberta em `api/mcp.ts`; `vercel.json` limita sua duração a 10 segundos. O diretório `public` é mantido para compatibilidade com a configuração de Output Directory do projeto Vercel.
+Conecte o repositório à Vercel, configure `blender-mcp` como Root Directory e use as configurações automáticas do projeto. A função é descoberta em `api/mcp.ts`; `vercel.json` limita sua duração a 10 segundos. O diretório `public` é mantido para compatibilidade com a configuração de Output Directory do projeto Vercel.
 
 Por CLI:
 

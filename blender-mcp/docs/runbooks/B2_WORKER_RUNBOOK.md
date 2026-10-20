@@ -14,11 +14,12 @@ Verificar: `blender --version`.
 
 ```bash
 sudo useradd --system --home /var/lib/terravox-blender-worker --shell /usr/sbin/nologin terravox
-sudo git clone https://github.com/CMOURASIGA/terravox-blender-mcp.git /opt/terravox-blender-mcp
-cd /opt/terravox-blender-mcp && sudo git checkout <branch/sha do B2>
+sudo git clone https://github.com/CMOURASIGA/terravox.git /opt/terravox
+cd /opt/terravox && sudo git checkout <branch/sha do B2>
+cd /opt/terravox/blender-mcp
 sudo npm ci && sudo npm run build
 sudo npm run asset:cube   # fixture técnico B2; gera assets/blender/cube.blend localmente
-sudo chown -R root:root /opt/terravox-blender-mcp   # código somente leitura para o serviço
+sudo chown -R root:root /opt/terravox   # código somente leitura para o serviço
 ```
 
 ## 3. Configurar e subir com systemd
