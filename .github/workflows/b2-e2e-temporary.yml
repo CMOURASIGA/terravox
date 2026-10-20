@@ -67,7 +67,7 @@ jobs:
           npm ci
           npm run typecheck
           npm run lint
-          npm test
+          npm test -- --root .
           npm run build
 
       - name: Generate cube.blend
