@@ -38,7 +38,7 @@ jobs:
       WORKER_SHUTDOWN_GRACE_MS: "5000"
       WORKER_STALE_WORKSPACE_MAX_AGE_MS: "60000"
       WORKER_REQUIRE_BLENDER_AT_STARTUP: "true"
-      WORKER_WORKSPACE_ROOT: ${{ runner.temp }}/terravox-b2-workspaces
+      WORKER_WORKSPACE_ROOT: /tmp/terravox-b2-workspaces
       BLENDER_PATH: /usr/bin/blender
       PREVIEW_URL: https://terravox-blender-mcp-git-ch-4ddee5-christians-projects-4954426e.vercel.app
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
