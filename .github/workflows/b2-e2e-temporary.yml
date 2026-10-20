@@ -1,0 +1,164 @@
+name: B2 temporary Linux E2E
+
+on:
+  push:
+    branches:
+      - chore/spec-00-monorepo-validation
+    paths:
+      - ".github/workflows/b2-e2e-temporary.yml"
+      - "blender-mcp/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: b2-temporary-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  b2-e2e:
+    name: Blender Worker B2 on Ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: blender-mcp
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: debug
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      WORKER_ID: gha-b2-${{ github.run_id }}
+      WORKER_POLL_INTERVAL_MS: "250"
+      WORKER_LEASE_SECONDS: "5"
+      WORKER_HEARTBEAT_INTERVAL_MS: "500"
+      WORKER_MAX_ATTEMPTS: "1"
+      WORKER_RETRY_DELAY_MS: "0"
+      WORKER_SHUTDOWN_GRACE_MS: "5000"
+      WORKER_STALE_WORKSPACE_MAX_AGE_MS: "60000"
+      WORKER_REQUIRE_BLENDER_AT_STARTUP: "true"
+      WORKER_WORKSPACE_ROOT: ${{ runner.temp }}/terravox-b2-workspaces
+      BLENDER_PATH: /usr/bin/blender
+      PREVIEW_URL: https://terravox-blender-mcp-git-ch-4ddee5-christians-projects-4954426e.vercel.app
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout authorized SHA
+        uses: actions/checkout@v4
+
+      - name: Confirm authorized ref
+        run: |
+          test "$GITHUB_REF_NAME" = "chore/spec-00-monorepo-validation"
+          git rev-parse HEAD
+          git status --short
+
+      - name: Verify required secrets without printing values
+        run: |
+          test -n "$SUPABASE_URL" || { echo "::error::Missing SUPABASE_URL secret"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Missing SUPABASE_SERVICE_ROLE_KEY secret"; exit 1; }
+          test -n "$VERCEL_TOKEN" || { echo "::error::Missing VERCEL_TOKEN secret"; exit 1; }
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: blender-mcp/package-lock.json
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes blender
+          blender --version | tee blender-version.log
+
+      - name: Install, validate and build
+        run: |
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Generate cube.blend
+        run: |
+          npm run asset:cube
+          test -s assets/blender/cube.blend
+
+      - name: Controlled startup failure
+        run: |
+          set +e
+          BLENDER_PATH=/definitely-missing/blender node dist/src/worker/main.js > controlled-failure.log 2>&1
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 78
+          grep -q '"event":"worker.blender_unavailable"' controlled-failure.log
+
+      - name: Prepare stale workspace cleanup evidence
+        run: |
+          stale="$WORKER_WORKSPACE_ROOT/job-00000000-0000-4000-8000-000000000000-stale"
+          mkdir -p "$stale"
+          touch -d "2 hours ago" "$stale"
+
+      - name: Start real worker
+        run: |
+          npm run worker:start > worker.log 2>&1 &
+          echo $! > worker.pid
+          for attempt in {1..30}; do
+            if grep -q '"event":"worker.started"' worker.log; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat worker.pid)" 2>/dev/null; then
+              cat worker.log
+              exit 1
+            fi
+            sleep 1
+          done
+          cat worker.log
+          exit 1
+
+      - name: Execute real cube.blend E2E
+        run: |
+          npm run e2e:cube | tee e2e-cube.log
+          grep -q '"ok": true' e2e-cube.log
+          grep -q '"event":"worker.job_claimed"' worker.log
+          grep -q '"event":"worker.blender_finished"' worker.log
+          grep -q '"event":"worker.job_completed"' worker.log
+          grep -q '"event":"worker.heartbeat"' worker.log
+          grep -q '"event":"worker.stale_workspaces_removed"' worker.log
+          test -z "$(find "$WORKER_WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+
+      - name: Stop worker cleanly
+        if: always()
+        run: |
+          if test -f worker.pid && kill -0 "$(cat worker.pid)" 2>/dev/null; then
+            kill -TERM "$(cat worker.pid)"
+            for attempt in {1..15}; do
+              kill -0 "$(cat worker.pid)" 2>/dev/null || break
+              sleep 1
+            done
+          fi
+          test ! -f worker.log || grep -E '"event":"worker.(shutdown_requested|stopped)"' worker.log || true
+
+      - name: MCP initialize through authenticated Vercel CLI
+        env:
+          VERCEL_SCOPE: christians-projects-4954426e
+        run: |
+          npx --yes vercel@latest curl "$PREVIEW_URL/api/mcp"             --token "$VERCEL_TOKEN"             --scope "$VERCEL_SCOPE"             -X POST             -H "Content-Type: application/json"             -H "Accept: application/json, text/event-stream"             -H "MCP-Protocol-Version: 2025-03-26"             --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"terravox-b2-homologation","version":"1.0"}}}'             | tee mcp-initialize.log
+          grep -q '"jsonrpc":"2.0"' mcp-initialize.log
+          grep -q '"id":1' mcp-initialize.log
+          grep -q '"result"' mcp-initialize.log
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-e2e-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            blender-mcp/blender-version.log
+            blender-mcp/controlled-failure.log
+            blender-mcp/worker.log
+            blender-mcp/e2e-cube.log
+            blender-mcp/mcp-initialize.log
