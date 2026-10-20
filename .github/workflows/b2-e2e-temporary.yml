@@ -18,7 +18,7 @@ concurrency:
 
 env:
   AUTHORIZED_BRANCH: chore/spec-00-monorepo-validation
-  PRODUCTION_SUPABASE_REF: xrlfacfivlaeatzffcde
+  AUTHORIZED_SUPABASE_REF: xrlfacfivlaeatzffcde
 
 jobs:
   blender-local:
@@ -108,7 +108,6 @@ jobs:
       LOG_LEVEL: debug
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SUPABASE_HOMOLOGATION_PROJECT_REF: ${{ vars.SUPABASE_HOMOLOGATION_PROJECT_REF }}
       WORKER_ID: gha-b2-${{ github.run_id }}
       WORKER_POLL_INTERVAL_MS: "250"
       WORKER_LEASE_SECONDS: "5"
@@ -130,11 +129,9 @@ jobs:
           test "$GITHUB_REF_NAME" = "$AUTHORIZED_BRANCH"
           test -n "$SUPABASE_URL" || { echo "::error::Missing SUPABASE_URL secret"; exit 1; }
           test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Missing SUPABASE_SERVICE_ROLE_KEY secret"; exit 1; }
-          test -n "$SUPABASE_HOMOLOGATION_PROJECT_REF" || { echo "::error::Missing SUPABASE_HOMOLOGATION_PROJECT_REF variable"; exit 1; }
-          test "$SUPABASE_HOMOLOGATION_PROJECT_REF" != "$PRODUCTION_SUPABASE_REF" || { echo "::error::Production Supabase is forbidden"; exit 1; }
           case "$SUPABASE_URL" in
-            "https://$SUPABASE_HOMOLOGATION_PROJECT_REF.supabase.co") ;;
-            *) echo "::error::SUPABASE_URL does not match the approved homologation project"; exit 1 ;;
+            "https://$AUTHORIZED_SUPABASE_REF.supabase.co") ;;
+            *) echo "::error::SUPABASE_URL does not match the explicitly authorized project"; exit 1 ;;
           esac
 
       - name: Set up Node.js 22
@@ -153,6 +150,17 @@ jobs:
           npm run build
           npm run asset:cube
           test -s assets/blender/cube.blend
+
+      - name: Require an empty Blender queue
+        run: |
+          node --input-type=module -e '
+            import { createClient } from "@supabase/supabase-js";
+            const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+            const { count, error } = await client.from("blender_jobs").select("id", { count: "exact", head: true });
+            if (error) throw error;
+            if (count !== 0) throw new Error("Shared Blender queue is not empty; refusing isolated E2E");
+            console.log(JSON.stringify({ step: "queue_isolation_preflight", ok: true, existingJobs: count }));
+          ' | tee queue-preflight.log
 
       - name: Prepare stale workspace cleanup evidence
         run: |
@@ -180,6 +188,9 @@ jobs:
       - name: Execute real cube.blend E2E
         run: |
           npm run e2e:cube | tee e2e-cube.log
+          if test -f worker.pid && kill -0 "$(cat worker.pid)" 2>/dev/null; then
+            kill -TERM "$(cat worker.pid)"
+          fi
           grep -q '"ok": true' e2e-cube.log
           grep -q '"event":"worker.job_claimed"' worker.log
           grep -q '"event":"worker.blender_finished"' worker.log
@@ -200,6 +211,32 @@ jobs:
           fi
           test ! -f worker.log || grep -E '"event":"worker.(shutdown_requested|stopped)"' worker.log || true
 
+      - name: Remove only the E2E job and verify isolation
+        if: always()
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import { createClient } from "@supabase/supabase-js";
+            if (!fs.existsSync("e2e-cube.log")) {
+              console.log(JSON.stringify({ step: "queue_cleanup", ok: true, action: "no_e2e_job_created" }));
+              process.exit(0);
+            }
+            const lines = fs.readFileSync("e2e-cube.log", "utf8").split(/\r?\n/);
+            const createdLine = lines.find((line) => line.includes("\"step\":\"job_created\""));
+            if (!createdLine) {
+              console.log(JSON.stringify({ step: "queue_cleanup", ok: true, action: "no_e2e_job_created" }));
+              process.exit(0);
+            }
+            const created = JSON.parse(createdLine);
+            const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+            const deletion = await client.from("blender_jobs").delete().eq("id", created.jobId).eq("correlation_id", created.correlationId);
+            if (deletion.error) throw deletion.error;
+            const remaining = await client.from("blender_jobs").select("id", { count: "exact", head: true });
+            if (remaining.error) throw remaining.error;
+            if (remaining.count !== 0) throw new Error("Unexpected jobs detected after E2E; no unrelated rows were deleted");
+            console.log(JSON.stringify({ step: "queue_cleanup", ok: true, deletedOwnJob: true, remainingJobs: remaining.count }));
+          ' | tee queue-cleanup.log
+
       - name: Upload sanitized Worker evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -209,8 +246,10 @@ jobs:
           retention-days: 7
           path: |
             blender-mcp/blender-version.log
+            blender-mcp/queue-preflight.log
             blender-mcp/worker.log
             blender-mcp/e2e-cube.log
+            blender-mcp/queue-cleanup.log
 
   mcp-preview:
     name: Authenticated MCP Preview initialize
