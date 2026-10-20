@@ -16,9 +16,14 @@ concurrency:
   group: b2-temporary-e2e-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  AUTHORIZED_BRANCH: chore/spec-00-monorepo-validation
+  PRODUCTION_SUPABASE_REF: xrlfacfivlaeatzffcde
+
 jobs:
-  b2-e2e:
-    name: Blender Worker B2 on Ubuntu
+  blender-local:
+    name: Blender build and local validation
+    if: github.ref == 'refs/heads/chore/spec-00-monorepo-validation'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -27,37 +32,22 @@ jobs:
     env:
       NODE_ENV: test
       LOG_LEVEL: debug
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      WORKER_ID: gha-b2-${{ github.run_id }}
-      WORKER_POLL_INTERVAL_MS: "250"
-      WORKER_LEASE_SECONDS: "5"
-      WORKER_HEARTBEAT_INTERVAL_MS: "500"
-      WORKER_MAX_ATTEMPTS: "1"
-      WORKER_RETRY_DELAY_MS: "0"
-      WORKER_SHUTDOWN_GRACE_MS: "5000"
-      WORKER_STALE_WORKSPACE_MAX_AGE_MS: "60000"
+      SUPABASE_URL: https://invalid.example
+      SUPABASE_SERVICE_ROLE_KEY: local-test-placeholder
+      WORKER_ID: gha-b2-local-${{ github.run_id }}
       WORKER_REQUIRE_BLENDER_AT_STARTUP: "true"
-      WORKER_WORKSPACE_ROOT: /tmp/terravox-b2-workspaces
+      WORKER_WORKSPACE_ROOT: /tmp/terravox-b2-local-workspaces
       BLENDER_PATH: /usr/bin/blender
-      PREVIEW_URL: https://terravox-blender-mcp-git-ch-4ddee5-christians-projects-4954426e.vercel.app
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
     steps:
-      - name: Checkout authorized SHA
+      - name: Checkout authorized branch
         uses: actions/checkout@v4
 
       - name: Confirm authorized ref
         run: |
-          test "$GITHUB_REF_NAME" = "chore/spec-00-monorepo-validation"
+          test "$GITHUB_REF_NAME" = "$AUTHORIZED_BRANCH"
           git rev-parse HEAD
           git status --short
-
-      - name: Verify required secrets without printing values
-        run: |
-          test -n "$SUPABASE_URL" || { echo "::error::Missing SUPABASE_URL secret"; exit 1; }
-          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Missing SUPABASE_SERVICE_ROLE_KEY secret"; exit 1; }
-          test -n "$VERCEL_TOKEN" || { echo "::error::Missing VERCEL_TOKEN secret"; exit 1; }
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -94,6 +84,76 @@ jobs:
           test "$exit_code" -eq 78
           grep -q '"event":"worker.blender_unavailable"' controlled-failure.log
 
+      - name: Upload local evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-local-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            blender-mcp/blender-version.log
+            blender-mcp/controlled-failure.log
+
+  worker-e2e:
+    name: Worker E2E against homologation Supabase
+    if: github.ref == 'refs/heads/chore/spec-00-monorepo-validation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: blender-mcp
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: debug
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_HOMOLOGATION_PROJECT_REF: ${{ vars.SUPABASE_HOMOLOGATION_PROJECT_REF }}
+      WORKER_ID: gha-b2-${{ github.run_id }}
+      WORKER_POLL_INTERVAL_MS: "250"
+      WORKER_LEASE_SECONDS: "5"
+      WORKER_HEARTBEAT_INTERVAL_MS: "500"
+      WORKER_MAX_ATTEMPTS: "1"
+      WORKER_RETRY_DELAY_MS: "0"
+      WORKER_SHUTDOWN_GRACE_MS: "5000"
+      WORKER_STALE_WORKSPACE_MAX_AGE_MS: "60000"
+      WORKER_REQUIRE_BLENDER_AT_STARTUP: "true"
+      WORKER_WORKSPACE_ROOT: /tmp/terravox-b2-workspaces
+      BLENDER_PATH: /usr/bin/blender
+
+    steps:
+      - name: Checkout authorized branch
+        uses: actions/checkout@v4
+
+      - name: Validate isolated homologation target
+        run: |
+          test "$GITHUB_REF_NAME" = "$AUTHORIZED_BRANCH"
+          test -n "$SUPABASE_URL" || { echo "::error::Missing SUPABASE_URL secret"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Missing SUPABASE_SERVICE_ROLE_KEY secret"; exit 1; }
+          test -n "$SUPABASE_HOMOLOGATION_PROJECT_REF" || { echo "::error::Missing SUPABASE_HOMOLOGATION_PROJECT_REF variable"; exit 1; }
+          test "$SUPABASE_HOMOLOGATION_PROJECT_REF" != "$PRODUCTION_SUPABASE_REF" || { echo "::error::Production Supabase is forbidden"; exit 1; }
+          case "$SUPABASE_URL" in
+            "https://$SUPABASE_HOMOLOGATION_PROJECT_REF.supabase.co") ;;
+            *) echo "::error::SUPABASE_URL does not match the approved homologation project"; exit 1 ;;
+          esac
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: blender-mcp/package-lock.json
+
+      - name: Install Blender and build
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes blender
+          blender --version | tee blender-version.log
+          npm ci
+          npm run build
+          npm run asset:cube
+          test -s assets/blender/cube.blend
+
       - name: Prepare stale workspace cleanup evidence
         run: |
           stale="$WORKER_WORKSPACE_ROOT/job-00000000-0000-4000-8000-000000000000-stale"
@@ -109,12 +169,12 @@ jobs:
               exit 0
             fi
             if ! kill -0 "$(cat worker.pid)" 2>/dev/null; then
-              cat worker.log
+              sed -E 's/(service_role|eyJ[A-Za-z0-9_-]+)[A-Za-z0-9._-]*/[REDACTED]/g' worker.log
               exit 1
             fi
             sleep 1
           done
-          cat worker.log
+          echo "::error::Worker did not start within 30 seconds"
           exit 1
 
       - name: Execute real cube.blend E2E
@@ -140,25 +200,52 @@ jobs:
           fi
           test ! -f worker.log || grep -E '"event":"worker.(shutdown_requested|stopped)"' worker.log || true
 
-      - name: MCP initialize through authenticated Vercel CLI
-        env:
-          VERCEL_SCOPE: christians-projects-4954426e
-        run: |
-          npx --yes vercel@latest curl "$PREVIEW_URL/api/mcp"             --token "$VERCEL_TOKEN"             --scope "$VERCEL_SCOPE"             -X POST             -H "Content-Type: application/json"             -H "Accept: application/json, text/event-stream"             -H "MCP-Protocol-Version: 2025-03-26"             --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"terravox-b2-homologation","version":"1.0"}}}'             | tee mcp-initialize.log
-          grep -q '"jsonrpc":"2.0"' mcp-initialize.log
-          grep -q '"id":1' mcp-initialize.log
-          grep -q '"result"' mcp-initialize.log
-
-      - name: Upload sanitized evidence
+      - name: Upload sanitized Worker evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: b2-e2e-evidence-${{ github.run_id }}
+          name: b2-worker-e2e-evidence-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 7
           path: |
             blender-mcp/blender-version.log
-            blender-mcp/controlled-failure.log
             blender-mcp/worker.log
             blender-mcp/e2e-cube.log
-            blender-mcp/mcp-initialize.log
+
+  mcp-preview:
+    name: Authenticated MCP Preview initialize
+    if: github.ref == 'refs/heads/chore/spec-00-monorepo-validation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PREVIEW_URL: https://terravox-blender-mcp-git-ch-4ddee5-christians-projects-4954426e.vercel.app
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_SCOPE: christians-projects-4954426e
+    steps:
+      - name: Validate Vercel credential presence
+        run: |
+          test -n "$VERCEL_TOKEN" || { echo "::error::Missing VERCEL_TOKEN secret"; exit 1; }
+
+      - name: MCP initialize through authenticated Vercel CLI
+        run: |
+          npx --yes vercel@latest curl "$PREVIEW_URL/api/mcp" \
+            --token "$VERCEL_TOKEN" \
+            --scope "$VERCEL_SCOPE" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -H "MCP-Protocol-Version: 2025-03-26" \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"terravox-b2-homologation","version":"1.0"}}}' \
+            | tee mcp-initialize.log
+          grep -q '"jsonrpc":"2.0"' mcp-initialize.log
+          grep -q '"id":1' mcp-initialize.log
+          grep -q '"result"' mcp-initialize.log
+
+      - name: Upload MCP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-mcp-preview-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: mcp-initialize.log
