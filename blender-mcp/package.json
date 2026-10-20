@@ -1,0 +1,32 @@
+{
+  "name": "terravox-blender-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "worker:start": "node dist/src/worker/main.js",
+    "e2e:cube": "node dist/scripts/e2e-cube.js",
+    "asset:cube": "blender --background --factory-startup --python tools/blender/make_cube.py -- assets/blender/cube.blend"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@supabase/supabase-js": "2.117.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vercel/node": "^5.3.0",
+    "eslint": "^9.35.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.42.0",
+    "vitest": "^3.2.4"
+  }
+}
