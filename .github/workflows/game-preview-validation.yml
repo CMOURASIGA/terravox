@@ -70,7 +70,7 @@ jobs:
             --yes \
             --project "$VERCEL_PROJECT" \
             --scope "$VERCEL_SCOPE"
-          npx --yes vercel@latest project inspect --non-interactive --scope "$VERCEL_SCOPE" \
+          npx --yes vercel@latest project inspect --non-interactive --scope "$VERCEL_SCOPE" 2>&1 \
             | tee vercel-project-inspect.log
           grep -q "$VERCEL_PROJECT" vercel-project-inspect.log
 
