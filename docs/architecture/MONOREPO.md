@@ -51,3 +51,19 @@ exceto pelo arquivo local de rastreabilidade `MIGRATION_SOURCE.md`.
 
 O repositório histórico e branches antigas não devem ser removidos até a
 homologação E2E do B2 e autorização explícita.
+
+
+## Status de validação
+
+- SPEC 00 tecnicamente aprovada; validação humana do jogo permanece pendente.
+- B0 e B1 preservados no monorepositório.
+- B2 funcionalmente aprovado em Ubuntu temporário com Blender real.
+- O POST autenticado de inicialização do MCP foi validado no Preview.
+- B2 ainda não está operacionalmente pronto porque o Worker Linux persistente
+  não foi provisionado e homologado.
+- A proposta B3 está documentada em
+  `docs/roadmap/3d/B3_BLENDER_ASSET_PIPELINE.md`; sua implementação não foi
+  iniciada.
+
+O jogo e o MCP mantêm deployments independentes. O Worker permanece fora da
+Vercel e não deve ser confundido com a função HTTP do MCP.
