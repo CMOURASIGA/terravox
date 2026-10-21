@@ -1,6 +1,6 @@
 [Unit]
 Description=TerraVox Blender Worker (B2)
-Documentation=https://github.com/CMOURASIGA/terravox-blender-mcp
+Documentation=https://github.com/CMOURASIGA/terravox/tree/develop/blender-mcp
 After=network-online.target
 Wants=network-online.target
 
@@ -8,7 +8,7 @@ Wants=network-online.target
 Type=simple
 User=terravox
 Group=terravox
-WorkingDirectory=/opt/terravox-blender-mcp
+WorkingDirectory=/opt/terravox/blender-mcp
 # Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) live here, mode 0600 root:root. Never in the repo.
 EnvironmentFile=/etc/terravox-blender-worker.env
 ExecStart=/usr/bin/node dist/src/worker/main.js

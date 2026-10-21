@@ -1,0 +1,288 @@
+name: B2 temporary Linux E2E
+
+on:
+  push:
+    branches:
+      - chore/spec-00-monorepo-validation
+    paths:
+      - ".github/workflows/b2-e2e-temporary.yml"
+      - "blender-mcp/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: b2-temporary-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AUTHORIZED_BRANCH: chore/spec-00-monorepo-validation
+  AUTHORIZED_SUPABASE_REF: xrlfacfivlaeatzffcde
+
+jobs:
+  blender-local:
+    name: Blender build and local validation
+    if: github.ref == 'refs/heads/chore/spec-00-monorepo-validation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: blender-mcp
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: debug
+      SUPABASE_URL: https://invalid.example
+      SUPABASE_SERVICE_ROLE_KEY: local-test-placeholder
+      WORKER_ID: gha-b2-local-${{ github.run_id }}
+      WORKER_REQUIRE_BLENDER_AT_STARTUP: "true"
+      WORKER_WORKSPACE_ROOT: /tmp/terravox-b2-local-workspaces
+      BLENDER_PATH: /usr/bin/blender
+
+    steps:
+      - name: Checkout authorized branch
+        uses: actions/checkout@v4
+
+      - name: Confirm authorized ref
+        run: |
+          test "$GITHUB_REF_NAME" = "$AUTHORIZED_BRANCH"
+          git rev-parse HEAD
+          git status --short
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: blender-mcp/package-lock.json
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes blender
+          blender --version | tee blender-version.log
+
+      - name: Install, validate and build
+        run: |
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test -- --root .
+          npm run build
+
+      - name: Generate cube.blend
+        run: |
+          npm run asset:cube
+          test -s assets/blender/cube.blend
+
+      - name: Controlled startup failure
+        run: |
+          set +e
+          BLENDER_PATH=/definitely-missing/blender node dist/src/worker/main.js > controlled-failure.log 2>&1
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 78
+          grep -q '"event":"worker.blender_unavailable"' controlled-failure.log
+
+      - name: Upload local evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-local-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            blender-mcp/blender-version.log
+            blender-mcp/controlled-failure.log
+
+  worker-e2e:
+    name: Worker E2E against homologation Supabase
+    if: github.ref == 'refs/heads/chore/spec-00-monorepo-validation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: blender-mcp
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: debug
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      WORKER_ID: gha-b2-${{ github.run_id }}
+      WORKER_POLL_INTERVAL_MS: "250"
+      WORKER_LEASE_SECONDS: "5"
+      WORKER_HEARTBEAT_INTERVAL_MS: "500"
+      WORKER_MAX_ATTEMPTS: "1"
+      WORKER_RETRY_DELAY_MS: "0"
+      WORKER_SHUTDOWN_GRACE_MS: "5000"
+      WORKER_STALE_WORKSPACE_MAX_AGE_MS: "60000"
+      WORKER_REQUIRE_BLENDER_AT_STARTUP: "true"
+      WORKER_WORKSPACE_ROOT: /tmp/terravox-b2-workspaces
+      BLENDER_PATH: /usr/bin/blender
+
+    steps:
+      - name: Checkout authorized branch
+        uses: actions/checkout@v4
+
+      - name: Validate isolated homologation target
+        run: |
+          test "$GITHUB_REF_NAME" = "$AUTHORIZED_BRANCH"
+          test -n "$SUPABASE_URL" || { echo "::error::Missing SUPABASE_URL secret"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Missing SUPABASE_SERVICE_ROLE_KEY secret"; exit 1; }
+          case "$SUPABASE_URL" in
+            "https://$AUTHORIZED_SUPABASE_REF.supabase.co") ;;
+            *) echo "::error::SUPABASE_URL does not match the explicitly authorized project"; exit 1 ;;
+          esac
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: blender-mcp/package-lock.json
+
+      - name: Install Blender and build
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes blender
+          blender --version | tee blender-version.log
+          npm ci
+          npm run build
+          npm run asset:cube
+          test -s assets/blender/cube.blend
+
+      - name: Require an empty Blender queue
+        run: |
+          node --input-type=module -e '
+            import { createClient } from "@supabase/supabase-js";
+            const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+            const { count, error } = await client.from("blender_jobs").select("id", { count: "exact", head: true });
+            if (error) throw error;
+            if (count !== 0) throw new Error("Shared Blender queue is not empty; refusing isolated E2E");
+            console.log(JSON.stringify({ step: "queue_isolation_preflight", ok: true, existingJobs: count }));
+          ' | tee queue-preflight.log
+
+      - name: Prepare stale workspace cleanup evidence
+        run: |
+          stale="$WORKER_WORKSPACE_ROOT/job-00000000-0000-4000-8000-000000000000-stale"
+          mkdir -p "$stale"
+          touch -d "2 hours ago" "$stale"
+
+      - name: Start real worker
+        run: |
+          npm run worker:start > worker.log 2>&1 &
+          echo $! > worker.pid
+          for attempt in {1..30}; do
+            if grep -q '"event":"worker.started"' worker.log; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat worker.pid)" 2>/dev/null; then
+              sed -E 's/(service_role|eyJ[A-Za-z0-9_-]+)[A-Za-z0-9._-]*/[REDACTED]/g' worker.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::Worker did not start within 30 seconds"
+          exit 1
+
+      - name: Execute real cube.blend E2E
+        run: |
+          npm run e2e:cube | tee e2e-cube.log
+          if test -f worker.pid && kill -0 "$(cat worker.pid)" 2>/dev/null; then
+            kill -TERM "$(cat worker.pid)"
+          fi
+          grep -q '"ok": true' e2e-cube.log
+          grep -q '"event":"worker.job_claimed"' worker.log
+          grep -q '"event":"worker.blender_finished"' worker.log
+          grep -q '"event":"worker.job_completed"' worker.log
+          grep -q '"event":"worker.heartbeat"' worker.log
+          grep -q '"event":"worker.stale_workspaces_removed"' worker.log
+          test -z "$(find "$WORKER_WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+
+      - name: Stop worker cleanly
+        if: always()
+        run: |
+          if test -f worker.pid && kill -0 "$(cat worker.pid)" 2>/dev/null; then
+            kill -TERM "$(cat worker.pid)"
+            for attempt in {1..15}; do
+              kill -0 "$(cat worker.pid)" 2>/dev/null || break
+              sleep 1
+            done
+          fi
+          test ! -f worker.log || grep -E '"event":"worker.(shutdown_requested|stopped)"' worker.log || true
+
+      - name: Remove only the E2E job and verify isolation
+        if: always()
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import { createClient } from "@supabase/supabase-js";
+            if (!fs.existsSync("e2e-cube.log")) {
+              console.log(JSON.stringify({ step: "queue_cleanup", ok: true, action: "no_e2e_job_created" }));
+              process.exit(0);
+            }
+            const lines = fs.readFileSync("e2e-cube.log", "utf8").split(/\r?\n/);
+            const createdLine = lines.find((line) => line.includes("\"step\":\"job_created\""));
+            if (!createdLine) {
+              console.log(JSON.stringify({ step: "queue_cleanup", ok: true, action: "no_e2e_job_created" }));
+              process.exit(0);
+            }
+            const created = JSON.parse(createdLine);
+            const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+            const deletion = await client.from("blender_jobs").delete().eq("id", created.jobId).eq("correlation_id", created.correlationId);
+            if (deletion.error) throw deletion.error;
+            const remaining = await client.from("blender_jobs").select("id", { count: "exact", head: true });
+            if (remaining.error) throw remaining.error;
+            if (remaining.count !== 0) throw new Error("Unexpected jobs detected after E2E; no unrelated rows were deleted");
+            console.log(JSON.stringify({ step: "queue_cleanup", ok: true, deletedOwnJob: true, remainingJobs: remaining.count }));
+          ' | tee queue-cleanup.log
+
+      - name: Upload sanitized Worker evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-worker-e2e-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            blender-mcp/blender-version.log
+            blender-mcp/queue-preflight.log
+            blender-mcp/worker.log
+            blender-mcp/e2e-cube.log
+            blender-mcp/queue-cleanup.log
+
+  mcp-preview:
+    name: Authenticated MCP Preview initialize
+    if: github.ref == 'refs/heads/chore/spec-00-monorepo-validation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PREVIEW_URL: https://terravox-blender-mcp-git-ch-4ddee5-christians-projects-4954426e.vercel.app
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_SCOPE: christians-projects-4954426e
+    steps:
+      - name: Validate Vercel credential presence
+        run: |
+          test -n "$VERCEL_TOKEN" || { echo "::error::Missing VERCEL_TOKEN secret"; exit 1; }
+
+      - name: MCP initialize through authenticated Vercel CLI
+        run: |
+          npx --yes vercel@latest curl "$PREVIEW_URL/api/mcp" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -H "MCP-Protocol-Version: 2025-03-26" \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"terravox-b2-homologation","version":"1.0"}}}' \
+            | tee mcp-initialize.log
+          grep -q '"jsonrpc":"2.0"' mcp-initialize.log
+          grep -q '"id":1' mcp-initialize.log
+          grep -q '"result"' mcp-initialize.log
+
+      - name: Upload MCP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-mcp-preview-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: mcp-initialize.log

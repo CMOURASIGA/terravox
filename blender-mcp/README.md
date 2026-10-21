@@ -1,8 +1,14 @@
 # TerraVox Blender MCP
 
-Control plane MCP do pipeline Blender do TerraVox. O checkpoint B1 mantém a simulação da operação Blender, mas grava os jobs em Supabase/Postgres.
+Este pacote vive em `blender-mcp/` no monorepositório
+`CMOURASIGA/terravox`. Ele possui instalação, build e execução independentes
+da aplicação principal.
 
-## B1 disponível
+Control plane MCP do pipeline Blender do TerraVox. O endpoint público mantém o
+contrato B1 de criação de jobs, enquanto o worker Linux B2, já presente neste
+pacote, processa operações autorizadas fora da Vercel.
+
+## Componentes disponíveis
 
 - MCP Streamable HTTP stateless;
 - endpoint `POST /api/mcp`;
@@ -12,9 +18,9 @@ Control plane MCP do pipeline Blender do TerraVox. O checkpoint B1 mantém a sim
 - logging JSON estruturado;
 - repository persistente de jobs;
 - transições de estado validadas no domínio e no banco;
-- claim/lease atômico preparado para o worker futuro.
+- claim/lease atômico consumido pelo Worker B2.
 
-Blender, worker, subprocessos, Python e storage de artefatos não fazem parte de B1.
+B1 cobre o control plane. Blender, subprocessos e Python pertencem ao Worker B2. O armazenamento definitivo de artifacts é escopo proposto para B3.
 
 ## Desenvolvimento
 
@@ -58,7 +64,7 @@ No Inspector, execute na ordem:
 MCP/API -> Job Service -> Queue/Persistence -> Blender Worker -> Blender CLI
 ```
 
-Em B1, MCP/API, Job Service e Queue/Persistence estão implementados. `blender.export_glb` cria um job `queued` com `simulated: true`; como ainda não há worker, nenhum job é processado automaticamente. O claim/lease existe apenas como contrato interno para o B2.
+MCP/API, Job Service, Queue/Persistence e Worker B2 estão implementados. A homologação funcional do B2 foi concluída em Ubuntu temporário com Blender real. A operação contínua ainda depende de um Worker Linux persistente.
 
 Consulte [docs/DEPLOYMENT_VERCEL.md](docs/DEPLOYMENT_VERCEL.md) para publicação e Human Validation.
 
@@ -71,3 +77,18 @@ npm run asset:cube                    # gera o fixture local assets/blender/cube
 npm run build && npm run worker:start # worker
 node --env-file=.env dist/scripts/e2e-cube.js   # E2E real (cube-test)
 ```
+
+
+## Status de homologação
+
+- B0: aprovado.
+- B1: aprovado.
+- B2: funcionalmente aprovado.
+- B2 operacional: pendente de Worker Linux persistente.
+- B3: proposta documentada, implementação não iniciada.
+
+Evidência B2:
+https://github.com/CMOURASIGA/terravox/actions/runs/39594868311
+
+Proposta B3:
+[docs/roadmap/3d/B3_BLENDER_ASSET_PIPELINE.md](../docs/roadmap/3d/B3_BLENDER_ASSET_PIPELINE.md)

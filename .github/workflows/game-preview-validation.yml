@@ -1,0 +1,108 @@
+name: TerraVox game Preview validation
+
+on:
+  push:
+    branches:
+      - chore/spec-00-monorepo-validation
+    paths:
+      - ".github/workflows/game-preview-validation.yml"
+      - "scripts/smoke-game-preview.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "api/**"
+      - "src/**"
+      - "app.ts"
+      - "openai.ts"
+      - "server.ts"
+      - "vercel.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terravox-game-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-game-preview:
+    name: Configure and validate TerraVox Preview
+    if: github.ref == 'refs/heads/chore/spec-00-monorepo-validation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_SCOPE: christians-projects-4954426e
+      VERCEL_PROJECT: terravox
+
+    steps:
+      - name: Checkout authorized branch
+        uses: actions/checkout@v4
+
+      - name: Validate branch and secret presence
+        run: |
+          test "$GITHUB_REF_NAME" = "chore/spec-00-monorepo-validation"
+          test -n "$VERCEL_TOKEN" || { echo "::error::Missing VERCEL_TOKEN"; exit 1; }
+          test -n "$SUPABASE_URL" || { echo "::error::Missing SUPABASE_URL"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Missing SUPABASE_SERVICE_ROLE_KEY"; exit 1; }
+          case "$SUPABASE_URL" in
+            "https://xrlfacfivlaeatzffcde.supabase.co") ;;
+            *) echo "::error::SUPABASE_URL does not match the authorized games_lucas project"; exit 1 ;;
+          esac
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install and run technical gates
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
+      - name: Link authorized Vercel Preview project
+        run: |
+          npx --yes vercel@latest link \
+            --yes \
+            --project "$VERCEL_PROJECT" \
+            --scope "$VERCEL_SCOPE"
+          npx --yes vercel@latest project inspect --non-interactive --scope "$VERCEL_SCOPE" 2>&1 \
+            | tee vercel-project-inspect.log
+          grep -q "$VERCEL_PROJECT" vercel-project-inspect.log
+
+      - name: Configure Preview-only Supabase environment
+        run: |
+          printf '%s' "$SUPABASE_URL" \
+            | npx --yes vercel@latest env add SUPABASE_URL preview --sensitive --force --yes --scope "$VERCEL_SCOPE"
+          printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" \
+            | npx --yes vercel@latest env add SUPABASE_SERVICE_ROLE_KEY preview --sensitive --force --yes --scope "$VERCEL_SCOPE"
+
+      - name: Deploy new Preview
+        id: deploy
+        run: |
+          preview_url="$(npx --yes vercel@latest deploy . --target preview --force --yes --scope "$VERCEL_SCOPE")"
+          case "$preview_url" in
+            https://*.vercel.app) ;;
+            *) echo "::error::Unexpected Preview URL"; exit 1 ;;
+          esac
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "GAME_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
+          echo "Preview: $preview_url"
+
+      - name: Validate Brazil and Mexico question flow
+        run: npm run test:game-preview | tee game-preview-smoke.log
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terravox-game-preview-evidence-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            game-preview-smoke.log
+            vercel-project-inspect.log
