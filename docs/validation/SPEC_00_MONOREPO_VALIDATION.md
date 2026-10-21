@@ -2,7 +2,9 @@
 
 Data de encerramento técnico: 2026-10-21
 
-Branch: `chore/spec-00-monorepo-validation`
+Branch integrada: `develop`
+
+Merge SHA: `6aabc1ba9cfb085e7690f910c485da38306a891f`
 
 SHA homologado B2: `1d411535128da41625cb35e645fa19297fa8eb20`
 
@@ -10,7 +12,7 @@ PR: https://github.com/CMOURASIGA/terravox/pull/1
 
 ## Decisão
 
-Status da SPEC 00: **TECHNICALLY APPROVED - GAME HUMAN VALIDATION PENDING**
+Status da SPEC 00: **INTEGRATED IN DEVELOP - INT-09 ACCEPTED PENDING**
 
 Status do B2: **FUNCTIONALLY APPROVED**
 
@@ -25,13 +27,14 @@ independentes.
 | Área | Verificação | Resultado | Evidência |
 |---|---|---|---|
 | Git | `main` preservada | PASS | nenhuma alteração ou merge realizado em `main` |
-| Git | destino do PR | PASS | PR #1 aberto para `develop` |
-| Git | capacidade de merge no SHA homologado | PASS | GitHub: `mergeable=true`, `mergeable_state=clean` |
+| Git | integração do PR | PASS | PR #1 integrado em `develop` no merge SHA `6aabc1ba9cfb085e7690f910c485da38306a891f` |
+| Git | integridade do merge | PASS | merge assinado e verificado, com pais `99143be017a48424b859674c3cd18c81ae7723dd` e `3945189dc32db31c26d91b9ac0a5cd5e049d805f` |
 | Histórico | documentação experimental arquivada | PASS | `docs/archive/` preservado |
 | Jogo | instalação, TypeScript e build | PASS | validação técnica da SPEC 00 |
 | Jogo | regressão de código | PASS | consolidação sem remoção funcional identificada |
 | Jogo | Preview Vercel | PASS | deployment do SHA homologado em estado READY |
-| Jogo | fluxo humano completo | NOT TESTED | acesso, perfil, mapa, território, desafio, progressão e persistência aguardam validação humana |
+| Jogo | fluxo humano funcional | PASS | perfil, mapa, Brasil, México, desafio, progressão e persistência validados |
+| Jogo | INT-09 responsividade | ACCEPTED PENDING | aprovação excepcional; validação obrigatória em 1366x768, 768x1024 e 390x844 antes da disponibilização externa |
 | MCP | instalação, typecheck, lint, testes e build | PASS | gates técnicos aprovados |
 | MCP | contratos B0 e B1 | PASS | health, MCP HTTP, domínio de jobs e persistência validados |
 | MCP | implementação B2 | PASS | worker, claim, lease, heartbeat, execução e cleanup validados |
@@ -95,16 +98,21 @@ Resposta MCP validada:
 }
 ```
 
-## Pendências funcionais do jogo
+## Pendência aceita do jogo - INT-09
 
-1. Executar validação humana no Preview.
-2. Confirmar acesso e criação de perfil.
-3. Confirmar navegação no mapa e seleção de território.
-4. Executar um desafio.
-5. Confirmar progressão e persistência após recarregar a aplicação.
+O INT-09 foi aceito excepcionalmente para permitir a integração da SPEC 00.
+Ele permanece obrigatório antes da disponibilização externa do jogo.
 
-Essas pendências não invalidam o B2, mas impedem o encerramento integral da
-homologação funcional do jogo dentro da SPEC 00.
+Viewports pendentes:
+
+1. Desktop: 1366 x 768.
+2. Tablet: 768 x 1024.
+3. Mobile: 390 x 844.
+
+Em cada viewport devem ser validados tela inicial, criação de perfil, mapa,
+quatro territórios, Floresta do Brasil, trilha, perguntas, alternativas,
+botões, legibilidade, rolagem, ausência de sobreposição e retorno ao mapa com
+XP e moedas. Captura redimensionada não constitui evidência válida.
 
 ## Pendências de infraestrutura Blender
 
@@ -121,16 +129,13 @@ B2, mas não comprova disponibilidade operacional contínua.
 
 ## Situação do PR #1
 
-No SHA homologado, o PR estava aberto, sem conflitos e apto tecnicamente para
-merge em `develop`. A atualização documental posterior deve receber seus
-checks normais antes da autorização final.
-
-Nenhum merge deve ser executado antes da conferência humana do jogo e da
-autorização explícita.
+O PR #1 foi integrado em `develop` pelo merge SHA
+`6aabc1ba9cfb085e7690f910c485da38306a891f`. A `main` permaneceu intacta.
+Os Previews do jogo e do MCP associados ao merge ficaram em estado READY.
 
 ## Próximo passo
 
-1. Conferência humana do jogo no Preview.
-2. Revisão e aprovação da proposta B3.
-3. Autorização separada para merge do PR #1.
-4. Autorização separada para iniciar a implementação B3.
+1. Executar o INT-09 nos três viewports antes da disponibilização externa.
+2. Revisar e aprovar o primeiro asset P0 proposto para B3.
+3. Autorizar separadamente o início da implementação B3.
+4. Planejar o Worker Linux persistente sem alterar a aprovação funcional do B2.
