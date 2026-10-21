@@ -140,20 +140,101 @@ describe("B3.1 asset contract", () => {
     });
   });
 
-  it("creates deterministic fingerprints and rejects key reuse with a different request", () => {
+  it("accepts an identical replay", () => {
     const parsed = assetProcessingInputSchema.parse(validInput);
     expect(createIdempotencyFingerprint(parsed)).toHaveLength(64);
     expect(createIdempotencyFingerprint(parsed)).toBe(createIdempotencyFingerprint(parsed));
     expect(checkIdempotentReplay(parsed, parsed)).toEqual({ replay: true });
+  });
 
-    const conflicting = assetProcessingInputSchema.parse({
-      ...validInput,
-      source: { ...validInput.source, sha256: outputSha },
+  it("accepts semantically equivalent objects with reordered properties", () => {
+    const original = assetProcessingInputSchema.parse(validInput);
+    const reordered = assetProcessingInputSchema.parse({
+      idempotencyKey: validInput.idempotencyKey,
+      exportProfile: validInput.exportProfile,
+      source: {
+        sizeBytes: validInput.source.sizeBytes,
+        mediaType: validInput.source.mediaType,
+        sha256: validInput.source.sha256,
+        storageKey: validInput.source.storageKey,
+      },
+      asset: {
+        license: {
+          name: validInput.asset.license.name,
+          identifier: validInput.asset.license.identifier,
+        },
+        authorship: {
+          attribution: validInput.asset.authorship.attribution,
+          authorName: validInput.asset.authorship.authorName,
+        },
+        territoryId: validInput.asset.territoryId,
+        displayName: validInput.asset.displayName,
+        assetVersion: validInput.asset.assetVersion,
+        assetType: validInput.asset.assetType,
+        assetId: validInput.asset.assetId,
+      },
+      contractVersion: validInput.contractVersion,
     });
-    expect(checkIdempotentReplay(parsed, conflicting)).toEqual({
+
+    expect(createIdempotencyFingerprint(reordered)).toBe(createIdempotencyFingerprint(original));
+    expect(checkIdempotentReplay(original, reordered)).toEqual({ replay: true });
+  });
+
+  it.each([
+    [
+      "license",
+      { asset: { ...validInput.asset, license: { ...validInput.asset.license, identifier: "CC-BY-4.0" } } },
+    ],
+    [
+      "authorship",
+      {
+        asset: {
+          ...validInput.asset,
+          authorship: { ...validInput.asset.authorship, authorName: "Another Artist" },
+        },
+      },
+    ],
+    ["territory", { asset: { ...validInput.asset, territoryId: "br-amazon" } }],
+    ["display metadata", { asset: { ...validInput.asset, displayName: "Novo marco" } }],
+    ["source size", { source: { ...validInput.source, sizeBytes: 2_048 } }],
+    ["source hash", { source: { ...validInput.source, sha256: outputSha } }],
+    [
+      "source storage key",
+      { source: { ...validInput.source, storageKey: "incoming/revision/forest-v001.blend" } },
+    ],
+  ])("rejects reuse of the same key after a %s change", (_label, changes) => {
+    const original = assetProcessingInputSchema.parse(validInput);
+    const changed = assetProcessingInputSchema.parse({ ...validInput, ...changes });
+
+    expect(checkIdempotentReplay(original, changed)).toEqual({
       replay: false,
       code: "IDEMPOTENCY_CONFLICT",
     });
+  });
+
+  it("detects a future relevant export profile change in the canonical representation", () => {
+    const original = assetProcessingInputSchema.parse(validInput);
+    const changedProfile = {
+      ...original,
+      exportProfile: "terravox-web-default-v2",
+    } as unknown as typeof original;
+
+    expect(checkIdempotentReplay(original, changedProfile)).toEqual({
+      replay: false,
+      code: "IDEMPOTENCY_CONFLICT",
+    });
+  });
+
+  it("does not incorporate unauthorized properties into the fingerprint", () => {
+    const original = assetProcessingInputSchema.parse(validInput);
+    const withCredential = {
+      ...original,
+      serviceRoleKey: "must-never-enter-the-fingerprint",
+    } as typeof original & { serviceRoleKey: string };
+
+    expect(createIdempotencyFingerprint(withCredential)).toBe(
+      createIdempotencyFingerprint(original),
+    );
   });
 
   it("validates accepted output and the versioned GLB manifest", () => {
