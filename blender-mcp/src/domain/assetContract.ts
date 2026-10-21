@@ -187,17 +187,54 @@ export const assetManifestSchema = z
 export type AssetProcessingInput = z.infer<typeof assetProcessingInputSchema>;
 export type AssetContractErrorCode = z.infer<typeof assetContractErrorCodeSchema>;
 
+type CanonicalJson = null | boolean | number | string | CanonicalJson[] | { [key: string]: CanonicalJson };
+
+function stableJson(value: CanonicalJson): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key]!)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function canonicalIdempotencyPayload(input: AssetProcessingInput): string {
-  return [
-    input.contractVersion,
-    input.asset.assetId,
-    input.asset.assetVersion,
-    input.asset.assetType,
-    input.source.storageKey,
-    input.source.sha256,
-    input.exportProfile,
-    input.idempotencyKey,
-  ].join("\n");
+  const payload: CanonicalJson = {
+    asset: {
+      assetId: input.asset.assetId,
+      assetType: input.asset.assetType,
+      assetVersion: input.asset.assetVersion,
+      authorship: {
+        attribution: input.asset.authorship.attribution,
+        authorName: input.asset.authorship.authorName,
+        ...(input.asset.authorship.sourceUrl === undefined
+          ? {}
+          : { sourceUrl: input.asset.authorship.sourceUrl }),
+      },
+      displayName: input.asset.displayName,
+      license: {
+        identifier: input.asset.license.identifier,
+        name: input.asset.license.name,
+        ...(input.asset.license.referenceUrl === undefined
+          ? {}
+          : { referenceUrl: input.asset.license.referenceUrl }),
+      },
+      territoryId: input.asset.territoryId,
+    },
+    contractVersion: input.contractVersion,
+    exportProfile: input.exportProfile,
+    idempotencyKey: input.idempotencyKey,
+    source: {
+      mediaType: input.source.mediaType,
+      sha256: input.source.sha256,
+      sizeBytes: input.source.sizeBytes,
+      storageKey: input.source.storageKey,
+    },
+  };
+
+  return stableJson(payload);
 }
 
 export function createIdempotencyFingerprint(input: AssetProcessingInput): string {
