@@ -268,6 +268,7 @@ jobs:
       - name: MCP initialize through authenticated Vercel CLI
         run: |
           npx --yes vercel@latest \
+            --yes \
             --token "$VERCEL_TOKEN" \
             --scope "$VERCEL_SCOPE" \
             curl "$PREVIEW_URL/api/mcp" \
