@@ -1,8 +1,13 @@
 # SPEC B3 - Pipeline de assets Blender para o TerraVox
 
-Status: **PROPOSTA PARA REVISÃO - IMPLEMENTAÇÃO NÃO INICIADA**
+Status: **B3.1 IMPLEMENTADA PARA HOMOLOGAÇÃO - B3.2 A B3.6 NÃO INICIADAS**
 
 Dependências: B0, B1 e B2 funcionalmente aprovados
+
+Checkpoint B3.1: o contrato `1.0.0`, o manifesto `1.0.0` e o perfil
+configurável `terravox-web-default` estão implementados em
+`blender-mcp/src/domain`, com testes unitários. A integração desses contratos
+ao MCP, fila, Worker e storage permanece fora deste checkpoint.
 
 Estimativa: 12 a 18 dias úteis de engenharia, sem incluir produção artística em
 escala nem contratação de infraestrutura persistente.
