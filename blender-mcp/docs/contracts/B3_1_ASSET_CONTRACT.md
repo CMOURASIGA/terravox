@@ -69,8 +69,12 @@ geração efetiva do manifesto ficam fora da B3.1.
 
 ## Idempotência
 
-A identidade lógica é o SHA-256 determinístico da versão do contrato, asset,
-versão, tipo, chave e hash de entrada, perfil e `idempotencyKey`.
+A identidade lógica é o SHA-256 de uma representação JSON canônica e estável
+de todos os campos autorizados do contrato de entrada. As propriedades são
+ordenadas recursivamente, tornando o resultado independente da ordem original
+do JSON. A representação inclui contrato, todos os metadados do asset,
+autoria, licença, território, origem, perfil e `idempotencyKey`, mas exclui
+qualquer propriedade que não pertença ao schema.
 
 - uma repetição byte a byte equivalente produz o mesmo fingerprint;
 - reutilizar a chave para uma entrada diferente produz
