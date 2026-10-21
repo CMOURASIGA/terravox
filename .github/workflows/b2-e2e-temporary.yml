@@ -267,11 +267,11 @@ jobs:
 
       - name: MCP initialize through authenticated Vercel CLI
         run: |
-          npx --yes vercel@latest \
+          npx --yes vercel@latest curl \
             --yes \
             --token "$VERCEL_TOKEN" \
             --scope "$VERCEL_SCOPE" \
-            curl "$PREVIEW_URL/api/mcp" \
+            "$PREVIEW_URL/api/mcp" \
             -X POST \
             -H "Content-Type: application/json" \
             -H "Accept: application/json, text/event-stream" \
