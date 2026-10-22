@@ -136,7 +136,7 @@ jobs:
       - name: Apply the single verified pending migration
         run: |
           set -euo pipefail
-          supabase migration up --linked
+          supabase migration up --linked --yes
 
       - name: Audit final permissions, storage, data, and migration history
         run: |
