@@ -1,0 +1,233 @@
+name: TerraVox B3.2 - Remove recreated client policies
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact commit SHA reviewed after Phase A
+        required: true
+        type: string
+      confirmation:
+        description: Type APPLY_ONLY_20261022190000 to authorize only Phase B
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terravox-b3-2-migration-history
+  cancel-in-progress: false
+
+jobs:
+  remove-recreated-client-policies:
+    if: >-
+      github.ref == 'refs/heads/feat/b3-2-private-asset-storage' &&
+      inputs.confirmation == 'APPLY_ONLY_20261022190000'
+    runs-on: ubuntu-24.04
+    environment: terravox-b3-2-homologation
+    defaults:
+      run:
+        shell: bash
+        working-directory: blender-mcp
+    env:
+      EXPECTED_PROJECT_REF: xrlfacfivlaeatzffcde
+      EXPECTED_BRANCH: feat/b3-2-private-asset-storage
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      EXPECTED_MIGRATION_SHA256: f102c57ae2591780e4f89d4147359d369e63086158e9f5ba55045b2a1d35c037
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout the reviewed commit only
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install the fixed Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
+        with:
+          version: 2.121.0
+
+      - name: Guard repository, branch, commit, migration, and credentials
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/${EXPECTED_BRANCH}"
+          test "${GITHUB_SHA}" = "${EXPECTED_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+          test "${EXPECTED_PROJECT_REF}" = "xrlfacfivlaeatzffcde"
+          test -n "${SUPABASE_ACCESS_TOKEN}"
+          test -n "${SUPABASE_DB_PASSWORD}"
+          expected_migrations=(
+            20260922155748_create_blender_jobs.sql
+            20261021192826_create_blender_asset_storage.sql
+            20261022150855_allow_blender_derived_artifacts.sql
+            20261022170001_reconcile_external_blender_asset_rls_history.sql
+            20261022181500_lock_down_blender_asset_object_client_writes.sql
+            20261022190000_remove_recreated_blender_asset_client_policies.sql
+          )
+          mapfile -t actual_migrations < <(find supabase/migrations -maxdepth 1 -type f -printf '%f\n' | sort)
+          test "${#actual_migrations[@]}" -eq "${#expected_migrations[@]}"
+          for index in "${!expected_migrations[@]}"; do
+            test "${actual_migrations[$index]}" = "${expected_migrations[$index]}"
+          done
+          actual_sha="$(sha256sum supabase/migrations/20261022190000_remove_recreated_blender_asset_client_policies.sql | awk '{print $1}')"
+          test "${actual_sha}" = "${EXPECTED_MIGRATION_SHA256}"
+          supabase --version
+
+      - name: Link only the ephemeral runner to the authorized project
+        run: |
+          set -euo pipefail
+          supabase link --project-ref "${EXPECTED_PROJECT_REF}" --password "${SUPABASE_DB_PASSWORD}"
+
+      - name: Assert that only migration 20261022190000 is pending
+        run: |
+          set -euo pipefail
+          cat > /tmp/b3_2_phase_b_preflight.sql <<'SQL'
+          with expected_remote(version) as (
+            values
+              ('20260922155748'),
+              ('20261021192826'),
+              ('20261022150855'),
+              ('20261022170001'),
+              ('20261022181500')
+          ), checks as (
+            select
+              (select array_agg(version::text order by version::text)
+                 from supabase_migrations.schema_migrations)
+                = (select array_agg(version order by version) from expected_remote) as remote_history_matches,
+              (select relrowsecurity
+                 from pg_class
+                where oid = 'public.blender_asset_objects'::regclass) as rls_enabled,
+              not has_table_privilege('anon', 'public.blender_asset_objects', 'select')
+                and not has_table_privilege('authenticated', 'public.blender_asset_objects', 'select') as client_read_revoked,
+              (select count(*) = 3
+                 from pg_policies
+                where schemaname = 'public'
+                  and tablename = 'blender_asset_objects'
+                  and policyname in (
+                    'blender_asset_objects_select_own_environment',
+                    'blender_asset_objects_insert_own_environment',
+                    'blender_asset_objects_update_own_environment'
+                  )) as only_expected_client_policies_present
+          )
+          select 1 / case when remote_history_matches and rls_enabled and client_read_revoked
+                                  and only_expected_client_policies_present
+                          then 1 else 0 end as phase_b_preflight_assertion
+            from checks;
+
+          select version::text as remote_migration
+            from supabase_migrations.schema_migrations
+           order by version::text;
+
+          select count(*) as blender_asset_objects_before
+            from public.blender_asset_objects;
+
+          select
+            (select count(*) from public.questions) as questions_before,
+            (select count(*) from public.learning_content) as learning_content_before,
+            (select count(*) from public.product_content_publications) as product_content_publications_before;
+          SQL
+          supabase db query --linked --file /tmp/b3_2_phase_b_preflight.sql
+          supabase migration list --linked
+
+      - name: Apply the single verified pending migration
+        run: |
+          set -euo pipefail
+          supabase migration up --linked --yes
+
+      - name: Audit final permissions, storage, data, and migration history
+        run: |
+          set -euo pipefail
+          cat > /tmp/b3_2_phase_b_postcondition.sql <<'SQL'
+          with expected_remote(version) as (
+            values
+              ('20260922155748'),
+              ('20261021192826'),
+              ('20261022150855'),
+              ('20261022170001'),
+              ('20261022181500'),
+              ('20261022190000')
+          ), checks as (
+            select
+              (select array_agg(version::text order by version::text)
+                 from supabase_migrations.schema_migrations)
+                = (select array_agg(version order by version) from expected_remote) as remote_history_matches,
+              (select relrowsecurity
+                 from pg_class
+                where oid = 'public.blender_asset_objects'::regclass) as rls_enabled,
+              not has_table_privilege('anon', 'public.blender_asset_objects', 'select')
+                and not has_table_privilege('anon', 'public.blender_asset_objects', 'insert')
+                and not has_table_privilege('anon', 'public.blender_asset_objects', 'update')
+                and not has_table_privilege('anon', 'public.blender_asset_objects', 'delete') as anon_revoked,
+              not has_table_privilege('authenticated', 'public.blender_asset_objects', 'select')
+                and not has_table_privilege('authenticated', 'public.blender_asset_objects', 'insert')
+                and not has_table_privilege('authenticated', 'public.blender_asset_objects', 'update')
+                and not has_table_privilege('authenticated', 'public.blender_asset_objects', 'delete') as authenticated_revoked,
+              has_table_privilege('service_role', 'public.blender_asset_objects', 'select')
+                and has_table_privilege('service_role', 'public.blender_asset_objects', 'insert')
+                and has_table_privilege('service_role', 'public.blender_asset_objects', 'update')
+                and has_table_privilege('service_role', 'public.blender_asset_objects', 'delete') as service_role_preserved,
+              (select count(*) = 0
+                 from pg_policies
+                where schemaname = 'public'
+                  and tablename = 'blender_asset_objects'
+                  and policyname in (
+                    'blender_asset_objects_select_own_environment',
+                    'blender_asset_objects_insert_own_environment',
+                    'blender_asset_objects_update_own_environment'
+                  )) as client_policies_removed,
+              (select count(*) = 2 and bool_and(not public)
+                 from storage.buckets
+                where id in ('blender-assets-incoming', 'blender-assets-derived')) as private_buckets
+          )
+          select 1 / case when remote_history_matches and rls_enabled and anon_revoked
+                                  and authenticated_revoked and service_role_preserved
+                                  and client_policies_removed and private_buckets
+                          then 1 else 0 end as phase_b_postcondition_assertion
+            from checks;
+
+          select version::text as remote_migration
+            from supabase_migrations.schema_migrations
+           order by version::text;
+
+          select relrowsecurity as blender_asset_objects_rls
+            from pg_class
+           where oid = 'public.blender_asset_objects'::regclass;
+
+          select grantee, privilege_type
+            from information_schema.role_table_grants
+           where table_schema = 'public'
+             and table_name = 'blender_asset_objects'
+             and grantee in ('anon', 'authenticated', 'service_role')
+           order by grantee, privilege_type;
+
+          select policyname, roles, cmd
+            from pg_policies
+           where schemaname = 'public'
+             and tablename = 'blender_asset_objects'
+           order by policyname;
+
+          select id, public
+            from storage.buckets
+           where id in ('blender-assets-incoming', 'blender-assets-derived')
+           order by id;
+
+          select policyname, roles, cmd
+            from pg_policies
+           where schemaname = 'storage'
+             and tablename = 'objects'
+           order by policyname;
+
+          select count(*) as blender_asset_objects_after
+            from public.blender_asset_objects;
+
+          select
+            (select count(*) from public.questions) as questions_after,
+            (select count(*) from public.learning_content) as learning_content_after,
+            (select count(*) from public.product_content_publications) as product_content_publications_after;
+          SQL
+          supabase db query --linked --file /tmp/b3_2_phase_b_postcondition.sql
+          supabase migration list --linked
