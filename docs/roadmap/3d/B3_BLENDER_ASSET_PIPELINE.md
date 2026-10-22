@@ -334,7 +334,61 @@ persistente e correções extensas em assets recebidos não estão incluídas.
 | retries duplicarem saída | inconsistência e custo | idempotência e hash de saída |
 | escopo crescer para ferramenta genérica | atraso | limitar tools e assets aos casos de gameplay aprovados |
 
-## 16. Gates de execução
+## 16. Checkpoint proposto - primeiro asset utilizável
+
+Primeiro asset recomendado: **Marco da Floresta do Brasil**, com o identificador
+lógico `territory-br-forest-landmark-v001` e tipo `territory_landmark`.
+
+### Aplicação no gameplay
+
+- identificar visualmente a Floresta do Brasil no mapa;
+- ser reutilizado como marco de entrada na cena do território;
+- permitir seleção por clique ou toque sem substituir o fluxo atual de desafios;
+- servir como primeiro GLB real para validar o pipeline completo.
+
+A escolha prioriza um asset estático e visível, sem rigging ou animação. Isso
+reduz dependências e comprova valor no jogo antes de ampliar o pipeline.
+
+### Entregáveis do primeiro incremento
+
+1. Um arquivo `.blend` original e autorizado.
+2. Relatório estrutural versionado.
+3. GLB determinístico com SHA-256.
+4. Thumbnail de homologação.
+5. Preview interno com métricas técnicas.
+6. Carregamento em cenário controlado do mapa TerraVox.
+7. Fallback visual para preservar o mapa quando o GLB não carregar.
+
+### Perfil inicial a aprovar antes do desenvolvimento
+
+| Regra | Proposta inicial |
+|---|---|
+| Triângulos | máximo de 25.000 |
+| Materiais | máximo de 4 |
+| Texturas | máximo de 4, até 2048 x 2048 |
+| Tamanho do GLB | máximo de 8 MB |
+| Animação e armature | não permitidas |
+| Referências externas | não permitidas |
+| Unidade | metros |
+| Origem | base central do asset |
+| Orientação | compatível com o loader escolhido para o jogo |
+
+Esses valores são hipóteses de planejamento e precisam de aprovação técnica e
+visual antes de se tornarem contrato do perfil.
+
+### Decisões pendentes para autorização da B3
+
+1. Aprovar o Marco da Floresta do Brasil como primeiro asset P0.
+2. Confirmar ou ajustar os limites do perfil inicial.
+3. Selecionar o loader GLB do frontend.
+4. Definir storage de homologação, buckets e retenção.
+5. Definir autoria, licença e responsável pela aprovação visual do asset.
+6. Confirmar o ambiente temporário Linux para o primeiro E2E.
+
+Nenhum item deste checkpoint autoriza implementação, migration, deploy em
+Production ou contratação de infraestrutura.
+
+## 17. Gates de execução
 
 A implementação somente pode começar após:
 

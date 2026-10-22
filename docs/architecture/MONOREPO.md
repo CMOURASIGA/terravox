@@ -55,7 +55,9 @@ homologação E2E do B2 e autorização explícita.
 
 ## Status de validação
 
-- SPEC 00 tecnicamente aprovada; validação humana do jogo permanece pendente.
+- SPEC 00 integrada em `develop` pelo merge SHA `6aabc1ba9cfb085e7690f910c485da38306a891f`.
+- Fluxo funcional humano do jogo aprovado; INT-09 aceito como pendência obrigatória antes da disponibilização externa.
+- INT-09 deve ser executado em 1366 x 768, 768 x 1024 e 390 x 844 com viewport real.
 - B0 e B1 preservados no monorepositório.
 - B2 funcionalmente aprovado em Ubuntu temporário com Blender real.
 - O POST autenticado de inicialização do MCP foi validado no Preview.
@@ -65,5 +67,5 @@ homologação E2E do B2 e autorização explícita.
   `docs/roadmap/3d/B3_BLENDER_ASSET_PIPELINE.md`; sua implementação não foi
   iniciada.
 
-O jogo e o MCP mantêm deployments independentes. O Worker permanece fora da
+O jogo e o MCP mantêm deployments independentes. Os Previews associados ao merge da SPEC 00 ficaram em estado READY. O Worker permanece fora da
 Vercel e não deve ser confundido com a função HTTP do MCP.
