@@ -18,7 +18,7 @@ const rlsLockdownMigrationUrl = new URL(
   import.meta.url,
 );
 const reconciledClientPoliciesMigrationUrl = new URL(
-  "../supabase/migrations/20261022172403_remove_recreated_blender_asset_client_policies.sql",
+  "../supabase/migrations/20261022190000_remove_recreated_blender_asset_client_policies.sql",
   import.meta.url,
 );
 
