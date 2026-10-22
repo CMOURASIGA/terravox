@@ -13,11 +13,14 @@ const derivedArtifactsMigrationUrl = new URL(
   "../supabase/migrations/20261022170000_allow_blender_derived_artifacts.sql",
   import.meta.url,
 );
+const rlsLockdownMigrationUrl = new URL(
+  "../supabase/migrations/20261022181500_lock_down_blender_asset_object_client_writes.sql",
+  import.meta.url,
+);
 
 describe("B1 database migration", () => {
   it("enforces RLS, transition validation and an atomic claim", async () => {
     const sql = (await readFile(migrationUrl, "utf8")).toLowerCase();
-
     expect(sql).toContain("alter table public.blender_jobs enable row level security");
     expect(sql).toContain("revoke all on table public.blender_jobs from public, anon, authenticated");
     expect(sql).toContain("create trigger validate_blender_job_transition");
@@ -46,5 +49,13 @@ describe("B3.2 asset storage migrations", () => {
     expect(sql).toContain("'image/png'");
     expect(sql).toContain("report|manifest");
     expect(sql).toContain(".thumb");
+  });
+
+  it("reserves registry mutation and enumeration to server-side roles", async () => {
+    const sql = (await readFile(rlsLockdownMigrationUrl, "utf8")).toLowerCase();
+    expect(sql).toContain("revoke select, insert, update on table public.blender_asset_objects from authenticated");
+    expect(sql).toContain("drop policy if exists blender_asset_objects_select_own_environment");
+    expect(sql).toContain("drop policy if exists blender_asset_objects_insert_own_environment");
+    expect(sql).toContain("drop policy if exists blender_asset_objects_update_own_environment");
   });
 });
