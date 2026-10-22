@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 const migrationUrl = new URL(
-  "../supabase/migrations/20260922151056_create_blender_jobs.sql",
+  "../supabase/migrations/20260922155748_create_blender_jobs.sql",
   import.meta.url,
 );
 const assetStorageMigrationUrl = new URL(
@@ -10,11 +10,15 @@ const assetStorageMigrationUrl = new URL(
   import.meta.url,
 );
 const derivedArtifactsMigrationUrl = new URL(
-  "../supabase/migrations/20261022170000_allow_blender_derived_artifacts.sql",
+  "../supabase/migrations/20261022150855_allow_blender_derived_artifacts.sql",
   import.meta.url,
 );
 const rlsLockdownMigrationUrl = new URL(
   "../supabase/migrations/20261022181500_lock_down_blender_asset_object_client_writes.sql",
+  import.meta.url,
+);
+const externalRlsHistoryMigrationUrl = new URL(
+  "../supabase/migrations/20261022170001_reconcile_external_blender_asset_rls_history.sql",
   import.meta.url,
 );
 const reconciledClientPoliciesMigrationUrl = new URL(
@@ -63,6 +67,18 @@ describe("B3.2 asset storage migrations", () => {
     expect(sql).toContain("drop policy if exists blender_asset_objects_update_own_environment");
   });
 
+  it("records the external RLS history without recreating client policies", async () => {
+    const sql = (await readFile(externalRlsHistoryMigrationUrl, "utf8")).toLowerCase();
+    expect(sql).toContain("from pg_policies");
+    expect(sql).toContain("expected three historical client policies");
+    expect(sql).not.toContain("create policy");
+    expect(sql).not.toContain("drop policy");
+    expect(sql).not.toContain("grant ");
+    expect(sql).not.toContain("revoke ");
+    expect(sql).not.toContain("learning_content");
+    expect(sql).not.toContain("questions");
+  });
+
   it("removes only the client policies recreated outside the repository", async () => {
     const sql = (await readFile(reconciledClientPoliciesMigrationUrl, "utf8")).toLowerCase();
     expect(sql).toContain("drop policy if exists blender_asset_objects_select_own_environment");
@@ -71,5 +87,23 @@ describe("B3.2 asset storage migrations", () => {
     expect(sql).not.toContain("grant ");
     expect(sql).not.toContain("revoke ");
     expect(sql).not.toContain("storage.buckets");
+  });
+
+  it("reconstructs the locked-down final policy state in migration order", async () => {
+    const [externalHistory, lockdown, reconciliation] = await Promise.all([
+      readFile(externalRlsHistoryMigrationUrl, "utf8"),
+      readFile(rlsLockdownMigrationUrl, "utf8"),
+      readFile(reconciledClientPoliciesMigrationUrl, "utf8"),
+    ]);
+
+    expect(externalHistory).not.toContain("create policy");
+    for (const policy of [
+      "blender_asset_objects_select_own_environment",
+      "blender_asset_objects_insert_own_environment",
+      "blender_asset_objects_update_own_environment",
+    ]) {
+      expect(lockdown).toContain(`drop policy if exists ${policy}`);
+      expect(reconciliation).toContain(`drop policy if exists ${policy}`);
+    }
   });
 });
