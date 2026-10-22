@@ -17,6 +17,10 @@ const rlsLockdownMigrationUrl = new URL(
   "../supabase/migrations/20261022181500_lock_down_blender_asset_object_client_writes.sql",
   import.meta.url,
 );
+const reconciledClientPoliciesMigrationUrl = new URL(
+  "../supabase/migrations/20261022172403_remove_recreated_blender_asset_client_policies.sql",
+  import.meta.url,
+);
 
 describe("B1 database migration", () => {
   it("enforces RLS, transition validation and an atomic claim", async () => {
@@ -57,5 +61,15 @@ describe("B3.2 asset storage migrations", () => {
     expect(sql).toContain("drop policy if exists blender_asset_objects_select_own_environment");
     expect(sql).toContain("drop policy if exists blender_asset_objects_insert_own_environment");
     expect(sql).toContain("drop policy if exists blender_asset_objects_update_own_environment");
+  });
+
+  it("removes only the client policies recreated outside the repository", async () => {
+    const sql = (await readFile(reconciledClientPoliciesMigrationUrl, "utf8")).toLowerCase();
+    expect(sql).toContain("drop policy if exists blender_asset_objects_select_own_environment");
+    expect(sql).toContain("drop policy if exists blender_asset_objects_insert_own_environment");
+    expect(sql).toContain("drop policy if exists blender_asset_objects_update_own_environment");
+    expect(sql).not.toContain("grant ");
+    expect(sql).not.toContain("revoke ");
+    expect(sql).not.toContain("storage.buckets");
   });
 });
