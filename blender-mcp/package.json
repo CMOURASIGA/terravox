@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "worker:start": "node dist/src/worker/main.js",
     "e2e:cube": "node dist/scripts/e2e-cube.js",
+    "e2e:asset-storage": "node dist/scripts/e2e-asset-storage.js",
     "asset:cube": "blender --background --factory-startup --python tools/blender/make_cube.py -- assets/blender/cube.blend"
   },
   "dependencies": {
