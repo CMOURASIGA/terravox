@@ -11,8 +11,15 @@ on:
         description: Exact SHA-256 of the approved migration SQL
         required: true
         type: string
+      mode:
+        description: validate is read-only, apply executes only the approved migration
+        required: true
+        type: choice
+        options:
+          - validate
+          - apply
       confirmation:
-        description: Type APPLY_B3_2_STORAGE_REGEX_FIX
+        description: Type VALIDATE_B3_2_STORAGE_REGEX_FIX or APPLY_B3_2_STORAGE_REGEX_FIX
         required: true
         type: string
 
@@ -29,7 +36,10 @@ jobs:
       github.ref == 'refs/heads/main' &&
       inputs.expected_source_sha == '17cfac9ae458fe2270db80414e5fd7ad68c81a97' &&
       inputs.expected_sql_sha256 == 'cb501ed2390231fa4f57a87e038cddbada0701da7a35d61a0f36f07bba07f430' &&
-      inputs.confirmation == 'APPLY_B3_2_STORAGE_REGEX_FIX'
+      (
+        (inputs.mode == 'validate' && inputs.confirmation == 'VALIDATE_B3_2_STORAGE_REGEX_FIX') ||
+        (inputs.mode == 'apply' && inputs.confirmation == 'APPLY_B3_2_STORAGE_REGEX_FIX')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: terravox-b3-2-homologation
@@ -167,12 +177,13 @@ jobs:
           '
 
       - name: Apply only the approved pending migration
+        if: inputs.mode == 'apply'
         run: |
           set -euo pipefail
           npx --yes supabase@2.121.0 migration up --linked | tee migration-up-sanitized.log
 
       - name: Confirm history and audit final state
-        if: success()
+        if: success() && inputs.mode == 'apply'
         run: |
           set -euo pipefail
           npx --yes supabase@2.121.0 migration list --linked --output-format json > migration-list-after.json
