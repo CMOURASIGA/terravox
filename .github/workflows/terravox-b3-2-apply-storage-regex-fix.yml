@@ -1,0 +1,118 @@
+name: TerraVox B3.2 apply storage regex fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Exact approved B3.2 source SHA
+        required: true
+        type: string
+      expected_sql_sha256:
+        description: Exact SHA-256 of the approved migration SQL
+        required: true
+        type: string
+      confirmation:
+        description: Type APPLY_B3_2_STORAGE_REGEX_FIX
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terravox-b3-2-apply-storage-regex-fix
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      inputs.expected_source_sha == '17cfac9ae458fe2270db80414e5fd7ad68c81a97' &&
+      inputs.expected_sql_sha256 == 'cb501ed2390231fa4f57a87e038cddbada0701da7a35d61a0f36f07bba07f430' &&
+      inputs.confirmation == 'APPLY_B3_2_STORAGE_REGEX_FIX'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: terravox-b3-2-homologation
+    defaults:
+      run:
+        working-directory: blender-mcp
+        shell: bash
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+      APPROVED_SOURCE_SHA: 17cfac9ae458fe2270db80414e5fd7ad68c81a97
+      EXPECTED_PROJECT_REF: xrlfacfivlaeatzffcde
+      EXPECTED_SQL_SHA256: cb501ed2390231fa4f57a87e038cddbada0701da7a35d61a0f36f07bba07f430
+      MIGRATION_VERSION: "20261023120000"
+      SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: \${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - name: Checkout only the approved B3.2 source snapshot
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: \${{ env.APPROVED_SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install fixed Supabase CLI
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 --version
+
+      - name: Guard source, project, migration and credentials
+        run: |
+          set -euo pipefail
+          test "\${GITHUB_REF}" = "refs/heads/main"
+          test "\${{ inputs.expected_source_sha }}" = "\${APPROVED_SOURCE_SHA}"
+          test "$(git rev-parse HEAD)" = "\${APPROVED_SOURCE_SHA}"
+          test "\${EXPECTED_PROJECT_REF}" = "xrlfacfivlaeatzffcde"
+          test -n "\${SUPABASE_ACCESS_TOKEN}"
+          test -n "\${SUPABASE_DB_PASSWORD}"
+
+          migration="supabase/migrations/\${MIGRATION_VERSION}_fix_blender_asset_storage_shape_regex_escapes.sql"
+          test -f "\${migration}"
+          actual_sha="$(sha256sum "\${migration}" | awk '{print $1}')"
+          test "\${actual_sha}" = "\${EXPECTED_SQL_SHA256}"
+
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')" = "7"
+          grep -q "drop constraint if exists blender_asset_objects_storage_shape_check" "\${migration}"
+          ! grep -Eiq "(grant |revoke |create policy|drop policy|storage\.buckets)" "\${migration}"
+
+      - name: Link only the expected Supabase project
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 link \
+            --project-ref "\${EXPECTED_PROJECT_REF}" \
+            --password "\${SUPABASE_DB_PASSWORD}"
+
+      - name: Confirm the sole pending migration
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 migration list --linked | tee migration-list-before.log
+          for version in 20260922155748 20261021192826 20261022150855 20261022170001 20261022181500 20261022190000; do
+            grep -q "\${version}" migration-list-before.log
+          done
+          ! grep -q "\${MIGRATION_VERSION}" migration-list-before.log
+
+      - name: Apply only the approved pending migration
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 migration up --linked | tee migration-up-sanitized.log
+
+      - name: Confirm remote migration history
+        if: always()
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 migration list --linked | tee migration-list-after.log
+          grep -q "\${MIGRATION_VERSION}" migration-list-after.log
+
+      - name: Publish sanitized execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: b3-2-storage-regex-fix-sanitized-\${{ github.run_id }}
+          retention-days: 7
+          path: |
+            blender-mcp/migration-list-before.log
+            blender-mcp/migration-up-sanitized.log
+            blender-mcp/migration-list-after.log
