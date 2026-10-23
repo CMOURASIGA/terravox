@@ -143,7 +143,8 @@ jobs:
           npx --yes supabase@2.121.0 db query --linked --file audit.sql --output-format json > audit-before.json
           node -e '
             const r = JSON.parse(require("fs").readFileSync("audit-before.json", "utf8"));
-            const row = Array.isArray(r) && r.length === 1 && r[0] && typeof r[0] === "object" ? r[0] : null;
+            const row = Array.isArray(r) && r.length === 1 && r[0] && typeof r[0] === "object" &&
+              r[0].jsonb_build_object && typeof r[0].jsonb_build_object === "object" ? r[0].jsonb_build_object : null;
             if (!row || row.rls_enabled !== true || row.policy_count !== 0 ||
                 row.private_blender_buckets !== 2 || row.client_crud_privilege_count !== 0 ||
                 row.service_role_crud_privilege_count !== 4) process.exit(1);
@@ -204,8 +205,12 @@ jobs:
           node -e '
             const before = JSON.parse(require("fs").readFileSync("audit-before.json", "utf8"));
             const after = JSON.parse(require("fs").readFileSync("audit-after.json", "utf8"));
-            const b = Array.isArray(before) && before.length === 1 && before[0] && typeof before[0] === "object" ? before[0] : null;
-            const a = Array.isArray(after) && after.length === 1 && after[0] && typeof after[0] === "object" ? after[0] : null;
+            const auditRow = (payload) => Array.isArray(payload) && payload.length === 1 &&
+              payload[0] && typeof payload[0] === "object" &&
+              payload[0].jsonb_build_object && typeof payload[0].jsonb_build_object === "object"
+                ? payload[0].jsonb_build_object : null;
+            const b = auditRow(before);
+            const a = auditRow(after);
             if (!a || a.rls_enabled !== true || a.policy_count !== 0 ||
                 a.private_blender_buckets !== 2 || a.client_crud_privilege_count !== 0 ||
                 a.service_role_crud_privilege_count !== 4) process.exit(1);
