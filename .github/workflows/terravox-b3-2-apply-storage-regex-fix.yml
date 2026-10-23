@@ -43,14 +43,14 @@ jobs:
       EXPECTED_PROJECT_REF: xrlfacfivlaeatzffcde
       EXPECTED_SQL_SHA256: cb501ed2390231fa4f57a87e038cddbada0701da7a35d61a0f36f07bba07f430
       MIGRATION_VERSION: "20261023120000"
-      SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: \${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     steps:
       - name: Checkout only the approved B3.2 source snapshot
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: \${{ env.APPROVED_SOURCE_SHA }}
+          ref: ${{ env.APPROVED_SOURCE_SHA }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -59,60 +59,163 @@ jobs:
           set -euo pipefail
           npx --yes supabase@2.121.0 --version
 
-      - name: Guard source, project, migration and credentials
+      - name: Guard source, project, migration and administrative secrets
         run: |
           set -euo pipefail
-          test "\${GITHUB_REF}" = "refs/heads/main"
-          test "\${{ inputs.expected_source_sha }}" = "\${APPROVED_SOURCE_SHA}"
-          test "$(git rev-parse HEAD)" = "\${APPROVED_SOURCE_SHA}"
-          test "\${EXPECTED_PROJECT_REF}" = "xrlfacfivlaeatzffcde"
-          test -n "\${SUPABASE_ACCESS_TOKEN}"
-          test -n "\${SUPABASE_DB_PASSWORD}"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${{ inputs.expected_source_sha }}" = "${APPROVED_SOURCE_SHA}"
+          test "$(git rev-parse HEAD)" = "${APPROVED_SOURCE_SHA}"
+          test "${EXPECTED_PROJECT_REF}" = "xrlfacfivlaeatzffcde"
+          test -n "${SUPABASE_ACCESS_TOKEN}"
+          test -n "${SUPABASE_DB_PASSWORD}"
 
-          migration="supabase/migrations/\${MIGRATION_VERSION}_fix_blender_asset_storage_shape_regex_escapes.sql"
-          test -f "\${migration}"
-          actual_sha="$(sha256sum "\${migration}" | awk '{print $1}')"
-          test "\${actual_sha}" = "\${EXPECTED_SQL_SHA256}"
+          migration="supabase/migrations/${MIGRATION_VERSION}_fix_blender_asset_storage_shape_regex_escapes.sql"
+          test -f "${migration}"
+          actual_sha="$(sha256sum "${migration}" | awk '{print $1}')"
+          test "${actual_sha}" = "${EXPECTED_SQL_SHA256}"
 
           test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')" = "7"
-          grep -q "drop constraint if exists blender_asset_objects_storage_shape_check" "\${migration}"
-          ! grep -Eiq "(grant |revoke |create policy|drop policy|storage\.buckets)" "\${migration}"
+          grep -q "drop constraint if exists blender_asset_objects_storage_shape_check" "${migration}"
+          ! grep -Eiq "(grant |revoke |create policy|drop policy|storage\\.buckets)" "${migration}"
 
       - name: Link only the expected Supabase project
         run: |
           set -euo pipefail
           npx --yes supabase@2.121.0 link \
-            --project-ref "\${EXPECTED_PROJECT_REF}" \
-            --password "\${SUPABASE_DB_PASSWORD}"
+            --project-ref "${EXPECTED_PROJECT_REF}" \
+            --password "${SUPABASE_DB_PASSWORD}"
 
-      - name: Confirm the sole pending migration
+      - name: Capture read-only security and data baseline
         run: |
           set -euo pipefail
-          npx --yes supabase@2.121.0 migration list --linked | tee migration-list-before.log
-          for version in 20260922155748 20261021192826 20261022150855 20261022170001 20261022181500 20261022190000; do
-            grep -q "\${version}" migration-list-before.log
-          done
-          ! grep -q "\${MIGRATION_VERSION}" migration-list-before.log
+          cat > audit.sql <<'SQL'
+          select jsonb_build_object(
+            'constraint_definition', pg_get_constraintdef(c.oid),
+            'rls_enabled', cls.relrowsecurity,
+            'policy_count', (select count(*) from pg_policies where schemaname = 'public' and tablename = 'blender_asset_objects'),
+            'private_blender_buckets', (select count(*) from storage.buckets where id in ('blender-assets-incoming', 'blender-assets-derived') and public = false),
+            'client_crud_privilege_count', (
+              select count(*)
+              from (values
+                (has_table_privilege('anon', 'public.blender_asset_objects', 'select')),
+                (has_table_privilege('anon', 'public.blender_asset_objects', 'insert')),
+                (has_table_privilege('anon', 'public.blender_asset_objects', 'update')),
+                (has_table_privilege('anon', 'public.blender_asset_objects', 'delete')),
+                (has_table_privilege('authenticated', 'public.blender_asset_objects', 'select')),
+                (has_table_privilege('authenticated', 'public.blender_asset_objects', 'insert')),
+                (has_table_privilege('authenticated', 'public.blender_asset_objects', 'update')),
+                (has_table_privilege('authenticated', 'public.blender_asset_objects', 'delete'))
+              ) as privileges(allowed)
+              where allowed
+            ),
+            'service_role_crud_privilege_count', (
+              select count(*)
+              from (values
+                (has_table_privilege('service_role', 'public.blender_asset_objects', 'select')),
+                (has_table_privilege('service_role', 'public.blender_asset_objects', 'insert')),
+                (has_table_privilege('service_role', 'public.blender_asset_objects', 'update')),
+                (has_table_privilege('service_role', 'public.blender_asset_objects', 'delete'))
+              ) as privileges(allowed)
+              where allowed
+            ),
+            'asset_rows', (select count(*) from public.blender_asset_objects),
+            'questions_count', (select count(*) from public.questions),
+            'learning_content_count', (select count(*) from public.learning_content),
+            'publications_count', (select count(*) from public.product_content_publications)
+          )
+          from pg_constraint c
+          join pg_class cls on cls.oid = c.conrelid
+          join pg_namespace n on n.oid = cls.relnamespace
+          where n.nspname = 'public'
+            and cls.relname = 'blender_asset_objects'
+            and c.conname = 'blender_asset_objects_storage_shape_check';
+          SQL
+          npx --yes supabase@2.121.0 db query --linked --file audit.sql --output-format json > audit-before.json
+          node -e '
+            const r = JSON.parse(require("fs").readFileSync("audit-before.json", "utf8"));
+            const row = Array.isArray(r) ? r[0] : r;
+            if (!row || row.rls_enabled !== true || row.policy_count !== 0 ||
+                row.private_blender_buckets !== 2 || row.client_crud_privilege_count !== 0 ||
+                row.service_role_crud_privilege_count !== 4) process.exit(1);
+          '
+
+      - name: Confirm structured local and remote migration state
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 migration list --linked --output-format json > migration-list-before.json
+          node -e '
+            const rows = JSON.parse(require("fs").readFileSync("migration-list-before.json", "utf8"));
+            const expected = ["20260922155748","20261021192826","20261022150855","20261022170001","20261022181500","20261022190000"];
+            const version = (row, side) => {
+              const key = Object.keys(row).find(k => k.toLowerCase() === side);
+              return key && row[key] != null ? String(row[key]) : "";
+            };
+            if (!Array.isArray(rows) || rows.length !== 7) process.exit(1);
+            for (const id of expected) {
+              const row = rows.find(r => version(r, "local") === id && version(r, "remote") === id);
+              if (!row) process.exit(1);
+            }
+            const pending = rows.filter(r => version(r, "local") && !version(r, "remote")).map(r => version(r, "local"));
+            if (pending.length !== 1 || pending[0] !== process.env.MIGRATION_VERSION) process.exit(1);
+            const unexpected = rows.filter(r => {
+              const local = version(r, "local");
+              const remote = version(r, "remote");
+              return !expected.includes(local) && local !== process.env.MIGRATION_VERSION ||
+                (remote && !expected.includes(remote));
+            });
+            if (unexpected.length) process.exit(1);
+          '
 
       - name: Apply only the approved pending migration
         run: |
           set -euo pipefail
           npx --yes supabase@2.121.0 migration up --linked | tee migration-up-sanitized.log
 
-      - name: Confirm remote migration history
-        if: always()
+      - name: Confirm history and audit final state
+        if: success()
         run: |
           set -euo pipefail
-          npx --yes supabase@2.121.0 migration list --linked | tee migration-list-after.log
-          grep -q "\${MIGRATION_VERSION}" migration-list-after.log
+          npx --yes supabase@2.121.0 migration list --linked --output-format json > migration-list-after.json
+          node -e '
+            const rows = JSON.parse(require("fs").readFileSync("migration-list-after.json", "utf8"));
+            const expected = ["20260922155748","20261021192826","20261022150855","20261022170001","20261022181500","20261022190000", process.env.MIGRATION_VERSION];
+            const version = (row, side) => {
+              const key = Object.keys(row).find(k => k.toLowerCase() === side);
+              return key && row[key] != null ? String(row[key]) : "";
+            };
+            if (!Array.isArray(rows) || rows.length !== expected.length) process.exit(1);
+            for (const id of expected) {
+              if (!rows.some(r => version(r, "local") === id && version(r, "remote") === id)) process.exit(1);
+            }
+          '
+          npx --yes supabase@2.121.0 db query --linked --file audit.sql --output-format json > audit-after.json
+          node -e '
+            const before = JSON.parse(require("fs").readFileSync("audit-before.json", "utf8"));
+            const after = JSON.parse(require("fs").readFileSync("audit-after.json", "utf8"));
+            const b = Array.isArray(before) ? before[0] : before;
+            const a = Array.isArray(after) ? after[0] : after;
+            if (!a || a.rls_enabled !== true || a.policy_count !== 0 ||
+                a.private_blender_buckets !== 2 || a.client_crud_privilege_count !== 0 ||
+                a.service_role_crud_privilege_count !== 4) process.exit(1);
+            for (const key of ["asset_rows", "questions_count", "learning_content_count", "publications_count"]) {
+              if (a[key] !== b[key]) process.exit(1);
+            }
+            if (!String(a.constraint_definition).includes("\\.blend") ||
+                !String(a.constraint_definition).includes("\\.glb") ||
+                String(a.constraint_definition).includes("\\\\.blend") ||
+                String(a.constraint_definition).includes("\\\\.glb")) process.exit(1);
+          '
 
       - name: Publish sanitized execution evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: b3-2-storage-regex-fix-sanitized-\${{ github.run_id }}
+          name: b3-2-storage-regex-fix-sanitized-${{ github.run_id }}
           retention-days: 7
+          if-no-files-found: warn
           path: |
-            blender-mcp/migration-list-before.log
+            blender-mcp/migration-list-before.json
             blender-mcp/migration-up-sanitized.log
-            blender-mcp/migration-list-after.log
+            blender-mcp/migration-list-after.json
+            blender-mcp/audit-before.json
+            blender-mcp/audit-after.json
