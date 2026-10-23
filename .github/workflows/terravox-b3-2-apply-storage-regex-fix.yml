@@ -143,7 +143,7 @@ jobs:
           npx --yes supabase@2.121.0 db query --linked --file audit.sql --output-format json > audit-before.json
           node -e '
             const r = JSON.parse(require("fs").readFileSync("audit-before.json", "utf8"));
-            const row = Array.isArray(r) ? r[0] : r;
+            const row = Array.isArray(r) && r.length === 1 && r[0] && typeof r[0] === "object" ? r[0] : null;
             if (!row || row.rls_enabled !== true || row.policy_count !== 0 ||
                 row.private_blender_buckets !== 2 || row.client_crud_privilege_count !== 0 ||
                 row.service_role_crud_privilege_count !== 4) process.exit(1);
@@ -154,26 +154,29 @@ jobs:
           set -euo pipefail
           npx --yes supabase@2.121.0 migration list --linked --output-format json > migration-list-before.json
           node -e '
-            const rows = JSON.parse(require("fs").readFileSync("migration-list-before.json", "utf8"));
+            const payload = JSON.parse(require("fs").readFileSync("migration-list-before.json", "utf8"));
+            const rows = payload && Array.isArray(payload.migrations) ? payload.migrations : null;
             const expected = ["20260922155748","20261021192826","20261022150855","20261022170001","20261022181500","20261022190000"];
-            const version = (row, side) => {
-              const key = Object.keys(row).find(k => k.toLowerCase() === side);
-              return key && row[key] != null ? String(row[key]) : "";
+            const version = (row, side) => typeof row === "object" && row !== null && typeof row[side] === "string" ? row[side] : "";
+            if (!rows || rows.length !== 7) process.exit(1);
+            const validate = (items) => {
+              if (!Array.isArray(items) || items.length !== 7) return false;
+              for (const id of expected) {
+                if (!items.some(r => version(r, "local") === id && version(r, "remote") === id)) return false;
+              }
+              const pending = items.filter(r => version(r, "local") && !version(r, "remote")).map(r => version(r, "local"));
+              if (pending.length !== 1 || pending[0] !== process.env.MIGRATION_VERSION) return false;
+              return !items.some(r => {
+                const local = version(r, "local");
+                const remote = version(r, "remote");
+                return (!expected.includes(local) && local !== process.env.MIGRATION_VERSION) ||
+                  (remote && !expected.includes(remote));
+              });
             };
-            if (!Array.isArray(rows) || rows.length !== 7) process.exit(1);
-            for (const id of expected) {
-              const row = rows.find(r => version(r, "local") === id && version(r, "remote") === id);
-              if (!row) process.exit(1);
-            }
-            const pending = rows.filter(r => version(r, "local") && !version(r, "remote")).map(r => version(r, "local"));
-            if (pending.length !== 1 || pending[0] !== process.env.MIGRATION_VERSION) process.exit(1);
-            const unexpected = rows.filter(r => {
-              const local = version(r, "local");
-              const remote = version(r, "remote");
-              return !expected.includes(local) && local !== process.env.MIGRATION_VERSION ||
-                (remote && !expected.includes(remote));
-            });
-            if (unexpected.length) process.exit(1);
+            if (!validate(rows)) process.exit(1);
+            const canonical = expected.map(id => ({local: id, remote: id})).concat([{local: process.env.MIGRATION_VERSION, remote: ""}]);
+            if (!validate(canonical) || validate(canonical.concat([{local: "20990101000000", remote: ""}])) ||
+                validate(expected.map(id => ({local: id, remote: id})).concat([{local: "20261023130000", remote: ""}]))) process.exit(1);
           '
 
       - name: Apply only the approved pending migration
@@ -188,13 +191,11 @@ jobs:
           set -euo pipefail
           npx --yes supabase@2.121.0 migration list --linked --output-format json > migration-list-after.json
           node -e '
-            const rows = JSON.parse(require("fs").readFileSync("migration-list-after.json", "utf8"));
+            const payload = JSON.parse(require("fs").readFileSync("migration-list-after.json", "utf8"));
+            const rows = payload && Array.isArray(payload.migrations) ? payload.migrations : null;
             const expected = ["20260922155748","20261021192826","20261022150855","20261022170001","20261022181500","20261022190000", process.env.MIGRATION_VERSION];
-            const version = (row, side) => {
-              const key = Object.keys(row).find(k => k.toLowerCase() === side);
-              return key && row[key] != null ? String(row[key]) : "";
-            };
-            if (!Array.isArray(rows) || rows.length !== expected.length) process.exit(1);
+            const version = (row, side) => typeof row === "object" && row !== null && typeof row[side] === "string" ? row[side] : "";
+            if (!rows || rows.length !== expected.length) process.exit(1);
             for (const id of expected) {
               if (!rows.some(r => version(r, "local") === id && version(r, "remote") === id)) process.exit(1);
             }
@@ -203,8 +204,8 @@ jobs:
           node -e '
             const before = JSON.parse(require("fs").readFileSync("audit-before.json", "utf8"));
             const after = JSON.parse(require("fs").readFileSync("audit-after.json", "utf8"));
-            const b = Array.isArray(before) ? before[0] : before;
-            const a = Array.isArray(after) ? after[0] : after;
+            const b = Array.isArray(before) && before.length === 1 && before[0] && typeof before[0] === "object" ? before[0] : null;
+            const a = Array.isArray(after) && after.length === 1 && after[0] && typeof after[0] === "object" ? after[0] : null;
             if (!a || a.rls_enabled !== true || a.policy_count !== 0 ||
                 a.private_blender_buckets !== 2 || a.client_crud_privilege_count !== 0 ||
                 a.service_role_crud_privilege_count !== 4) process.exit(1);
