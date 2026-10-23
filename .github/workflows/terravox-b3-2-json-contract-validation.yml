@@ -1,0 +1,83 @@
+name: TerraVox B3.2 JSON contract validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type VALIDATE_B3_2_JSON_CONTRACT
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terravox-b3-2-json-contract-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'VALIDATE_B3_2_JSON_CONTRACT'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: terravox-b3-2-homologation
+    defaults:
+      run:
+        shell: bash
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+      EXPECTED_PROJECT_REF: xrlfacfivlaeatzffcde
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - name: Install fixed Supabase CLI
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 --version
+
+      - name: Guard project identity and administrative secrets
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${EXPECTED_PROJECT_REF}" = "xrlfacfivlaeatzffcde"
+          test -n "${SUPABASE_ACCESS_TOKEN}"
+          test -n "${SUPABASE_DB_PASSWORD}"
+
+      - name: Link only the expected Supabase project
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 link \
+            --project-ref "${EXPECTED_PROJECT_REF}" \
+            --password "${SUPABASE_DB_PASSWORD}"
+
+      - name: Capture raw CLI JSON contracts without DDL
+        run: |
+          set -euo pipefail
+          cat > json-contract-probe.sql <<'SQL'
+          select jsonb_build_object(
+            'project_ref', 'xrlfacfivlaeatzffcde',
+            'probe', 'read_only_json_contract'
+          ) as probe;
+          SQL
+          npx --yes supabase@2.121.0 migration list --linked --output-format json > migration-list.json
+          npx --yes supabase@2.121.0 db query --linked --file json-contract-probe.sql --output-format json > db-query.json
+          node -e '
+            const fs = require("fs");
+            for (const file of ["migration-list.json", "db-query.json"]) {
+              const raw = fs.readFileSync(file, "utf8").trim();
+              if (!raw) throw new Error(`${file} is empty`);
+              JSON.parse(raw);
+            }
+          '
+
+      - name: Publish sanitized JSON evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: b3-2-json-contract-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            migration-list.json
+            db-query.json
