@@ -25,6 +25,13 @@ const reconciledClientPoliciesMigrationUrl = new URL(
   "../supabase/migrations/20261022190000_remove_recreated_blender_asset_client_policies.sql",
   import.meta.url,
 );
+const storageShapeRegexFixMigrationUrl = new URL(
+  "../supabase/migrations/20261023120000_fix_blender_asset_storage_shape_regex_escapes.sql",
+  import.meta.url,
+);
+
+const incomingBlendKeyPattern = /^incoming\/homologation\/asset-v001\/v001\/[a-f0-9]{64}\.blend$/;
+const derivedGlbKeyPattern = /^derived\/homologation\/asset-v001\/v001\/1\.0\.0\/[a-f0-9]{64}\.glb$/;
 
 describe("B1 database migration", () => {
   it("enforces RLS, transition validation and an atomic claim", async () => {
@@ -105,5 +112,38 @@ describe("B3.2 asset storage migrations", () => {
       expect(lockdown).toContain(`drop policy if exists ${policy}`);
       expect(reconciliation).toContain(`drop policy if exists ${policy}`);
     }
+  });
+
+  it("fixes PostgreSQL regex escaping without changing storage access controls", async () => {
+    const sql = (await readFile(storageShapeRegexFixMigrationUrl, "utf8")).toLowerCase();
+
+    expect(sql).toContain("drop constraint if exists blender_asset_objects_storage_shape_check");
+    expect(sql).toContain("add constraint blender_asset_objects_storage_shape_check check");
+    expect(sql).toContain("bucket_id = 'blender-assets-incoming'");
+    expect(sql).toContain("bucket_id = 'blender-assets-derived'");
+    expect(sql).toContain("mime_type = 'application/x-blender'");
+    expect(sql).toContain("mime_type = 'model/gltf-binary'");
+    expect(sql).toContain("size_bytes <= 104857600");
+    expect(sql).toContain("size_bytes <= 8388608");
+    expect(sql).toContain("[a-f0-9]{64}\\.blend$");
+    expect(sql).toContain("[0-9]+\\.[0-9]+\\.[0-9]+/[a-f0-9]{64}\\.glb$");
+    expect(sql).not.toContain("grant ");
+    expect(sql).not.toContain("revoke ");
+    expect(sql).not.toContain("create policy");
+    expect(sql).not.toContain("drop policy");
+    expect(sql).not.toContain("storage.buckets");
+  });
+
+  it("accepts canonical .blend and .glb keys while rejecting malformed keys", () => {
+    const incoming = `incoming/homologation/asset-v001/v001/${"a".repeat(64)}.blend`;
+    const derived = `derived/homologation/asset-v001/v001/1.0.0/${"b".repeat(64)}.glb`;
+
+    expect(incomingBlendKeyPattern.test(incoming)).toBe(true);
+    expect(derivedGlbKeyPattern.test(derived)).toBe(true);
+    expect(incomingBlendKeyPattern.test(`${incoming}x`)).toBe(false);
+    expect(incomingBlendKeyPattern.test(incoming.replace(".blend", ".glb"))).toBe(false);
+    expect(derivedGlbKeyPattern.test(derived.replace("/1.0.0/", "/1.0/"))).toBe(false);
+    expect(derivedGlbKeyPattern.test(derived.replace(".glb", ".blend"))).toBe(false);
+    expect(derivedGlbKeyPattern.test(derived.replace("derived/", "incoming/"))).toBe(false);
   });
 });
