@@ -23,7 +23,7 @@ jobs:
   e2e:
     if: >-
       github.ref == 'refs/heads/main' &&
-      inputs.expected_sha == '85112569f0510ef8a034eaf77504f6cbd4bf744c' &&
+      inputs.expected_sha == '17cfac9ae458fe2270db80414e5fd7ad68c81a97' &&
       inputs.confirmation == 'EXECUTE_B3_2_STORAGE_E2E'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -33,7 +33,7 @@ jobs:
         working-directory: blender-mcp
         shell: bash
     env:
-      APPROVED_SOURCE_SHA: 85112569f0510ef8a034eaf77504f6cbd4bf744c
+      APPROVED_SOURCE_SHA: 17cfac9ae458fe2270db80414e5fd7ad68c81a97
       APPROVED_SOURCE_BRANCH: feat/b3-2-private-asset-storage
       EXPECTED_PROJECT_REF: xrlfacfivlaeatzffcde
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
