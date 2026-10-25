@@ -48,9 +48,24 @@ require_running() {
   kill -0 "$pid" 2>/dev/null || { echo "$label ended before release" >&2; return 1; }
 }
 
+wait_for_exit() {
+  local pid="$1" label="$2"
+  for _ in $(seq 1 100); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid"
+      return $?
+    fi
+    sleep 0.05
+  done
+  echo "$label did not finish after release" >&2
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  return 1
+}
+
 run_active_source_conflict() {
   local ready="$tmp_dir/active-a.ready" release="$tmp_dir/active-a.release"
-  local b_pid_file="$tmp_dir/active-b.backend" a_pid b_pid status_b
+  local b_pid_file="$tmp_dir/active-b.backend" a_pid b_pid status_a status_b
 
   psql "$db_url" -v ON_ERROR_STOP=1 -c "select b3_test.source('00000000-0000-0000-0000-000000000901', repeat('9',64));"
   (
@@ -80,10 +95,11 @@ SQL
   require_running "$b_pid" "active-source session B"
 
   touch "$release"
-  wait "$a_pid"
   set +e
-  wait "$b_pid"; status_b=$?
+  wait_for_exit "$a_pid" "active-source session A"; status_a=$?
+  wait_for_exit "$b_pid" "active-source session B"; status_b=$?
   set -e
+  [[ "$status_a" -eq 0 ]] || { echo "active-source session A failed" >&2; return 1; }
   [[ "$status_b" -ne 0 ]] || { echo "active-source conflict unexpectedly succeeded" >&2; return 1; }
   grep -Eq 'duplicate key|unique' "$tmp_dir/active-b.log" || { cat "$tmp_dir/active-b.log" >&2; return 1; }
   ! grep -Eqi 'lock timeout|statement timeout' "$tmp_dir/active-b.log" || { cat "$tmp_dir/active-b.log" >&2; return 1; }
@@ -92,7 +108,7 @@ SQL
 
 run_completion_artifact_race() {
   local ready="$tmp_dir/completion-a.ready" release="$tmp_dir/completion-a.release"
-  local b_pid_file="$tmp_dir/completion-b.backend" a_pid b_pid status_b
+  local b_pid_file="$tmp_dir/completion-b.backend" a_pid b_pid status_a status_b
 
   psql "$db_url" -v ON_ERROR_STOP=1 <<SQL
 select b3_test.source('00000000-0000-0000-0000-000000000920',repeat('2',64));
@@ -135,10 +151,11 @@ SQL
   require_running "$b_pid" "completion session B"
 
   touch "$release"
-  wait "$a_pid"
   set +e
-  wait "$b_pid"; status_b=$?
+  wait_for_exit "$a_pid" "completion session A"; status_a=$?
+  wait_for_exit "$b_pid" "completion session B"; status_b=$?
   set -e
+  [[ "$status_a" -eq 0 ]] || { echo "completion session A failed" >&2; return 1; }
   [[ "$status_b" -ne 0 ]] || { echo "artifact mutation unexpectedly succeeded" >&2; return 1; }
   grep -q 'B3_COMPLETED_ARTIFACT_IMMUTABLE' "$tmp_dir/completion-b.log" || { cat "$tmp_dir/completion-b.log" >&2; return 1; }
   ! grep -Eqi 'lock timeout|statement timeout' "$tmp_dir/completion-b.log" || { cat "$tmp_dir/completion-b.log" >&2; return 1; }
