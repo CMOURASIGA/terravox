@@ -57,8 +57,8 @@ run_active_source_conflict() {
     psql "$db_url" -v ON_ERROR_STOP=1 <<SQL
 begin;
 select b3_test.processing('00000000-0000-0000-0000-000000000902','00000000-0000-0000-0000-000000000901','00000000-0000-0000-0000-000000000903',repeat('8',64));
-\\! touch '$ready'
-\\! while [ ! -f '$release' ]; do sleep 0.05; done
+\! touch '$ready'
+\! while [ ! -f '$release' ]; do sleep 0.05; done
 commit;
 SQL
   ) >"$tmp_dir/active-a.log" 2>&1 &
@@ -68,9 +68,9 @@ SQL
 
   (
     psql "$db_url" -Atq -v ON_ERROR_STOP=1 <<SQL
-\\o '$b_pid_file'
+\o '$b_pid_file'
 select pg_backend_pid();
-\\o
+\o
 select b3_test.processing('00000000-0000-0000-0000-000000000904','00000000-0000-0000-0000-000000000901','00000000-0000-0000-0000-000000000905',repeat('7',64));
 SQL
   ) >"$tmp_dir/active-b.log" 2>&1 &
@@ -111,8 +111,8 @@ SQL
     psql "$db_url" -v ON_ERROR_STOP=1 <<SQL
 begin;
 select 1 from public.blender_asset_processings where id='00000000-0000-0000-0000-000000000921' for update;
-\\! touch '$ready'
-\\! while [ ! -f '$release' ]; do sleep 0.05; done
+\! touch '$ready'
+\! while [ ! -f '$release' ]; do sleep 0.05; done
 update public.blender_asset_processings set state='completed' where id='00000000-0000-0000-0000-000000000921';
 commit;
 SQL
@@ -123,9 +123,9 @@ SQL
 
   (
     psql "$db_url" -Atq -v ON_ERROR_STOP=1 <<SQL
-\\o '$b_pid_file'
+\o '$b_pid_file'
 select pg_backend_pid();
-\\o
+\o
 update public.blender_asset_artifacts set size_bytes=65 where processing_id='00000000-0000-0000-0000-000000000921' and kind='glb';
 SQL
   ) >"$tmp_dir/completion-b.log" 2>&1 &
