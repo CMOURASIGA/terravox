@@ -15,11 +15,18 @@ jobs:
     timeout-minutes: 25
     env:
       SUPABASE_TELEMETRY_DISABLED: '1'
+      B3_3_A_TEST_SHA: acc83a04181f6de6f6e5b04a04b7226fd6d62ea0
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.sha }}
+          ref: acc83a04181f6de6f6e5b04a04b7226fd6d62ea0
           persist-credentials: false
+      - name: Confirm immutable test checkout
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          printf 'B3.3-A test SHA: %s\n' "$actual_sha"
+          test "$actual_sha" = "$B3_3_A_TEST_SHA"
       - uses: actions/setup-node@1e60f620b9541d5eaa0db02eec305a5c8a2968e6
         with:
           node-version: '24.12.0'
