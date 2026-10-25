@@ -38,3 +38,24 @@ select b3_test.processing('00000000-0000-0000-0000-000000000203','00000000-0000-
 select b3_test.assert_true(exists(select 1 from public.blender_asset_processings where id='00000000-0000-0000-0000-000000000203'),'reprocess after completed');
 select b3_test.assert_raises($q$update public.blender_asset_processings set owner_id='00000000-0000-0000-0000-000000000099' where id='00000000-0000-0000-0000-000000000203'$q$,'B3_PROCESSING_IDENTITY_IMMUTABLE');
 select b3_test.assert_raises($q$delete from public.blender_asset_processings where id='00000000-0000-0000-0000-000000000203'$q$,'B3_PROCESSING_DELETE_FORBIDDEN');
+
+-- Terminal failed/cancelled rows release the active-source slot; reprocessing remains traceable.
+select b3_test.source('00000000-0000-0000-0000-000000000111',repeat('1',64));
+select b3_test.processing('00000000-0000-0000-0000-000000000211','00000000-0000-0000-0000-000000000111','00000000-0000-0000-0000-000000000311',repeat('2',64));
+update public.blender_asset_processings set state='failed',last_error='{"code":"TEST","message":"synthetic"}' where id='00000000-0000-0000-0000-000000000211';
+select b3_test.processing('00000000-0000-0000-0000-000000000212','00000000-0000-0000-0000-000000000111','00000000-0000-0000-0000-000000000312',repeat('3',64));
+select b3_test.source('00000000-0000-0000-0000-000000000112',repeat('4',64));
+select b3_test.processing('00000000-0000-0000-0000-000000000213','00000000-0000-0000-0000-000000000112','00000000-0000-0000-0000-000000000313',repeat('5',64));
+update public.blender_asset_processings set state='cancelled' where id='00000000-0000-0000-0000-000000000213';
+select b3_test.processing('00000000-0000-0000-0000-000000000214','00000000-0000-0000-0000-000000000112','00000000-0000-0000-0000-000000000314',repeat('6',64));
+
+-- Artifact retry is allowed only failed -> planned; identity and deletes remain protected.
+insert into public.blender_asset_artifacts(processing_id,kind) values('00000000-0000-0000-0000-000000000212','glb');
+update public.blender_asset_artifacts set state='failed',last_error='{"code":"UPLOAD","message":"synthetic"}' where processing_id='00000000-0000-0000-0000-000000000212' and kind='glb';
+update public.blender_asset_artifacts set state='planned',last_error=null where processing_id='00000000-0000-0000-0000-000000000212' and kind='glb';
+select b3_test.assert_raises($q$update public.blender_asset_artifacts set state='verified' where processing_id='00000000-0000-0000-0000-000000000212' and kind='glb'$q$,'B3_ARTIFACT_STATE_TRANSITION_INVALID');
+select b3_test.assert_raises($q$delete from public.blender_asset_artifacts where processing_id='00000000-0000-0000-0000-000000000212' and kind='glb'$q$,'B3_ARTIFACT_DELETE_FORBIDDEN');
+
+-- A non-export job cannot be linked to a processing row.
+insert into public.blender_jobs(id,operation,asset_id,correlation_id) values('00000000-0000-0000-0000-000000000501','inspect_asset','asset-v001','00000000-0000-0000-0000-000000000502');
+select b3_test.assert_raises($q$update public.blender_asset_processings set job_id='00000000-0000-0000-0000-000000000501' where id='00000000-0000-0000-0000-000000000212'$q$,'B3_JOB_MISMATCH');
