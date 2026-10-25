@@ -12,6 +12,15 @@ begin
     raise exception 'ASSERTION_WRONG_ERROR: expected %, got %', expected, actual;
   end if;
 end $$;
+create or replace function b3_test.assert_role_denied(p_role name, statement text) returns void language plpgsql as $$
+declare denied boolean := false; actual text;
+begin
+  execute format('set local role %I', p_role);
+  begin execute statement;
+  exception when insufficient_privilege then denied := true; actual := sqlerrm;
+  end;
+  if not denied then raise exception 'ASSERTION_ROLE_NOT_DENIED: %, %', p_role, statement; end if;
+end $$;
 create or replace function b3_test.source(p_id uuid, p_hash text default repeat('a',64)) returns uuid language plpgsql as $$
 begin
  insert into public.blender_asset_objects(id,asset_id,asset_version,environment,owner_id,requested_by_id,bucket_id,storage_key,declared_sha256,mime_type,size_bytes,state,correlation_id)
