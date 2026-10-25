@@ -15,11 +15,11 @@ jobs:
     timeout-minutes: 25
     env:
       SUPABASE_TELEMETRY_DISABLED: '1'
-      B3_3_A_TEST_SHA: 4aed80d81a418f3cd50cebdd6c75ab2f52dfe5a8
+      B3_3_A_TEST_SHA: 0bc1345ee4d3b9037cbe00c32d26448bc7ac3ffe
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 4aed80d81a418f3cd50cebdd6c75ab2f52dfe5a8
+          ref: 0bc1345ee4d3b9037cbe00c32d26448bc7ac3ffe
           persist-credentials: false
       - name: Confirm immutable test checkout
         run: |
