@@ -17,7 +17,7 @@ create table public.blender_asset_artifacts (
 create index blender_asset_artifacts_recovery_idx on public.blender_asset_artifacts (state, updated_at, id) where state in ('planned','uploading','stored');
 alter table public.blender_asset_processings enable row level security;
 alter table public.blender_asset_artifacts enable row level security;
-revoke all on table public.blender_asset_processings from anon, authenticated;
-revoke all on table public.blender_asset_artifacts from anon, authenticated;
+revoke all on table public.blender_asset_processings from public, anon, authenticated;
+revoke all on table public.blender_asset_artifacts from public, anon, authenticated;
 grant select, insert, update, delete on table public.blender_asset_processings to service_role;
 grant select, insert, update, delete on table public.blender_asset_artifacts to service_role;
