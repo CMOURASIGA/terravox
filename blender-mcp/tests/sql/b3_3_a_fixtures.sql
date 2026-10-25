@@ -2,11 +2,15 @@ create schema if not exists b3_test;
 create or replace function b3_test.assert_true(condition boolean, message text) returns void language plpgsql as $$
 begin if condition is distinct from true then raise exception 'ASSERTION_FAILED: %', message; end if; end $$;
 create or replace function b3_test.assert_raises(statement text, expected text) returns void language plpgsql as $$
+declare did_fail boolean := false; actual text;
 begin
-  begin execute statement; raise exception 'ASSERTION_DID_NOT_FAIL: %', expected;
-  exception when others then
-    if position(expected in sqlerrm) = 0 then raise; end if;
+  begin execute statement;
+  exception when others then did_fail := true; actual := sqlerrm;
   end;
+  if not did_fail then raise exception 'ASSERTION_DID_NOT_FAIL'; end if;
+  if position(expected in actual) = 0 then
+    raise exception 'ASSERTION_WRONG_ERROR: expected %, got %', expected, actual;
+  end if;
 end $$;
 create or replace function b3_test.source(p_id uuid, p_hash text default repeat('a',64)) returns uuid language plpgsql as $$
 begin
