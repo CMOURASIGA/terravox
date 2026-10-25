@@ -17,6 +17,25 @@ select b3_test.assert_true(not exists(select 1 from pg_constraint where conrelid
 select b3_test.assert_true((select count(*)=3 from pg_trigger t join pg_class c on c.oid=t.tgrelid where not t.tgisinternal and c.relname in ('blender_asset_processings','blender_asset_artifacts')),'three triggers');
 select b3_test.assert_true(not has_function_privilege('anon','public.validate_blender_asset_processing()','execute') and not has_function_privilege('authenticated','public.validate_blender_asset_artifact()','execute'),'trigger functions private');
 
+-- These are actual role-scoped statements, not only catalog inspection.  A
+-- client must be denied before a table operation can reach RLS or a trigger.
+select b3_test.assert_role_denied('anon',$q$select * from public.blender_asset_processings limit 1$q$);
+select b3_test.assert_role_denied('anon',$q$insert into public.blender_asset_processings default values$q$);
+select b3_test.assert_role_denied('anon',$q$update public.blender_asset_processings set state='queued'$q$);
+select b3_test.assert_role_denied('anon',$q$delete from public.blender_asset_processings$q$);
+select b3_test.assert_role_denied('anon',$q$select * from public.blender_asset_artifacts limit 1$q$);
+select b3_test.assert_role_denied('anon',$q$insert into public.blender_asset_artifacts default values$q$);
+select b3_test.assert_role_denied('anon',$q$update public.blender_asset_artifacts set state='planned'$q$);
+select b3_test.assert_role_denied('anon',$q$delete from public.blender_asset_artifacts$q$);
+select b3_test.assert_role_denied('authenticated',$q$select * from public.blender_asset_processings limit 1$q$);
+select b3_test.assert_role_denied('authenticated',$q$insert into public.blender_asset_processings default values$q$);
+select b3_test.assert_role_denied('authenticated',$q$update public.blender_asset_processings set state='queued'$q$);
+select b3_test.assert_role_denied('authenticated',$q$delete from public.blender_asset_processings$q$);
+select b3_test.assert_role_denied('authenticated',$q$select * from public.blender_asset_artifacts limit 1$q$);
+select b3_test.assert_role_denied('authenticated',$q$insert into public.blender_asset_artifacts default values$q$);
+select b3_test.assert_role_denied('authenticated',$q$update public.blender_asset_artifacts set state='planned'$q$);
+select b3_test.assert_role_denied('authenticated',$q$delete from public.blender_asset_artifacts$q$);
+
 -- Valid lifecycle with GLB, report and manifest, then terminal immutability.
 select b3_test.source('00000000-0000-0000-0000-000000000101');
 select b3_test.processing('00000000-0000-0000-0000-000000000201','00000000-0000-0000-0000-000000000101','00000000-0000-0000-0000-000000000301',repeat('b',64));
