@@ -43,7 +43,7 @@ interface AssetObjectRow {
 }
 
 function toAssetObject(row: AssetObjectRow): AssetObject {
-  return assetObjectSchema.parse({
+  const candidate = {
     id: row.id,
     assetId: row.asset_id,
     assetVersion: row.asset_version,
@@ -65,7 +65,13 @@ function toAssetObject(row: AssetObjectRow): AssetObject {
     verifiedAt: row.verified_at,
     expiresAt: row.expires_at,
     deletedAt: row.deleted_at,
-  });
+  };
+  const parsed = assetObjectSchema.safeParse(candidate);
+  if (!parsed.success) {
+    const invalidFields = parsed.error.issues.map((issue) => issue.path.join(".")).join(",");
+    throw new Error(`Blender asset storage returned malformed metadata fields: ${invalidFields}`);
+  }
+  return parsed.data;
 }
 
 function storageError(operation: string, error: { message: string; statusCode?: string }): Error {
