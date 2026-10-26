@@ -65,7 +65,7 @@ def main():
     errors = []
     if not meshes:
         errors.append({"code": "ASSET_VALIDATION_FAILED", "message": "Asset has no mesh objects"})
-    result = {"schemaVersion": 1, "correlationId": value.correlation_id, "metrics": metrics, "errors": errors, "warnings": []}
+    result = {"schemaVersion": 1, "correlationId": value.correlation_id, "valid": not errors, "metrics": metrics, "errors": errors, "warnings": []}
     temporary = value.output + ".tmp"
     with open(temporary, "w", encoding="utf-8") as handle:
         json.dump(result, handle, ensure_ascii=False, allow_nan=False, sort_keys=True)
