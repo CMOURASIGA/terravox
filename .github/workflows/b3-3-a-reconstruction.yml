@@ -2,6 +2,10 @@ name: B3.3-A Disposable Reconstruction
 on:
   workflow_dispatch:
     inputs:
+      expected_sha:
+        description: Exact PR SHA to reconstruct
+        required: true
+        type: string
       confirmation:
         description: Type RECONSTRUCT_B3_3_A
         required: true
@@ -15,17 +19,19 @@ jobs:
     timeout-minutes: 25
     env:
       SUPABASE_TELEMETRY_DISABLED: '1'
-      B3_3_A_TEST_SHA: 0bc1345ee4d3b9037cbe00c32d26448bc7ac3ffe
+      B3_3_A_TEST_SHA: ${{ inputs.expected_sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 0bc1345ee4d3b9037cbe00c32d26448bc7ac3ffe
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Confirm immutable test checkout
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
           printf 'B3.3-A test SHA: %s\n' "$actual_sha"
+          test "$GITHUB_REF" = 'refs/heads/feat/b3-3-b3-4-pipeline'
+          test "$GITHUB_SHA" = "$B3_3_A_TEST_SHA"
           test "$actual_sha" = "$B3_3_A_TEST_SHA"
       - uses: actions/setup-node@1e60f620b9541d5eaa0db02eec305a5c8a2968e6
         with:
