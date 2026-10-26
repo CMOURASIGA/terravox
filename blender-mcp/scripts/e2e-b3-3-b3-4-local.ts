@@ -30,6 +30,11 @@ const required = (name: string): string => {
   return value;
 };
 const sha256 = (data: Uint8Array) => createHash("sha256").update(data).digest("hex");
+const localEnvironmentClaim = (metadata: unknown): string[] => {
+  if (!metadata || typeof metadata !== "object") return [];
+  const value = (metadata as Record<string, unknown>).terravox_environments;
+  return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : [];
+};
 const expectRejected = async (work: () => Promise<unknown>, expected: string): Promise<void> => {
   try { await work(); } catch (error) {
     const code = error instanceof McpAuthenticationError || error instanceof ProcessingAuthorizationError ? error.code : String(error);
@@ -71,8 +76,31 @@ async function main(): Promise<void> {
   if (authorized.error || !authorized.data.user) {
     throw new Error("could not authorize local E2E user environment");
   }
+  const administrativeRead = await serviceClient.auth.admin.getUserById(ownerId);
+  if (administrativeRead.error || !administrativeRead.data.user) {
+    throw new Error("could not read local E2E user after authorization update");
+  }
   const login = await publicClient.auth.signInWithPassword({ email, password: "B33-local-only-passphrase" });
   if (login.error || !login.data.session) throw new Error("could not obtain local bearer token");
+  const tokenRead = await serviceClient.auth.getUser(login.data.session.access_token);
+  if (tokenRead.error || !tokenRead.data.user) throw new Error("could not read local E2E bearer user");
+  const adminEnvironments = localEnvironmentClaim(administrativeRead.data.user.app_metadata);
+  const tokenEnvironments = localEnvironmentClaim(tokenRead.data.user.app_metadata);
+  console.log(JSON.stringify({
+    localAuthFixture: "VERIFIED",
+    createdUserId: ownerId,
+    adminUpdate: "SUCCESS",
+    administrativeUserId: administrativeRead.data.user.id,
+    administrativeClaimPresent: adminEnvironments.includes("homologation"),
+    tokenUserId: tokenRead.data.user.id,
+    tokenClaimPresent: tokenEnvironments.includes("homologation"),
+    sameUser: ownerId === administrativeRead.data.user.id && ownerId === tokenRead.data.user.id,
+    localInstance: parsedUrl.origin,
+  }));
+  if (ownerId !== administrativeRead.data.user.id || ownerId !== tokenRead.data.user.id ||
+      !adminEnvironments.includes("homologation") || !tokenEnvironments.includes("homologation")) {
+    throw new Error("local E2E authorization claim was not persisted");
+  }
   const auth = new McpAuthService(serviceClient);
   await expectRejected(() => auth.authenticate(undefined), "MCP_UNAUTHENTICATED");
   await expectRejected(() => auth.authenticate("Bearer malformed"), "MCP_UNAUTHENTICATED");
