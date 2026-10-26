@@ -21,7 +21,7 @@ class FakeProcessings implements AssetProcessingRepository {
       return Promise.resolve({ processing: replay, created: false });
     }
     const now = new Date().toISOString();
-    const processing: AssetProcessingRecord = { id: randomUUID(), sourceObjectId: input.sourceObjectId, jobId: null, ownerId: input.ownerId, environment: input.environment, assetId: input.assetId, assetVersion: input.assetVersion, profileName: "terravox-web-default", profileVersion: "1.0.0", idempotencyKey: input.idempotencyKey, idempotencyFingerprint: input.idempotencyFingerprint, sourceSha256: input.sourceSha256, state: "pending_verification", correlationId: input.correlationId, lastError: null, createdAt: now, updatedAt: now, startedAt: null, finishedAt: null };
+    const processing: AssetProcessingRecord = { id: randomUUID(), sourceObjectId: input.sourceObjectId, jobId: null, ownerId: input.ownerId, environment: input.environment, assetId: input.assetId, assetVersion: input.assetVersion, profileName: "terravox-web-default", profileVersion: "1.0.0", idempotencyKey: input.idempotencyKey, idempotencyFingerprint: input.idempotencyFingerprint, sourceSha256: input.sourceSha256, sourceContract: input.sourceContract, state: "pending_verification", correlationId: input.correlationId, lastError: null, createdAt: now, updatedAt: now, startedAt: null, finishedAt: null };
     this.records.set(processing.id, processing); return Promise.resolve({ processing, created: true });
   }
   getById(id: string) { return Promise.resolve(this.records.get(id) ?? null); }

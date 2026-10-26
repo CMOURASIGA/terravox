@@ -69,9 +69,8 @@ export class AssetPipelineWorker {
 
       const reportBytes = new TextEncoder().encode(JSON.stringify(glbMetrics));
       const manifest = assetManifestSchema.parse({
-        manifestVersion: "1.0.0", contractVersion: "1.0.0",
-        asset: { assetId: processing.assetId, assetType: "territory_landmark", assetVersion: processing.assetVersion,
-          displayName: processing.assetId, territoryId: "br-forest", authorship: { authorName: "TerraVox", attribution: "TerraVox" }, license: { identifier: "LicenseRef-TerraVox", name: "TerraVox internal" } },
+        manifestVersion: "1.0.0", contractVersion: processing.sourceContract.contractVersion,
+        asset: processing.sourceContract.asset,
         profile: { name: "terravox-web-default", version: "1.0.0" },
         source: { storageKey: source.object.storageKey, sha256: processing.sourceSha256, sizeBytes: source.bytes.byteLength },
         output: { storageKey: `derived/${processing.environment}/${processing.assetId}/${processing.assetVersion}/1.0.0/${sha256(glb)}.glb`, sha256: sha256(glb), sizeBytes: glb.byteLength, mediaType: "model/gltf-binary" },

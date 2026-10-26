@@ -17,6 +17,7 @@ export interface CreateProcessingRecord {
   idempotencyKey: string;
   idempotencyFingerprint: string;
   sourceSha256: string;
+  sourceContract: import("../domain/assetContract.js").AssetProcessingInput;
   correlationId: string;
 }
 
@@ -43,7 +44,7 @@ function processing(row: unknown): AssetProcessingRecord {
     environment: r.environment, assetId: r.asset_id, assetVersion: r.asset_version,
     profileName: r.profile_name, profileVersion: r.profile_version, idempotencyKey: r.idempotency_key,
     idempotencyFingerprint: r.idempotency_fingerprint, sourceSha256: r.source_sha256, state: r.state,
-    correlationId: r.correlation_id, lastError: r.last_error, createdAt: r.created_at, updatedAt: r.updated_at,
+    sourceContract: r.source_contract, correlationId: r.correlation_id, lastError: r.last_error, createdAt: r.created_at, updatedAt: r.updated_at,
     startedAt: r.started_at, finishedAt: r.finished_at,
   });
 }
@@ -78,6 +79,7 @@ export class SupabaseAssetProcessingRepository implements AssetProcessingReposit
       asset_id: input.assetId, asset_version: input.assetVersion, profile_name: "terravox-web-default",
       profile_version: "1.0.0", idempotency_key: input.idempotencyKey,
       idempotency_fingerprint: input.idempotencyFingerprint, source_sha256: input.sourceSha256,
+      source_contract: input.sourceContract,
       correlation_id: input.correlationId,
     }).select("*").single();
     if (result.error) {

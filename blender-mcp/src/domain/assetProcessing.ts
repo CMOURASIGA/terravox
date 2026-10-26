@@ -40,6 +40,7 @@ export const assetProcessingRecordSchema = z.object({
   idempotencyKey: z.uuid(),
   idempotencyFingerprint: sha256Schema,
   sourceSha256: sha256Schema,
+  sourceContract: assetProcessingInputSchema,
   state: processingStateSchema,
   correlationId: z.uuid(),
   lastError: processingErrorSchema.nullable(),

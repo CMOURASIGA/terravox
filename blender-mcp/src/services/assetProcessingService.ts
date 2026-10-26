@@ -36,6 +36,7 @@ export class AssetProcessingService {
       idempotencyKey: submission.contract.idempotencyKey,
       idempotencyFingerprint: createIdempotencyFingerprint(submission.contract),
       sourceSha256: submission.contract.source.sha256,
+      sourceContract: submission.contract,
       correlationId: randomUUID(),
     });
     if (!stored.created) return { processing: stored.processing, artifacts: await this.processings.listArtifacts(stored.processing.id), created: false };
