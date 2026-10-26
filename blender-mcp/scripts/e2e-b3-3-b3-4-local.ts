@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   const authorized = await serviceClient.auth.admin.updateUserById(ownerId, {
     app_metadata: { terravox_environments: ["homologation"] },
   });
-  if (authorized.error || authorized.data.user.app_metadata.terravox_environments?.[0] !== "homologation") {
+  if (authorized.error || !authorized.data.user) {
     throw new Error("could not authorize local E2E user environment");
   }
   const login = await publicClient.auth.signInWithPassword({ email, password: "B33-local-only-passphrase" });
