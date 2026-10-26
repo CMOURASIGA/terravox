@@ -112,7 +112,7 @@ run_completion_artifact_race() {
 
   psql "$db_url" -v ON_ERROR_STOP=1 <<SQL
 select b3_test.source('00000000-0000-0000-0000-000000000920',repeat('2',64));
-select b3_test.processing('00000000-0000-0000-0000-000000000921','00000000-0000-0000-0000-000000000920','00000000-0000-0000-0000-000000000922',repeat('3',64));
+select b3_test.processing('00000000-0000-0000-0000-000000000921','00000000-0000-0000-0000-000000000920','00000000-0000-0000-0000-000000000922',repeat('0',64));
 update public.blender_asset_processings set state='queued' where id='00000000-0000-0000-0000-000000000921';
 update public.blender_asset_processings set state='processing' where id='00000000-0000-0000-0000-000000000921';
 update public.blender_asset_processings set state='verifying_output' where id='00000000-0000-0000-0000-000000000921';
