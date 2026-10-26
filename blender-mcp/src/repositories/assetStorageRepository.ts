@@ -69,7 +69,14 @@ function toAssetObject(row: AssetObjectRow): AssetObject {
   const parsed = assetObjectSchema.safeParse(candidate);
   if (!parsed.success) {
     const invalidFields = parsed.error.issues.map((issue) => issue.path.join(".")).join(",");
-    throw new Error(`Blender asset storage returned malformed metadata fields: ${invalidFields}`);
+    const isUuid = (value: unknown): boolean => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const identifierShape = [
+      `id_present=${typeof row.id === "string" && row.id.length > 0}`,
+      `id_uuid=${isUuid(row.id)}`,
+      `correlation_id_present=${typeof row.correlation_id === "string" && row.correlation_id.length > 0}`,
+      `correlation_id_uuid=${isUuid(row.correlation_id)}`,
+    ].join(",");
+    throw new Error(`Blender asset storage returned malformed metadata fields: ${invalidFields}; ${identifierShape}`);
   }
   return parsed.data;
 }
