@@ -2,7 +2,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { serverActorSchema, type ServerActor } from "../domain/assetStorage.js";
 
-const claimsSchema = z.object({ terravox_environments: z.array(z.enum(["homologation", "preview", "production"])).min(1).max(3) }).strict();
+// Supabase owns additional app_metadata fields such as provider/providers.
+// Validate the TerraVox claim without rejecting those Auth-managed fields.
+const claimsSchema = z.object({ terravox_environments: z.array(z.enum(["homologation", "preview", "production"])).min(1).max(3) }).passthrough();
 
 export class McpAuthenticationError extends Error {
   constructor(public readonly code: "MCP_UNAUTHENTICATED" | "MCP_FORBIDDEN", message: string) { super(message); }
