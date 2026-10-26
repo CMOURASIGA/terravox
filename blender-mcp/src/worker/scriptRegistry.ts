@@ -3,10 +3,12 @@ import path from "node:path";
 import type { BlenderOperation } from "../domain/job.js";
 import { WorkerError } from "./errors.js";
 
-export const ALLOWED_SCRIPT_FILES: readonly string[] = Object.freeze(["inspect.py"]);
+export const ALLOWED_SCRIPT_FILES: readonly string[] = Object.freeze(["inspect.py", "validate.py", "export_glb.py"]);
 
 const OPERATION_SCRIPTS: Readonly<Partial<Record<BlenderOperation, string>>> = Object.freeze({
   inspect_asset: "inspect.py",
+  validate_asset: "validate.py",
+  export_glb: "export_glb.py",
 });
 
 export interface ResolvedScript {
