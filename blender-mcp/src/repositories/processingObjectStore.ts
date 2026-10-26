@@ -19,14 +19,26 @@ function dbError(action: string, error: { message: string; code?: string }): Err
 }
 
 function asAsset(row: Record<string, unknown>): AssetObject {
-  return assetObjectSchema.parse({
+  const candidate = {
     id: row.id, assetId: row.asset_id, assetVersion: row.asset_version, environment: row.environment,
     ownerId: row.owner_id, requestedById: row.requested_by_id, bucketId: row.bucket_id, storageKey: row.storage_key,
     declaredSha256: row.declared_sha256, mimeType: row.mime_type, sizeBytes: row.size_bytes, state: row.state,
     referencedByGame: row.referenced_by_game, correlationId: row.correlation_id, auditMetadata: row.audit_metadata,
     createdAt: row.created_at, updatedAt: row.updated_at, uploadedAt: row.uploaded_at, verifiedAt: row.verified_at,
     expiresAt: row.expires_at, deletedAt: row.deleted_at,
-  });
+  };
+  const parsed = assetObjectSchema.safeParse(candidate);
+  if (!parsed.success) {
+    const isUuid = (value: unknown): boolean => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const identifierShape = [
+      `id_present=${typeof row.id === "string" && row.id.length > 0}`,
+      `id_uuid=${isUuid(row.id)}`,
+      `correlation_id_present=${typeof row.correlation_id === "string" && row.correlation_id.length > 0}`,
+      `correlation_id_uuid=${isUuid(row.correlation_id)}`,
+    ].join(",");
+    throw new Error(`Processing object store returned malformed metadata fields: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(",")}; ${identifierShape}`);
+  }
+  return parsed.data;
 }
 
 export class SupabaseProcessingObjectStore implements ProcessingObjectStore {
