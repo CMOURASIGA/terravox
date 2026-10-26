@@ -41,7 +41,15 @@ const expectRejected = async (work: () => Promise<unknown>, expected: string): P
 
 async function main(): Promise<void> {
   const url = required("SUPABASE_URL");
-  if (!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\//.test(url)) throw new Error("E2E accepts only local Supabase URLs");
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error("E2E accepts only local Supabase URLs");
+  }
+  if (parsedUrl.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(parsedUrl.hostname)) {
+    throw new Error("E2E accepts only local Supabase URLs");
+  }
   const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
   const anonKey = required("SUPABASE_ANON_KEY");
   const blenderPath = required("BLENDER_PATH");
