@@ -14,7 +14,8 @@ select b3_test.assert_true((select count(*)=2 from pg_class where oid in ('publi
 select b3_test.assert_true((select count(*)=0 from pg_policies where schemaname='public' and tablename in ('blender_asset_processings','blender_asset_artifacts')),'no policies');
 select b3_test.assert_true(exists(select 1 from pg_index where indexrelid='public.blender_asset_processings_one_active_source_idx'::regclass and indisunique and pg_get_expr(indpred,indrelid) like '%pending_verification%verifying_output%'),'active-source partial unique index');
 select b3_test.assert_true(not exists(select 1 from pg_constraint where conrelid='public.blender_asset_processings'::regclass and contype='u' and pg_get_constraintdef(oid) like '%source_object_id%'),'no global source uniqueness');
-select b3_test.assert_true((select count(*)=3 from pg_trigger t join pg_class c on c.oid=t.tgrelid where not t.tgisinternal and c.relname in ('blender_asset_processings','blender_asset_artifacts')),'three triggers');
+select b3_test.assert_true((select count(*)=4 from pg_trigger t join pg_class c on c.oid=t.tgrelid where not t.tgisinternal and c.relname in ('blender_asset_processings','blender_asset_artifacts')),'four triggers including source contract');
+select b3_test.assert_true((select count(*)=4 from pg_trigger t join pg_class c on c.oid=t.tgrelid where not t.tgisinternal and t.tgname in ('validate_blender_asset_processing','prevent_blender_asset_processing_delete','validate_blender_asset_artifact','validate_blender_asset_processing_contract')),'expected trigger set');
 select b3_test.assert_true(not has_function_privilege('anon','public.validate_blender_asset_processing()','execute') and not has_function_privilege('authenticated','public.validate_blender_asset_artifact()','execute'),'trigger functions private');
 
 -- These are actual role-scoped statements, not only catalog inspection.  A
