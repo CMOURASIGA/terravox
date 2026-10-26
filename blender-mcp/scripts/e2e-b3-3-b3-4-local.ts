@@ -63,6 +63,14 @@ async function main(): Promise<void> {
   const created = await serviceClient.auth.admin.createUser({ email, password: "B33-local-only-passphrase", email_confirm: true, app_metadata: { terravox_environments: ["homologation"] } });
   if (created.error || !created.data.user) throw new Error("could not create local E2E user");
   const ownerId = created.data.user.id;
+  // Local GoTrue can ignore app_metadata at creation. Persist it explicitly so
+  // the test exercises the same authorization claim read by McpAuthService.
+  const authorized = await serviceClient.auth.admin.updateUserById(ownerId, {
+    app_metadata: { terravox_environments: ["homologation"] },
+  });
+  if (authorized.error || authorized.data.user.app_metadata.terravox_environments?.[0] !== "homologation") {
+    throw new Error("could not authorize local E2E user environment");
+  }
   const login = await publicClient.auth.signInWithPassword({ email, password: "B33-local-only-passphrase" });
   if (login.error || !login.data.session) throw new Error("could not obtain local bearer token");
   const auth = new McpAuthService(serviceClient);
