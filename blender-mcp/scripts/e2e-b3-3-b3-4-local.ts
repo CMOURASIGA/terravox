@@ -7,6 +7,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { buildIncomingStorageKey } from "../src/domain/assetStorage.js";
@@ -24,6 +26,7 @@ import { createLogger } from "../src/lib/logger.js";
 import { SpawnProcessRunner } from "../src/worker/processRunner.js";
 import { ScriptRegistry } from "../src/worker/scriptRegistry.js";
 import { WorkspaceManager } from "../src/worker/workspace.js";
+import { createMcpServer } from "../src/server/createMcpServer.js";
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -38,12 +41,43 @@ const localEnvironmentClaim = (metadata: unknown): string[] => {
 };
 const expectRejected = async (work: () => Promise<unknown>, expected: string): Promise<void> => {
   try { await work(); } catch (error) {
-    const code = error instanceof McpAuthenticationError || error instanceof ProcessingAuthorizationError ? error.code : String(error);
+    const code = error instanceof McpAuthenticationError || error instanceof ProcessingAuthorizationError
+      ? error.code
+      : error instanceof Error
+        ? error.message
+        : String(error);
     if (code === expected) return;
     throw error;
   }
   throw new Error(`expected rejection ${expected}`);
 };
+const mcpToolResultSchema = z.object({
+  processingId: z.uuid().optional(),
+  state: z.string().optional(),
+  created: z.boolean().optional(),
+  correlationId: z.uuid().optional(),
+  processing: z.unknown().optional(),
+  artifacts: z.array(z.unknown()).optional(),
+  signedUrl: z.url().optional(),
+  expiresInSeconds: z.number().int().positive().optional(),
+  path: z.string().optional(),
+}).passthrough();
+
+async function callAuthenticatedMcp(actor: Parameters<typeof createMcpServer>[1], name: string, args: Record<string, unknown>) {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const server = createMcpServer(undefined, actor);
+  const client = new Client({ name: "terravox-disposable-e2e", version: "0.1.0" });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const result = await client.callTool({ name, arguments: args });
+    if (result.isError) throw new Error(`MCP_TOOL_REJECTED:${name}`);
+    return mcpToolResultSchema.parse(result.structuredContent);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+}
 
 async function main(): Promise<void> {
   const url = required("SUPABASE_URL");
@@ -107,6 +141,24 @@ async function main(): Promise<void> {
   await expectRejected(() => auth.authenticate("Bearer malformed"), "MCP_UNAUTHENTICATED");
   const actor = await auth.authenticate(`Bearer ${login.data.session.access_token}`);
   if (actor.userId !== ownerId || !actor.allowedEnvironments.includes("homologation")) throw new Error("Bearer actor claims are incorrect");
+  const createLocalActor = async (suffix: string, environments: string[]) => {
+    const localEmail = `b33-${suffix}-${runId}@example.invalid`;
+    const localCreated = await serviceClient.auth.admin.createUser({
+      email: localEmail,
+      password: "B33-local-only-passphrase",
+      email_confirm: true,
+    });
+    if (localCreated.error || !localCreated.data.user) throw new Error(`could not create local ${suffix} actor`);
+    const updated = await serviceClient.auth.admin.updateUserById(localCreated.data.user.id, {
+      app_metadata: { terravox_environments: environments },
+    });
+    if (updated.error) throw new Error(`could not authorize local ${suffix} actor`);
+    const localLogin = await publicClient.auth.signInWithPassword({ email: localEmail, password: "B33-local-only-passphrase" });
+    if (localLogin.error || !localLogin.data.session) throw new Error(`could not authenticate local ${suffix} actor`);
+    return auth.authenticate(`Bearer ${localLogin.data.session.access_token}`);
+  };
+  const crossOwnerActor = await createLocalActor("other-owner", ["homologation"]);
+  const crossEnvironmentActor = await createLocalActor("other-environment", ["preview"]);
 
   const asset = { assetId: `b33-${runId.slice(0, 12)}`, assetType: "territory_landmark" as const, assetVersion: "v001", displayName: "B3.3 Local Cube", territoryId: "br-local", authorship: { authorName: "TerraVox QA", attribution: "Synthetic disposable fixture" }, license: { identifier: "LicenseRef-QA", name: "QA only" } };
   const sourceKey = buildIncomingStorageKey("homologation", asset, sourceSha);
@@ -148,9 +200,13 @@ async function main(): Promise<void> {
 
   const jobs = new JobService(createSupabaseJobRepository(url, serviceKey));
   const processingService = new AssetProcessingService(createSupabaseAssetProcessingRepository(url, serviceKey), jobs);
-  let submitted: Awaited<ReturnType<typeof processingService.submit>>;
+  let submitted: z.infer<typeof mcpToolResultSchema>;
   try {
-    submitted = await processingService.submit(actor, { sourceObjectId: sourceObject.assetObject.id, environment: "homologation", contract });
+    submitted = await callAuthenticatedMcp(actor, "blender.submit_asset_processing", {
+      sourceObjectId: sourceObject.assetObject.id,
+      environment: "homologation",
+      contract,
+    });
   } catch (error) {
     const persisted = await serviceClient
       .from("blender_asset_processings")
@@ -177,10 +233,23 @@ async function main(): Promise<void> {
     }));
     throw error;
   }
-  const replay = await processingService.submit(actor, { sourceObjectId: sourceObject.assetObject.id, environment: "homologation", contract });
-  if (!submitted.created || replay.created || replay.processing.id !== submitted.processing.id) throw new Error("MCP submission idempotency failed");
-  await expectRejected(() => processingService.getForActor({ userId: randomUUID(), allowedEnvironments: ["homologation"] }, submitted.processing.id), "PROCESSING_NOT_FOUND");
-  await expectRejected(() => processingService.getForActor({ userId: ownerId, allowedEnvironments: ["preview"] }, submitted.processing.id), "PROCESSING_NOT_FOUND");
+  const submittedId = z.uuid().parse(submitted.processingId);
+  const replay = await callAuthenticatedMcp(actor, "blender.submit_asset_processing", {
+    sourceObjectId: sourceObject.assetObject.id,
+    environment: "homologation",
+    contract,
+  });
+  if (submitted.created !== true || replay.created !== false || replay.processingId !== submittedId) throw new Error("MCP submission idempotency failed");
+  await expectRejected(
+    () => callAuthenticatedMcp(crossOwnerActor, "blender.get_asset_processing", { processingId: submittedId }),
+    "MCP_TOOL_REJECTED:blender.get_asset_processing",
+  );
+  await expectRejected(
+    () => callAuthenticatedMcp(crossEnvironmentActor, "blender.get_asset_processing", { processingId: submittedId }),
+    "MCP_TOOL_REJECTED:blender.get_asset_processing",
+  );
+  await expectRejected(() => processingService.getForActor({ userId: randomUUID(), allowedEnvironments: ["homologation"] }, submittedId), "PROCESSING_NOT_FOUND");
+  await expectRejected(() => processingService.getForActor({ userId: ownerId, allowedEnvironments: ["preview"] }, submittedId), "PROCESSING_NOT_FOUND");
 
   const workspaceRoot = await mkdtemp(path.join(tmpdir(), "terravox-b33-e2e-"));
   try {
@@ -198,15 +267,20 @@ async function main(): Promise<void> {
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
   }
-  const completed = await processingService.getForActor(actor, submitted.processing.id);
-  if (completed.processing.state !== "completed" || completed.artifacts.length !== 3 || completed.artifacts.some((artifact) => artifact.state !== "verified" || !artifact.assetObjectId)) throw new Error("processing artifacts were not fully verified");
-  const glb = completed.artifacts.find((artifact) => artifact.kind === "glb");
-  if (!glb?.assetObjectId) throw new Error("GLB artifact missing");
-  const download = await storage.authorizeDerivedDownload(actor, glb.assetObjectId);
-  const response = await fetch(download.signedDownload.signedUrl);
+  const completed = await callAuthenticatedMcp(actor, "blender.get_asset_processing", { processingId: submittedId });
+  const completedProcessing = z.object({ state: z.string() }).passthrough().parse(completed.processing);
+  const completedArtifacts = z.array(z.object({ kind: z.string(), state: z.string(), assetObjectId: z.uuid().nullable().optional() }).passthrough()).parse(completed.artifacts);
+  if (completedProcessing.state !== "completed" || completedArtifacts.length !== 3 || completedArtifacts.some((artifact) => artifact.state !== "verified" || !artifact.assetObjectId)) throw new Error("processing artifacts were not fully verified");
+  const validation = await callAuthenticatedMcp(actor, "blender.get_asset_validation_result", { processingId: submittedId });
+  if (validation.state !== "completed") throw new Error("MCP validation result is not completed");
+  const artifactList = await callAuthenticatedMcp(actor, "blender.get_asset_artifacts", { processingId: submittedId });
+  if (z.array(z.unknown()).parse(artifactList.artifacts).length !== 3) throw new Error("MCP artifact list is incomplete");
+  const download = await callAuthenticatedMcp(actor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" });
+  const signedUrl = z.url().parse(download.signedUrl);
+  const response = await fetch(signedUrl);
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (!response.ok || bytes.byteLength < 20 || Buffer.from(bytes).readUInt32LE(0) !== 0x46546c67) throw new Error("authorized GLB download is not structurally valid");
-  console.log(JSON.stringify({ e2e: "PASS", processing: completed.processing.id, artifacts: completed.artifacts.map((artifact) => ({ kind: artifact.kind, state: artifact.state })), authorizedDownload: "PASS", crossOwner: "DENIED", crossEnvironment: "DENIED", unauthenticated: "DENIED" }));
+  console.log(JSON.stringify({ e2e: "PASS", processing: submittedId, artifacts: completedArtifacts.map((artifact) => ({ kind: artifact.kind, state: artifact.state })), authorizedDownload: "PASS", crossOwner: "DENIED", crossEnvironment: "DENIED", unauthenticated: "DENIED" }));
 }
 
 main().catch((error: unknown) => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
