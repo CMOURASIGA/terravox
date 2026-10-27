@@ -9,6 +9,7 @@ import {
 } from "../src/domain/assetStorage.js";
 import type { AssetStorageRepository } from "../src/repositories/assetStorageRepository.js";
 import { AssetAuthorizationError, AssetStorageService } from "../src/services/assetStorageService.js";
+import { parseProcessingObjectRow } from "../src/repositories/processingObjectStore.js";
 
 const sha = "a".repeat(64);
 const actor: ServerActor = { userId: "30000000-0000-4000-8000-000000000001", allowedEnvironments: ["homologation"] };
@@ -149,5 +150,22 @@ describe("B3.2 private asset storage", () => {
     expect(first.dryRun).toBe(true);
     expect(first.candidates).toEqual(second.candidates);
     expect(repository.objects.get(expired.id)?.state).toBe("pending_upload");
+  });
+});
+
+describe("B3.3 processing object-store mapping", () => {
+  it("preserves persisted UUID metadata and rejects malformed identifiers", () => {
+    const object = makeObject();
+    const row = {
+      id: object.id, asset_id: object.assetId, asset_version: object.assetVersion, environment: object.environment,
+      owner_id: object.ownerId, requested_by_id: object.requestedById, bucket_id: object.bucketId, storage_key: object.storageKey,
+      declared_sha256: object.declaredSha256, mime_type: object.mimeType, size_bytes: object.sizeBytes, state: object.state,
+      referenced_by_game: object.referencedByGame, correlation_id: object.correlationId, audit_metadata: object.auditMetadata,
+      created_at: object.createdAt, updated_at: object.updatedAt, uploaded_at: object.uploadedAt, verified_at: object.verifiedAt,
+      expires_at: object.expiresAt, deleted_at: object.deletedAt,
+    };
+    expect(parseProcessingObjectRow(row)).toMatchObject({ id: object.id, correlationId: object.correlationId });
+    expect(() => parseProcessingObjectRow({ ...row, id: "source-local-trace", correlation_id: "correlation-local-trace" }))
+      .toThrow("Processing object store returned malformed metadata fields: id,correlationId");
   });
 });
