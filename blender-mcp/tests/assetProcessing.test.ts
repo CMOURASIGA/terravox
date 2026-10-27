@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { AssetArtifactRecord, AssetProcessingRecord, ProcessingError, ProcessingState } from "../src/domain/assetProcessing.js";
-import type { AssetProcessingRepository, CreateProcessingRecord } from "../src/repositories/assetProcessingRepository.js";
+import { parseAssetProcessingRow, type AssetProcessingRepository, type CreateProcessingRecord } from "../src/repositories/assetProcessingRepository.js";
 import { AssetProcessingService, ProcessingAuthorizationError } from "../src/services/assetProcessingService.js";
 import { JobService } from "../src/services/jobService.js";
 import { FakeJobRepository } from "./support/fakeJobRepository.js";
@@ -57,5 +57,31 @@ describe("AssetProcessingService", () => {
     await expect(service.submit({ userId: owner, allowedEnvironments: ["preview"] }, submission())).rejects.toMatchObject({ code: "ASSET_ACCESS_DENIED" });
     const result = await service.submit({ userId: owner, allowedEnvironments: ["homologation"] }, submission());
     await expect(service.getForActor({ userId: otherOwner, allowedEnvironments: ["homologation"] }, result.processing.id)).rejects.toBeInstanceOf(ProcessingAuthorizationError);
+  });
+});
+
+
+describe("asset-processing PostgREST mapping", () => {
+  const processingId = "55555555-5555-4555-8555-555555555555";
+  const correlationId = "66666666-6666-4666-8666-666666666666";
+  const now = "2026-10-27T12:00:00.000Z";
+  const validRow = () => ({
+    id: processingId, source_object_id: sourceObjectId, job_id: null, owner_id: owner,
+    environment: "homologation", asset_id: "territory-br-forest-landmark-v001", asset_version: "v001",
+    profile_name: "terravox-web-default", profile_version: "1.0.0", idempotency_key: key,
+    idempotency_fingerprint: "a".repeat(64), source_sha256: "b".repeat(64), state: "pending_verification",
+    source_contract: submission().contract, correlation_id: correlationId, last_error: null,
+    created_at: now, updated_at: now, started_at: null, finished_at: null,
+  });
+
+  it("maps persisted UUID identifiers without changing their values", () => {
+    const mapped = parseAssetProcessingRow(validRow());
+    expect(mapped.id).toBe(processingId);
+    expect(mapped.correlationId).toBe(correlationId);
+  });
+
+  it("rejects malformed persisted processing identifiers", () => {
+    expect(() => parseAssetProcessingRow({ ...validRow(), id: "processing-local-trace", correlation_id: "correlation-local-trace" }))
+      .toThrow("Blender asset processing returned malformed fields: id,correlationId");
   });
 });
