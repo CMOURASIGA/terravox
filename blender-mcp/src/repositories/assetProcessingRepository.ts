@@ -37,16 +37,26 @@ function databaseError(operation: string, error: { message: string; code?: strin
   return new Error(`Blender asset processing ${operation} failed (${error.code ?? "UNKNOWN"}): ${error.message}`);
 }
 
-function processing(row: unknown): AssetProcessingRecord {
-  const r = row as Record<string, unknown>;
-  return assetProcessingRecordSchema.parse({
+export function parseAssetProcessingRow(row: unknown): AssetProcessingRecord {
+  const r: Record<string, unknown> = row !== null && typeof row === "object" ? row as Record<string, unknown> : {};
+  const candidate = {
     id: r.id, sourceObjectId: r.source_object_id, jobId: r.job_id, ownerId: r.owner_id,
     environment: r.environment, assetId: r.asset_id, assetVersion: r.asset_version,
     profileName: r.profile_name, profileVersion: r.profile_version, idempotencyKey: r.idempotency_key,
     idempotencyFingerprint: r.idempotency_fingerprint, sourceSha256: r.source_sha256, state: r.state,
     sourceContract: r.source_contract, correlationId: r.correlation_id, lastError: r.last_error, createdAt: r.created_at, updatedAt: r.updated_at,
     startedAt: r.started_at, finishedAt: r.finished_at,
-  });
+  };
+  const parsed = assetProcessingRecordSchema.safeParse(candidate);
+  if (!parsed.success) {
+    const isUuid = (value: unknown): boolean =>
+      typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const invalidFields = parsed.error.issues.map((issue) => issue.path.join(".")).join(",");
+    throw new Error(
+      `Blender asset processing returned malformed fields: ${invalidFields}; id_uuid=${isUuid(r.id)},correlation_id_uuid=${isUuid(r.correlation_id)}`,
+    );
+  }
+  return parsed.data;
 }
 
 function artifact(row: unknown): AssetArtifactRecord {
@@ -68,7 +78,7 @@ export class SupabaseAssetProcessingRepository implements AssetProcessingReposit
       .eq("idempotency_key", input.idempotencyKey).maybeSingle();
     if (existing.error) throw databaseError("idempotency lookup", existing.error);
     if (existing.data) {
-      const record = processing(existing.data);
+      const record = parseAssetProcessingRow(existing.data);
       if (record.idempotencyFingerprint !== input.idempotencyFingerprint) {
         const error = new Error("IDEMPOTENCY_CONFLICT"); error.name = "IdempotencyConflictError"; throw error;
       }
@@ -87,20 +97,20 @@ export class SupabaseAssetProcessingRepository implements AssetProcessingReposit
       if (result.error.code === "23505") return await this.createOrGet(input);
       throw databaseError("create", result.error);
     }
-    return { processing: processing(result.data), created: true };
+    return { processing: parseAssetProcessingRow(result.data), created: true };
   }
 
   async getById(id: string): Promise<AssetProcessingRecord | null> {
     const result = await this.client.from("blender_asset_processings").select("*").eq("id", id).maybeSingle();
     if (result.error) throw databaseError("read", result.error);
-    return result.data ? processing(result.data) : null;
+    return result.data ? parseAssetProcessingRow(result.data) : null;
   }
 
   async getByIdForOwner(id: string, ownerId: string, environment: string): Promise<AssetProcessingRecord | null> {
     const result = await this.client.from("blender_asset_processings").select("*").eq("id", id)
       .eq("owner_id", ownerId).eq("environment", environment).maybeSingle();
     if (result.error) throw databaseError("authorized read", result.error);
-    return result.data ? processing(result.data) : null;
+    return result.data ? parseAssetProcessingRow(result.data) : null;
   }
 
   async listArtifacts(processingId: string): Promise<AssetArtifactRecord[]> {
@@ -116,7 +126,7 @@ export class SupabaseAssetProcessingRepository implements AssetProcessingReposit
     const result = await this.client.from("blender_asset_processings").update(changes).eq("id", id).eq("state", from).select("*").maybeSingle();
     if (result.error) throw databaseError("state transition", result.error);
     if (!result.data) throw new Error(`PROCESSING_TRANSITION_CONFLICT:${from}:${to}`);
-    return processing(result.data);
+    return parseAssetProcessingRow(result.data);
   }
 
   async createArtifacts(processingId: string): Promise<AssetArtifactRecord[]> {
