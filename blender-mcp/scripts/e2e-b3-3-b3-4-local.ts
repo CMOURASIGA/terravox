@@ -148,7 +148,35 @@ async function main(): Promise<void> {
 
   const jobs = new JobService(createSupabaseJobRepository(url, serviceKey));
   const processingService = new AssetProcessingService(createSupabaseAssetProcessingRepository(url, serviceKey), jobs);
-  const submitted = await processingService.submit(actor, { sourceObjectId: sourceObject.assetObject.id, environment: "homologation", contract });
+  let submitted: Awaited<ReturnType<typeof processingService.submit>>;
+  try {
+    submitted = await processingService.submit(actor, { sourceObjectId: sourceObject.assetObject.id, environment: "homologation", contract });
+  } catch (error) {
+    const persisted = await serviceClient
+      .from("blender_asset_processings")
+      .select("id,correlation_id")
+      .eq("source_object_id", sourceObject.assetObject.id)
+      .maybeSingle();
+    const isUuid = (value: unknown): boolean =>
+      typeof value === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const persistedIdentifiers = z
+      .object({ id: z.unknown(), correlation_id: z.unknown() })
+      .strict()
+      .safeParse(persisted.data);
+    const persistedId = persistedIdentifiers.success ? persistedIdentifiers.data.id : null;
+    const persistedCorrelationId = persistedIdentifiers.success ? persistedIdentifiers.data.correlation_id : null;
+    console.log(JSON.stringify({
+      processingSubmissionDiagnostic: "FAILED",
+      persistedRowFound: persistedIdentifiers.success,
+      persistedId: typeof persistedId === "string" ? persistedId : null,
+      persistedIdIsUuid: isUuid(persistedId),
+      persistedCorrelationId: typeof persistedCorrelationId === "string" ? persistedCorrelationId : null,
+      persistedCorrelationIdIsUuid: isUuid(persistedCorrelationId),
+      persistenceReadError: persisted.error?.code ?? null,
+    }));
+    throw error;
+  }
   const replay = await processingService.submit(actor, { sourceObjectId: sourceObject.assetObject.id, environment: "homologation", contract });
   if (!submitted.created || replay.created || replay.processing.id !== submitted.processing.id) throw new Error("MCP submission idempotency failed");
   await expectRejected(() => processingService.getForActor({ userId: randomUUID(), allowedEnvironments: ["homologation"] }, submitted.processing.id), "PROCESSING_NOT_FOUND");
