@@ -8,6 +8,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { buildIncomingStorageKey } from "../src/domain/assetStorage.js";
 import { createSupabaseAssetProcessingRepository } from "../src/repositories/assetProcessingRepository.js";
 import { createSupabaseAssetStorageRepository } from "../src/repositories/assetStorageRepository.js";
@@ -123,13 +124,19 @@ async function main(): Promise<void> {
     const isUuid = (value: unknown): boolean =>
       typeof value === "string" &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const persistedIdentifiers = z
+      .object({ id: z.unknown(), correlation_id: z.unknown() })
+      .strict()
+      .safeParse(persisted.data);
+    const persistedId = persistedIdentifiers.success ? persistedIdentifiers.data.id : null;
+    const persistedCorrelationId = persistedIdentifiers.success ? persistedIdentifiers.data.correlation_id : null;
     console.log(JSON.stringify({
       storageAuthorizationDiagnostic: "FAILED",
-      persistedRowFound: Boolean(persisted.data),
-      persistedId: persisted.data?.id ?? null,
-      persistedIdIsUuid: isUuid(persisted.data?.id),
-      persistedCorrelationId: persisted.data?.correlation_id ?? null,
-      persistedCorrelationIdIsUuid: isUuid(persisted.data?.correlation_id),
+      persistedRowFound: persistedIdentifiers.success,
+      persistedId: typeof persistedId === "string" ? persistedId : null,
+      persistedIdIsUuid: isUuid(persistedId),
+      persistedCorrelationId: typeof persistedCorrelationId === "string" ? persistedCorrelationId : null,
+      persistedCorrelationIdIsUuid: isUuid(persistedCorrelationId),
       persistenceReadError: persisted.error?.code ?? null,
     }));
     throw error;
