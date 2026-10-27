@@ -80,6 +80,8 @@ async function callAuthenticatedMcp(actor: Parameters<typeof createMcpServer>[1]
 }
 
 async function main(): Promise<void> {
+  const scope = process.env.B3_E2E_SCOPE ?? "full";
+  if (scope !== "full" && scope !== "auth-storage") throw new Error("B3_E2E_SCOPE must be full or auth-storage");
   const url = required("SUPABASE_URL");
   let parsedUrl: URL;
   try {
@@ -141,6 +143,7 @@ async function main(): Promise<void> {
   await expectRejected(() => auth.authenticate("Bearer malformed"), "MCP_UNAUTHENTICATED");
   const actor = await auth.authenticate(`Bearer ${login.data.session.access_token}`);
   if (actor.userId !== ownerId || !actor.allowedEnvironments.includes("homologation")) throw new Error("Bearer actor claims are incorrect");
+  console.log(JSON.stringify({ e2eGate: "authentication-and-environment-authorization", status: "PASS" }));
   const createLocalActor = async (suffix: string, environments: string[]) => {
     const localEmail = `b33-${suffix}-${runId}@example.invalid`;
     const localCreated = await serviceClient.auth.admin.createUser({
@@ -197,6 +200,17 @@ async function main(): Promise<void> {
   if (upload.error) throw new Error("private source upload failed");
   const marked = await serviceClient.from("blender_asset_objects").update({ state: "uploaded", uploaded_at: new Date().toISOString() }).eq("id", sourceObject.assetObject.id);
   if (marked.error) throw new Error(`source metadata transition failed: ${marked.error.code ?? "UNKNOWN"}`);
+  const privateSource = await serviceClient.storage.from(sourceObject.assetObject.bucketId).download(sourceObject.assetObject.storageKey);
+  if (privateSource.error || sha256(new Uint8Array(await privateSource.data.arrayBuffer())) !== sourceSha) {
+    throw new Error("private source storage integrity check failed");
+  }
+  const publicSource = await publicClient.storage.from(sourceObject.assetObject.bucketId).download(sourceObject.assetObject.storageKey);
+  if (!publicSource.error) throw new Error("private source object was readable without authorization");
+  console.log(JSON.stringify({ e2eGate: "private-source-storage-and-integrity", status: "PASS" }));
+  if (scope === "auth-storage") {
+    console.log(JSON.stringify({ e2e: "PASS", scope, auth: "PASS", privateStorage: "PASS", downstream: "NOT_RUN" }));
+    return;
+  }
 
   const jobs = new JobService(createSupabaseJobRepository(url, serviceKey));
   const processingService = new AssetProcessingService(createSupabaseAssetProcessingRepository(url, serviceKey), jobs);
