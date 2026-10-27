@@ -30,21 +30,32 @@ interface BlenderJobRow {
   correlation_id: string;
 }
 
-function toJob(row: BlenderJobRow): BlenderJob {
-  return blenderJobSchema.parse({
-    id: row.id,
-    operation: row.operation,
-    status: row.status,
-    assetId: row.asset_id,
-    payload: row.payload,
-    result: row.result,
-    error: row.error,
-    attempts: row.attempts,
-    createdAt: row.created_at,
-    startedAt: row.started_at,
-    finishedAt: row.finished_at,
-    correlationId: row.correlation_id,
-  });
+export function parseBlenderJobRow(row: unknown): BlenderJob {
+  const r: Record<string, unknown> = row !== null && typeof row === "object" ? row as Record<string, unknown> : {};
+  const candidate = {
+    id: r.id,
+    operation: r.operation,
+    status: r.status,
+    assetId: r.asset_id,
+    payload: r.payload,
+    result: r.result,
+    error: r.error,
+    attempts: r.attempts,
+    createdAt: r.created_at,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+    correlationId: r.correlation_id,
+  };
+  const parsed = blenderJobSchema.safeParse(candidate);
+  if (!parsed.success) {
+    const isUuid = (value: unknown): boolean =>
+      typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const invalidFields = parsed.error.issues.map((issue) => issue.path.join(".")).join(",");
+    throw new Error(
+      `Blender job returned malformed fields: ${invalidFields}; id_uuid=${isUuid(r.id)},correlation_id_uuid=${isUuid(r.correlation_id)}`,
+    );
+  }
+  return parsed.data;
 }
 
 function databaseError(operation: string, error: { message: string; code?: string }): Error {
@@ -69,7 +80,7 @@ export class SupabaseJobRepository implements JobRepository {
       .single<BlenderJobRow>();
 
     if (error) throw databaseError("create", error);
-    return toJob(data);
+    return parseBlenderJobRow(data);
   }
 
   async getById(jobId: string): Promise<BlenderJob | null> {
@@ -80,7 +91,7 @@ export class SupabaseJobRepository implements JobRepository {
       .maybeSingle<BlenderJobRow>();
 
     if (error) throw databaseError("read", error);
-    return data ? toJob(data) : null;
+    return data ? parseBlenderJobRow(data) : null;
   }
 
   async updateState(jobId: string, update: JobStateUpdate): Promise<BlenderJob> {
@@ -104,7 +115,7 @@ export class SupabaseJobRepository implements JobRepository {
 
     if (error) throw databaseError("update", error);
     if (!data) throw new InvalidJobTransitionError(update.from, update.to);
-    return toJob(data);
+    return parseBlenderJobRow(data);
   }
 
   async claimNext(options: ClaimOptions): Promise<BlenderJob | null> {
@@ -115,7 +126,7 @@ export class SupabaseJobRepository implements JobRepository {
 
     if (response.error) throw databaseError("claim", response.error);
     const rows = response.data as BlenderJobRow[] | null;
-    return rows?.[0] ? toJob(rows[0]) : null;
+    return rows?.[0] ? parseBlenderJobRow(rows[0]) : null;
   }
 
   async renewLease(jobId: string, options: LeaseRenewal): Promise<boolean> {
