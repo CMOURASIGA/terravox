@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { AssetArtifactRecord, AssetProcessingRecord, ProcessingError, ProcessingState } from "../src/domain/assetProcessing.js";
-import { parseAssetProcessingRow, type AssetProcessingRepository, type CreateProcessingRecord } from "../src/repositories/assetProcessingRepository.js";
+import { parseAssetArtifactRow, parseAssetProcessingRow, type AssetProcessingRepository, type CreateProcessingRecord } from "../src/repositories/assetProcessingRepository.js";
 import { AssetProcessingService, ProcessingAuthorizationError } from "../src/services/assetProcessingService.js";
 import { JobService } from "../src/services/jobService.js";
 import { FakeJobRepository } from "./support/fakeJobRepository.js";
@@ -60,7 +60,6 @@ describe("AssetProcessingService", () => {
   });
 });
 
-
 describe("asset-processing PostgREST mapping", () => {
   const processingId = "55555555-5555-4555-8555-555555555555";
   const correlationId = "66666666-6666-4666-8666-666666666666";
@@ -83,5 +82,19 @@ describe("asset-processing PostgREST mapping", () => {
   it("rejects malformed persisted processing identifiers", () => {
     expect(() => parseAssetProcessingRow({ ...validRow(), id: "processing-local-trace", correlation_id: "correlation-local-trace" }))
       .toThrow("Blender asset processing returned malformed fields: id,correlationId");
+  });
+
+  it("maps artifact identifiers and rejects malformed persisted artifact identifiers", () => {
+    const artifactId = "77777777-7777-4777-8777-777777777777";
+    const assetObjectId = "88888888-8888-4888-8888-888888888888";
+    const row = {
+      id: artifactId, processing_id: processingId, kind: "glb", state: "verified",
+      storage_key: "derived/homologation/territory-br-forest-landmark-v001/v001/1.0.0/" + "a".repeat(64) + ".glb",
+      content_sha256: "a".repeat(64), size_bytes: 42, asset_object_id: assetObjectId,
+      last_error: null, created_at: now, updated_at: now, verified_at: now,
+    };
+    expect(parseAssetArtifactRow(row)).toMatchObject({ id: artifactId, processingId, assetObjectId });
+    expect(() => parseAssetArtifactRow({ ...row, id: "artifact-local-trace", processing_id: "processing-local-trace" }))
+      .toThrow("Blender asset artifact returned malformed fields: id,processingId");
   });
 });
