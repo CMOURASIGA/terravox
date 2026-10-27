@@ -81,7 +81,9 @@ async function callAuthenticatedMcp(actor: Parameters<typeof createMcpServer>[1]
 
 async function main(): Promise<void> {
   const scope = process.env.B3_E2E_SCOPE ?? "full";
-  if (scope !== "full" && scope !== "auth-storage") throw new Error("B3_E2E_SCOPE must be full or auth-storage");
+  if (scope !== "full" && scope !== "auth-storage" && scope !== "worker-artifacts") {
+    throw new Error("B3_E2E_SCOPE must be full, auth-storage, or worker-artifacts");
+  }
   const url = required("SUPABASE_URL");
   let parsedUrl: URL;
   try {
@@ -285,11 +287,30 @@ async function main(): Promise<void> {
   const completedProcessing = z.object({ state: z.string() }).passthrough().parse(completed.processing);
   const completedArtifacts = z.array(z.object({ kind: z.string(), state: z.string(), assetObjectId: z.uuid().nullable().optional() }).passthrough()).parse(completed.artifacts);
   if (completedProcessing.state !== "completed" || completedArtifacts.length !== 3 || completedArtifacts.some((artifact) => artifact.state !== "verified" || !artifact.assetObjectId)) throw new Error("processing artifacts were not fully verified");
+  if (scope === "worker-artifacts") {
+    console.log(JSON.stringify({
+      e2e: "PASS",
+      scope,
+      queueWorker: "PASS",
+      blender: "PASS",
+      derivedArtifacts: completedArtifacts.map((artifact) => ({ kind: artifact.kind, state: artifact.state })),
+      downstreamMcpReadAndDownload: "NOT_RUN",
+    }));
+    return;
+  }
   const validation = await callAuthenticatedMcp(actor, "blender.get_asset_validation_result", { processingId: submittedId });
   if (validation.state !== "completed") throw new Error("MCP validation result is not completed");
   const artifactList = await callAuthenticatedMcp(actor, "blender.get_asset_artifacts", { processingId: submittedId });
   if (z.array(z.unknown()).parse(artifactList.artifacts).length !== 3) throw new Error("MCP artifact list is incomplete");
   const download = await callAuthenticatedMcp(actor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" });
+  await expectRejected(
+    () => callAuthenticatedMcp(crossOwnerActor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" }),
+    "MCP_TOOL_REJECTED:blender.create_asset_artifact_download",
+  );
+  await expectRejected(
+    () => callAuthenticatedMcp(crossEnvironmentActor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" }),
+    "MCP_TOOL_REJECTED:blender.create_asset_artifact_download",
+  );
   const signedUrl = z.url().parse(download.signedUrl);
   const response = await fetch(signedUrl);
   const bytes = new Uint8Array(await response.arrayBuffer());
