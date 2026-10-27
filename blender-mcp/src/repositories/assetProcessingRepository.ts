@@ -59,13 +59,23 @@ export function parseAssetProcessingRow(row: unknown): AssetProcessingRecord {
   return parsed.data;
 }
 
-function artifact(row: unknown): AssetArtifactRecord {
-  const r = row as Record<string, unknown>;
-  return assetArtifactRecordSchema.parse({
+export function parseAssetArtifactRow(row: unknown): AssetArtifactRecord {
+  const r: Record<string, unknown> = row !== null && typeof row === "object" ? row as Record<string, unknown> : {};
+  const candidate = {
     id: r.id, processingId: r.processing_id, kind: r.kind, state: r.state, storageKey: r.storage_key,
     contentSha256: r.content_sha256, sizeBytes: r.size_bytes, assetObjectId: r.asset_object_id,
     lastError: r.last_error, createdAt: r.created_at, updatedAt: r.updated_at, verifiedAt: r.verified_at,
-  });
+  };
+  const parsed = assetArtifactRecordSchema.safeParse(candidate);
+  if (!parsed.success) {
+    const isUuid = (value: unknown): boolean =>
+      typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const invalidFields = parsed.error.issues.map((issue) => issue.path.join(".")).join(",");
+    throw new Error(
+      `Blender asset artifact returned malformed fields: ${invalidFields}; id_uuid=${isUuid(r.id)},processing_id_uuid=${isUuid(r.processing_id)},asset_object_id_uuid=${r.asset_object_id === null || isUuid(r.asset_object_id)}`,
+    );
+  }
+  return parsed.data;
 }
 
 /** Server-only repository. Database triggers remain the final integrity authority. */
@@ -116,7 +126,7 @@ export class SupabaseAssetProcessingRepository implements AssetProcessingReposit
   async listArtifacts(processingId: string): Promise<AssetArtifactRecord[]> {
     const result = await this.client.from("blender_asset_artifacts").select("*").eq("processing_id", processingId).order("kind");
     if (result.error) throw databaseError("artifact list", result.error);
-    return result.data.map(artifact);
+    return result.data.map(parseAssetArtifactRow);
   }
 
   async setState(id: string, from: ProcessingState, to: ProcessingState, values: { jobId?: string; error?: ProcessingError | null } = {}): Promise<AssetProcessingRecord> {
@@ -134,7 +144,7 @@ export class SupabaseAssetProcessingRepository implements AssetProcessingReposit
       (["glb", "report", "manifest"] as const).map((kind) => ({ processing_id: processingId, kind })),
     ).select("*");
     if (result.error) throw databaseError("artifact create", result.error);
-    return result.data.map(artifact);
+    return result.data.map(parseAssetArtifactRow);
   }
 
   async setArtifactState(id: string, from: AssetArtifactRecord["state"], to: AssetArtifactRecord["state"], values: {
@@ -149,7 +159,7 @@ export class SupabaseAssetProcessingRepository implements AssetProcessingReposit
     const result = await this.client.from("blender_asset_artifacts").update(changes).eq("id", id).eq("state", from).select("*").maybeSingle();
     if (result.error) throw databaseError("artifact transition", result.error);
     if (!result.data) throw new Error(`ARTIFACT_TRANSITION_CONFLICT:${from}:${to}`);
-    return artifact(result.data);
+    return parseAssetArtifactRow(result.data);
   }
 }
 
