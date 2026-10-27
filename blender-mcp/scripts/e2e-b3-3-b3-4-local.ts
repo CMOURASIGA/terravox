@@ -111,7 +111,29 @@ async function main(): Promise<void> {
   const sourceKey = buildIncomingStorageKey("homologation", asset, sourceSha);
   const contract = { contractVersion: "1.0.0" as const, asset, source: { storageKey: sourceKey, sha256: sourceSha, mediaType: "application/x-blender" as const, sizeBytes: source.byteLength }, exportProfile: "terravox-web-default" as const, idempotencyKey: randomUUID() };
   const storage = new AssetStorageService(createSupabaseAssetStorageRepository(url, serviceKey));
-  const sourceObject = await storage.authorizeBlendUpload(actor, { environment: "homologation", contract });
+  let sourceObject: Awaited<ReturnType<typeof storage.authorizeBlendUpload>>;
+  try {
+    sourceObject = await storage.authorizeBlendUpload(actor, { environment: "homologation", contract });
+  } catch (error) {
+    const persisted = await serviceClient
+      .from("blender_asset_objects")
+      .select("id,correlation_id")
+      .eq("storage_key", sourceKey)
+      .maybeSingle();
+    const isUuid = (value: unknown): boolean =>
+      typeof value === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    console.log(JSON.stringify({
+      storageAuthorizationDiagnostic: "FAILED",
+      persistedRowFound: Boolean(persisted.data),
+      persistedId: persisted.data?.id ?? null,
+      persistedIdIsUuid: isUuid(persisted.data?.id),
+      persistedCorrelationId: persisted.data?.correlation_id ?? null,
+      persistedCorrelationIdIsUuid: isUuid(persisted.data?.correlation_id),
+      persistenceReadError: persisted.error?.code ?? null,
+    }));
+    throw error;
+  }
   const upload = await serviceClient.storage.from(sourceObject.assetObject.bucketId).uploadToSignedUrl(sourceObject.signedUpload.path, sourceObject.signedUpload.token, source, { contentType: "application/x-blender" });
   if (upload.error) throw new Error("private source upload failed");
   const marked = await serviceClient.from("blender_asset_objects").update({ state: "uploaded", uploaded_at: new Date().toISOString() }).eq("id", sourceObject.assetObject.id);
