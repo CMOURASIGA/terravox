@@ -122,6 +122,6 @@ describe("B1 persistent job service", () => {
       correlationId: row.correlation_id,
     });
     expect(() => parseBlenderJobRow({ ...row, id: "invalid", correlation_id: "invalid" }))
-      .toThrow(/Blender job returned malformed fields: id,correlationId; row_keys=.*; id_type=string,correlation_id_type=string; id_uuid=false,correlation_id_uuid=false/);
+      .toThrow(/Blender job returned malformed fields: id,correlationId; row_keys=.*; id_type=string,correlation_id_type=string; id_value="invalid",correlation_id_value="invalid"; id_uuid=false,correlation_id_uuid=false/);
   });
 });
