@@ -52,7 +52,7 @@ export function parseBlenderJobRow(row: unknown): BlenderJob {
       typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
     const invalidFields = parsed.error.issues.map((issue) => issue.path.join(".")).join(",");
     throw new Error(
-      `Blender job returned malformed fields: ${invalidFields}; row_keys=${Object.keys(r).sort().join(",")}; id_type=${typeof r.id},correlation_id_type=${typeof r.correlation_id}; id_value=${JSON.stringify(r.id)},correlation_id_value=${JSON.stringify(r.correlation_id)}; id_uuid=${isUuid(r.id)},correlation_id_uuid=${isUuid(r.correlation_id)}`,
+      `Blender job returned malformed fields: ${invalidFields}; row_keys=${Object.keys(r).sort().join(",")}; id_type=${typeof r.id},correlation_id_type=${typeof r.correlation_id}; id_uuid=${isUuid(r.id)},correlation_id_uuid=${isUuid(r.correlation_id)}`,
     );
   }
   return parsed.data;
