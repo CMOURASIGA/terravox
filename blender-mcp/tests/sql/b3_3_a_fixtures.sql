@@ -29,8 +29,17 @@ begin
 end $$;
 create or replace function b3_test.processing(p_id uuid, p_source uuid, p_key uuid, p_fingerprint text) returns uuid language plpgsql as $$
 begin
- insert into public.blender_asset_processings(id,source_object_id,owner_id,environment,asset_id,asset_version,profile_name,profile_version,idempotency_key,idempotency_fingerprint,source_sha256,correlation_id)
- select p_id,p_source,owner_id,environment,asset_id,asset_version,'terravox-web-default','1.0.0',p_key,p_fingerprint,declared_sha256,'00000000-0000-0000-0000-000000000020' from public.blender_asset_objects where id=p_source;
+ insert into public.blender_asset_processings(id,source_object_id,owner_id,environment,asset_id,asset_version,profile_name,profile_version,idempotency_key,idempotency_fingerprint,source_sha256,source_contract,correlation_id)
+ select p_id,p_source,owner_id,environment,asset_id,asset_version,'terravox-web-default','1.0.0',p_key,p_fingerprint,declared_sha256,
+   jsonb_build_object(
+     'contractVersion','1.0.0',
+     'asset',jsonb_build_object('assetId',asset_id,'assetVersion',asset_version),
+     'source',jsonb_build_object('sha256',declared_sha256),
+     'exportProfile','terravox-web-default',
+     'idempotencyKey',p_key::text
+   ),
+   '00000000-0000-0000-0000-000000000020'
+ from public.blender_asset_objects where id=p_source;
  return p_id;
 end $$;
 create or replace function b3_test.derived(p_id uuid, p_hash text, p_kind text) returns uuid language plpgsql as $$

@@ -5,7 +5,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   MCP_SERVER_NAME: z.string().trim().min(1).default("terravox-blender-mcp"),
   MCP_SERVER_VERSION: z.string().trim().min(1).default("0.1.0"),
-  SUPABASE_URL: z.url().refine((url) => url.startsWith("https://"), "SUPABASE_URL must use HTTPS"),
+  SUPABASE_URL: z.url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().trim().min(20),
 });
 
@@ -21,6 +21,11 @@ export function getEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
     throw new Error(`Invalid environment: ${z.prettifyError(parsed.error)}`);
+  }
+
+  const localTestUrl = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/.test(parsed.data.SUPABASE_URL);
+  if (!parsed.data.SUPABASE_URL.startsWith("https://") && !(parsed.data.NODE_ENV === "test" && localTestUrl)) {
+    throw new Error("Invalid environment: SUPABASE_URL must use HTTPS outside a local test runtime");
   }
 
   if (source === process.env) {
