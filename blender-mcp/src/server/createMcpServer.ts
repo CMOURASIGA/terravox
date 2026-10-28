@@ -8,6 +8,8 @@ import { artifactKindSchema } from "../domain/assetProcessing.js";
 import { assetIdSchema, exportProfileSchema, jobIdSchema } from "../domain/job.js";
 import { logger } from "../lib/logger.js";
 import { JobService } from "../services/jobService.js";
+import { AssetProcessingService } from "../services/assetProcessingService.js";
+import { AssetStorageService } from "../services/assetStorageService.js";
 import { getAssetProcessingService, getAssetStorageService, getJobService } from "../services/serviceContainer.js";
 
 export const MCP_TOOL_NAMES = [
@@ -31,7 +33,18 @@ function toolResult(value: Record<string, unknown>) {
   };
 }
 
-export function createMcpServer(jobService: JobService = getJobService(), actor?: ServerActor): McpServer {
+/** Explicit dependencies keep disposable integration tests on one local database
+ * while production continues to obtain server-only services from the container. */
+export interface McpServerDependencies {
+  processingService?: AssetProcessingService;
+  storageService?: AssetStorageService;
+}
+
+export function createMcpServer(
+  jobService: JobService = getJobService(),
+  actor?: ServerActor,
+  dependencies: McpServerDependencies = {},
+): McpServer {
   const env = getEnv();
   const server = new McpServer({
     name: env.MCP_SERVER_NAME,
@@ -116,8 +129,8 @@ export function createMcpServer(jobService: JobService = getJobService(), actor?
   );
 
   if (!actor) return server;
-  const processingService = getAssetProcessingService();
-  const storageService = getAssetStorageService();
+  const processingService = dependencies.processingService ?? getAssetProcessingService();
+  const storageService = dependencies.storageService ?? getAssetStorageService();
   const processingId = z.uuid();
 
   server.registerTool(
