@@ -95,6 +95,16 @@ async function main(): Promise<void> {
     throw new Error("B2 claim RPC returned an unexpected job");
   }
 
+  // Keep this independent probe from leaving synthetic queue entries that a
+  // subsequent Worker/E2E gate could consume. Terminal cancellation is a
+  // real transition and keeps the queue contract under test.
+  for (const jobId of [directId, created.id]) {
+    const queuedOrClaimed = await jobService.getById(jobId);
+    if (queuedOrClaimed?.status === "queued" || queuedOrClaimed?.status === "processing") {
+      await jobService.updateState(queuedOrClaimed, "cancelled");
+    }
+  }
+
   console.log(JSON.stringify({
     b2RestContract: "PASS",
     directPersistenceAndRest: "PASS",
