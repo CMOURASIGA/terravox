@@ -83,11 +83,24 @@ async function main(): Promise<void> {
   assertEqual(fetched.id, created.id, "JobService id reload");
   assertEqual(fetched.correlationId, serviceCorrelationId, "JobService correlation reload");
 
+  // The Worker enters the queue through the RPC, not a direct REST read. Keep
+  // that boundary in this independent probe so a malformed RPC row cannot be
+  // mistaken for a processing/MCP failure later in the E2E.
+  const claimed = await jobService.claimNext("b2-contract-probe", 20);
+  if (!claimed) throw new Error("B2 claim RPC did not return a queued job");
+  if (!z.uuid().safeParse(claimed.id).success || !z.uuid().safeParse(claimed.correlationId).success) {
+    throw new Error("B2 claim RPC returned malformed UUIDs");
+  }
+  if (claimed.id !== directId && claimed.id !== created.id) {
+    throw new Error("B2 claim RPC returned an unexpected job");
+  }
+
   console.log(JSON.stringify({
     b2RestContract: "PASS",
     directPersistenceAndRest: "PASS",
     productionRepositoryMapping: "PASS",
     jobServiceRoundTrip: "PASS",
+    claimRpcRoundTrip: "PASS",
     disposableOnly: true,
   }));
 }
