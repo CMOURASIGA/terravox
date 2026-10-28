@@ -26,7 +26,7 @@ import { createLogger } from "../src/lib/logger.js";
 import { SpawnProcessRunner } from "../src/worker/processRunner.js";
 import { ScriptRegistry } from "../src/worker/scriptRegistry.js";
 import { WorkspaceManager } from "../src/worker/workspace.js";
-import { createMcpServer } from "../src/server/createMcpServer.js";
+import { createMcpServer, type McpServerDependencies } from "../src/server/createMcpServer.js";
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -63,9 +63,14 @@ const mcpToolResultSchema = z.object({
   path: z.string().optional(),
 }).passthrough();
 
-async function callAuthenticatedMcp(actor: Parameters<typeof createMcpServer>[1], name: string, args: Record<string, unknown>) {
+async function callAuthenticatedMcp(
+  actor: Parameters<typeof createMcpServer>[1],
+  name: string,
+  args: Record<string, unknown>,
+  dependencies?: McpServerDependencies,
+) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const server = createMcpServer(undefined, actor);
+  const server = createMcpServer(undefined, actor, dependencies);
   const client = new Client({ name: "terravox-disposable-e2e", version: "0.1.0" });
   await server.connect(serverTransport);
   await client.connect(clientTransport);
@@ -216,13 +221,14 @@ async function main(): Promise<void> {
 
   const jobs = new JobService(createSupabaseJobRepository(url, serviceKey));
   const processingService = new AssetProcessingService(createSupabaseAssetProcessingRepository(url, serviceKey), jobs);
+  const mcpDependencies: McpServerDependencies = { processingService, storageService: storage };
   let submitted: z.infer<typeof mcpToolResultSchema>;
   try {
     submitted = await callAuthenticatedMcp(actor, "blender.submit_asset_processing", {
       sourceObjectId: sourceObject.assetObject.id,
       environment: "homologation",
       contract,
-    });
+    }, mcpDependencies);
   } catch (error) {
     const persisted = await serviceClient
       .from("blender_asset_processings")
@@ -254,14 +260,14 @@ async function main(): Promise<void> {
     sourceObjectId: sourceObject.assetObject.id,
     environment: "homologation",
     contract,
-  });
+  }, mcpDependencies);
   if (submitted.created !== true || replay.created !== false || replay.processingId !== submittedId) throw new Error("MCP submission idempotency failed");
   await expectRejected(
-    () => callAuthenticatedMcp(crossOwnerActor, "blender.get_asset_processing", { processingId: submittedId }),
+    () => callAuthenticatedMcp(crossOwnerActor, "blender.get_asset_processing", { processingId: submittedId }, mcpDependencies),
     "MCP_TOOL_REJECTED:blender.get_asset_processing",
   );
   await expectRejected(
-    () => callAuthenticatedMcp(crossEnvironmentActor, "blender.get_asset_processing", { processingId: submittedId }),
+    () => callAuthenticatedMcp(crossEnvironmentActor, "blender.get_asset_processing", { processingId: submittedId }, mcpDependencies),
     "MCP_TOOL_REJECTED:blender.get_asset_processing",
   );
   await expectRejected(() => processingService.getForActor({ userId: randomUUID(), allowedEnvironments: ["homologation"] }, submittedId), "PROCESSING_NOT_FOUND");
@@ -283,7 +289,7 @@ async function main(): Promise<void> {
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
   }
-  const completed = await callAuthenticatedMcp(actor, "blender.get_asset_processing", { processingId: submittedId });
+  const completed = await callAuthenticatedMcp(actor, "blender.get_asset_processing", { processingId: submittedId }, mcpDependencies);
   const completedProcessing = z.object({ state: z.string() }).passthrough().parse(completed.processing);
   const completedArtifacts = z.array(z.object({ kind: z.string(), state: z.string(), assetObjectId: z.uuid().nullable().optional() }).passthrough()).parse(completed.artifacts);
   if (completedProcessing.state !== "completed" || completedArtifacts.length !== 3 || completedArtifacts.some((artifact) => artifact.state !== "verified" || !artifact.assetObjectId)) throw new Error("processing artifacts were not fully verified");
@@ -298,17 +304,17 @@ async function main(): Promise<void> {
     }));
     return;
   }
-  const validation = await callAuthenticatedMcp(actor, "blender.get_asset_validation_result", { processingId: submittedId });
+  const validation = await callAuthenticatedMcp(actor, "blender.get_asset_validation_result", { processingId: submittedId }, mcpDependencies);
   if (validation.state !== "completed") throw new Error("MCP validation result is not completed");
-  const artifactList = await callAuthenticatedMcp(actor, "blender.get_asset_artifacts", { processingId: submittedId });
+  const artifactList = await callAuthenticatedMcp(actor, "blender.get_asset_artifacts", { processingId: submittedId }, mcpDependencies);
   if (z.array(z.unknown()).parse(artifactList.artifacts).length !== 3) throw new Error("MCP artifact list is incomplete");
-  const download = await callAuthenticatedMcp(actor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" });
+  const download = await callAuthenticatedMcp(actor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" }, mcpDependencies);
   await expectRejected(
-    () => callAuthenticatedMcp(crossOwnerActor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" }),
+    () => callAuthenticatedMcp(crossOwnerActor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" }, mcpDependencies),
     "MCP_TOOL_REJECTED:blender.create_asset_artifact_download",
   );
   await expectRejected(
-    () => callAuthenticatedMcp(crossEnvironmentActor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" }),
+    () => callAuthenticatedMcp(crossEnvironmentActor, "blender.create_asset_artifact_download", { processingId: submittedId, kind: "glb" }, mcpDependencies),
     "MCP_TOOL_REJECTED:blender.create_asset_artifact_download",
   );
   const signedUrl = z.url().parse(download.signedUrl);
