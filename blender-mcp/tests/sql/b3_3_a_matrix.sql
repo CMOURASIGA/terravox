@@ -82,3 +82,6 @@ select b3_test.assert_raises($q$delete from public.blender_asset_artifacts where
 -- A non-export job cannot be linked to a processing row.
 insert into public.blender_jobs(id,operation,asset_id,correlation_id) values('00000000-0000-0000-0000-000000000501','inspect_asset','asset-v001','00000000-0000-0000-0000-000000000502');
 select b3_test.assert_raises($q$update public.blender_asset_processings set job_id='00000000-0000-0000-0000-000000000501' where id='00000000-0000-0000-0000-000000000212'$q$,'B3_JOB_MISMATCH');
+-- This intentionally invalid-for-application UUID fixture proves the foreign
+-- key check above. It must not remain queued for a later Worker contract.
+delete from public.blender_jobs where id = '00000000-0000-0000-0000-000000000501';
