@@ -1,7 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
-import { Color, MathUtils, Object3D, Shape, ShapeGeometry, Vector3 } from 'three';
+import { Color, Float32BufferAttribute, MathUtils, Object3D, PlaneGeometry, Shape, ShapeGeometry, Vector3 } from 'three';
 import type { Group, InstancedMesh } from 'three';
 
 export type ForestPosition = { x: number; z: number };
@@ -649,8 +649,41 @@ function ExplorerContactShadow({ position }: { position: ForestPosition }) {
   </group>;
 }
 
+/** Deterministic vertex-color ground avoids a uniform green plane without texture downloads. */
+function ForestGround({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
+  const geometry = useMemo(() => {
+    const plane = new PlaneGeometry(90, 90, 120, 120);
+    const positions = plane.getAttribute('position');
+    const colors: number[] = [];
+    const dark = new Color('#294b34');
+    const moss = new Color('#476b3d');
+    const fern = new Color('#365d40');
+    const color = new Color();
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i);
+      const z = -positions.getY(i);
+      const large = Math.sin(x * 0.21 + z * 0.13) * Math.cos(z * 0.27 - x * 0.08);
+      const medium = Math.sin(x * 0.83 + z * 0.71) * Math.sin(z * 0.91 - x * 0.46);
+      const fine = Math.sin(x * 2.71 + z * 1.83) * Math.cos(x * 1.49 - z * 2.23);
+      const shade = MathUtils.clamp(0.5 + large * 0.28 + medium * 0.15 + fine * 0.07, 0, 1);
+      color.copy(dark).lerp(moss, shade);
+      color.lerp(fern, Math.max(0, medium) * 0.32);
+      colors.push(color.r, color.g, color.b);
+    }
+    plane.setAttribute('color', new Float32BufferAttribute(colors, 3));
+    return plane;
+  }, []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <mesh receiveShadow geometry={geometry} rotation={[-Math.PI / 2, 0, 0]}
+    onPointerDown={event => {
+      event.stopPropagation();
+      onNavigate({ x: MathUtils.clamp(event.point.x, -2.1, 2.1), z: MathUtils.clamp(event.point.z, -27, 9) });
+    }}>
+    <meshStandardMaterial vertexColors roughness={1}/>
+  </mesh>;
+}
+
 function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: Props & { stylizedReady: boolean }) {
-  const groundColor = useMemo(() => new Color('#284f38'), []);
   return <>
     <color attach="background" args={['#739da4']}/>
     <ScenicBackdrop/>
@@ -658,9 +691,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: 
     <ambientLight intensity={0.52}/>
     <hemisphereLight args={['#e4f4e4', '#46664c', 1.35]}/>
     <directionalLight castShadow position={[-18, 25, 12]} intensity={1.9} shadow-mapSize={[2048, 2048]} shadow-bias={-0.00015} shadow-normalBias={0.035} shadow-radius={3} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
-    <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -20, 20), z: MathUtils.clamp(e.point.z, -28, 9) }); }}>
-      <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
-    </mesh>
+    <ForestGround onNavigate={onNavigate}/>
     <ForestTrail onNavigate={onNavigate}/>
     <TrailSurfaceDetail/>
     <ForestTerrainBanks/>
