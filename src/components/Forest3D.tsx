@@ -165,14 +165,87 @@ function FollowCamera({ position }: { position: ForestPosition }) {
   return null;
 }
 
+
+function ScenicBackdrop() {
+  const clouds = useRef<Group>(null);
+  useFrame(({clock}) => {
+    if (clouds.current) clouds.current.position.x = Math.sin(clock.elapsedTime * 0.045) * 2.2;
+  });
+  return <group>
+    <mesh position={[0, 28, -75]}>
+      <planeGeometry args={[260, 115]}/>
+      <shaderMaterial depthWrite={false} vertexShader={`varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`} fragmentShader={`varying vec2 vUv; void main(){vec3 horizon=vec3(.68,.79,.75);vec3 mid=vec3(.40,.64,.69);vec3 zenith=vec3(.12,.31,.43);float h=clamp(vUv.y,0.,1.);vec3 c=mix(horizon,mid,smoothstep(.05,.58,h));c=mix(c,zenith,smoothstep(.55,1.,h));float sun=exp(-length((vUv-vec2(.27,.50))*vec2(1.5,1.0))*17.);c+=vec3(.40,.29,.13)*sun;gl_FragColor=vec4(c,1.);}`}/>
+    </mesh>
+    {Array.from({length:23},(_,i)=>{
+      const x=(i-11)*9.5;
+      const height=9+(Math.sin(i*2.47)+1)*5;
+      return <group key={i} position={[x,-0.2,-57+(i%4)*4]}>
+        <mesh rotation={[0,i*0.29,0]} position={[0,height*0.38,0]} scale={[1.6,height/10,1]}>
+          <coneGeometry args={[7,10,5]}/><meshStandardMaterial color={i%3===0?'#526d70':i%3===1?'#607e7b':'#73918b'} roughness={1}/>
+        </mesh>
+        <mesh rotation={[0,i*0.29,0]} position={[0,height*0.80,0]} scale={[1.65,height/10,1.03]}>
+          <coneGeometry args={[2.1,3.2,5]}/><meshStandardMaterial color="#c2d5c9" roughness={1}/>
+        </mesh>
+      </group>;
+    })}
+    <group ref={clouds}>
+      {Array.from({length:13},(_,i)=><group key={i} position={[(i-6)*12,19+(i%4)*3,-48-(i%3)*5]}>
+        {[0,1,2,3].map(j=><mesh key={j} position={[(j-1.5)*2,Math.sin(j*2+i)*0.5,0]} scale={[2.7+(j%2),0.65+(j%3)*0.15,0.7]}>
+          <sphereGeometry args={[1,12,8]}/><meshBasicMaterial color="#f2e8d5" transparent opacity={0.26} depthWrite={false}/>
+        </mesh>)}
+      </group>)}
+    </group>
+  </group>;
+}
+
+function TrailDetails() {
+  const grass = useMemo(()=>Array.from({length:340},(_,i)=>{
+    const z=-29+(i*6.17)%43;
+    const side=i%2===0?-1:1;
+    const x=side*(2.6+(i*3.79)%20);
+    return {x,z,scale:0.4+(i%5)*0.16,phase:i*1.71};
+  }),[]);
+  const flowers = useMemo(()=>Array.from({length:90},(_,i)=>{
+    const z=-29+(i*4.83)%42;
+    const x=(i%2?-1:1)*(3.2+(i*2.37)%16);
+    return {x,z,color:['#f5b94e','#eeb3cb','#c7e8f0','#e6d795'][i%4]};
+  }),[]);
+  return <group>
+    {grass.map((p,i)=><group key={i} position={[p.x,0.1,p.z]} rotation={[0,p.phase,0]} scale={p.scale}>
+      {[-0.28,0,0.28].map((a,j)=><mesh key={j} position={[a,0.42,0]} rotation={[0,0,a*1.8]}>
+        <coneGeometry args={[0.13,0.95+(j%2)*0.28,3]}/><meshStandardMaterial color={j===0?'#2d7750':j===1?'#4d9d5b':'#75a964'} side={2}/>
+      </mesh>)}
+    </group>)}
+    {flowers.map((p,i)=><group key={i} position={[p.x,0.3,p.z]}>
+      <mesh position={[0,0.19,0]}><cylinderGeometry args={[0.016,0.02,0.4,5]}/><meshStandardMaterial color="#477f4b"/></mesh>
+      {[0,1,2,3,4].map(j=><mesh key={j} position={[Math.sin(j*1.256)*0.11,0.41,Math.cos(j*1.256)*0.11]}>
+        <sphereGeometry args={[0.07,6,5]}/><meshStandardMaterial color={p.color} emissive={p.color} emissiveIntensity={0.12}/>
+      </mesh>)}
+      <mesh position={[0,0.42,0]}><sphereGeometry args={[0.05,8,6]}/><meshStandardMaterial color="#e8a834"/></mesh>
+    </group>)}
+    {[-2.65,2.65].map(side=><group key={side}>
+      {Array.from({length:30},(_,i)=><mesh key={i} castShadow position={[side,0.12,-29+i*1.42]} rotation={[0,i*2.19,0]} scale={[0.5+(i%3)*0.14,0.22,0.3+(i%4)*0.1]}>
+        <dodecahedronGeometry args={[1,0]}/><meshStandardMaterial color={i%3===0?'#78867a':i%3===1?'#667b6c':'#9a9a82'} roughness={1}/>
+      </mesh>)}
+    </group>)}
+    {[-19,-12,-5].map(z=>[-3.2,3.2].map(x=><group key={z+'-'+x} position={[x,0,z]}>
+      <mesh castShadow position={[0,0.55,0]}><cylinderGeometry args={[0.36,0.5,1.1,8]}/><meshStandardMaterial color="#5d675f"/></mesh>
+      <mesh position={[0,1.16,0]}><cylinderGeometry args={[0.31,0.38,0.13,8]}/><meshStandardMaterial color="#8a8c78"/></mesh>
+      <mesh position={[0,1.46,0]}><octahedronGeometry args={[0.32,0]}/><meshStandardMaterial color="#a7fff0" emissive="#2be4c3" emissiveIntensity={1.8}/></mesh>
+      <pointLight position={[0,1.5,0]} intensity={2.2} distance={5} color="#6affd4"/>
+    </group>))}
+  </group>;
+}
+
 function Forest({ position, moving, onNavigate, portalReached }: Props) {
   const groundColor = useMemo(() => new Color('#284f38'), []);
   return <>
-    <color attach="background" args={['#8aaeb2']}/>
-    <fog attach="fog" args={['#8aaeb2', 23, 72]}/>
-    <ambientLight intensity={0.75}/>
-    <hemisphereLight args={['#c7e9f3', '#243e2c', 1.2]}/>
-    <directionalLight castShadow position={[-8, 17, 6]} intensity={2.7} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
+    <color attach="background" args={['#739da4']}/>
+    <ScenicBackdrop/>
+    <fog attach="fog" args={['#739da4', 40, 110]}/>
+    <ambientLight intensity={0.5}/>
+    <hemisphereLight args={['#c7e9f3', '#243e2c', 1.0]}/>
+    <directionalLight castShadow position={[-18, 25, 12]} intensity={2.2} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
     <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -20, 20), z: MathUtils.clamp(e.point.z, -28, 9) }); }}>
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
@@ -200,6 +273,7 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
       {[-2.8,2.8].map(x => <mesh key={x} position={[x, 0.8, 0]} castShadow><boxGeometry args={[0.8, 1.6, 0.8]}/><meshStandardMaterial color="#7a8070"/></mesh>)}
     </group>)}
     <ForestFloor/>
+    <TrailDetails/>
     <ForestAtmosphere/>
     <Portal active={portalReached}/>
     <Explorer position={position} moving={moving}/>
@@ -208,5 +282,5 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
 }
 
 export function Forest3D(props: Props) {
-  return <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}><Forest {...props}/></Canvas>;
+  return <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}><Forest {...props}/></Canvas>;
 }
