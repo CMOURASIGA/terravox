@@ -9,25 +9,30 @@ type Props = { position: ForestPosition; moving: boolean; onNavigate: (position:
 
 const treeLocations: [number, number, number][] = Array.from({ length: 85 }, (_, i) => {
   const angle = i * 2.399963229728653;
-  const radius = 5.5 + Math.sqrt(i / 85) * 27;
+  const radius = 9.5 + Math.sqrt(i / 85) * 27;
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius - 8;
   return [x, 0, z] as [number, number, number];
-}).filter(([x, , z]) => Math.abs(x) > 2.7 || z < -23 || z > 8);
+}).filter(([x, , z]) => {
+  // Maintain a wide sightline from the explorer to the portal, including the camera's
+  // trailing corridor. Dense vegetation belongs outside the playable sightline.
+  const clearWidth = z >= -28 && z <= 13 ? 6.8 : 3.8;
+  return Math.abs(x) > clearWidth;
+});
 
 function Tree({ position, index }: { position: [number, number, number]; index: number }) {
   // Layered Atlantic-forest canopy, buttress roots and asymmetric branching.
   // Meshes use smooth organic silhouettes instead of the original cone/sphere trees.
-  const scale = 0.95 + (index % 7) * 0.14;
-  const tall = index % 5 !== 0;
-  const height = tall ? 8.6 + (index % 4) * 1.15 : 5.8 + (index % 3) * 0.7;
+  const scale = 0.76 + (index % 7) * 0.065;
+  const tall = index % 4 !== 0;
+  const height = tall ? 10.2 + (index % 4) * 0.95 : 6.4 + (index % 3) * 0.7;
   const palette = ['#1a6041', '#256c46', '#327b4b', '#1e5940', '#477d4d', '#4c8552'];
   const trunk = index % 3 === 0 ? '#665039' : '#554333';
-  const branches = Array.from({ length: tall ? 7 : 5 }, (_, n) => {
+  const branches = Array.from({ length: tall ? 5 : 4 }, (_, n) => {
     const angle = n * 2.399963 + index * 0.83;
     const y = height * (0.57 + (n % 4) * 0.09);
-    const reach = 1.5 + (n % 3) * 0.43;
-    return { angle, y, reach, radius: 1.25 + (n % 3) * 0.24 };
+    const reach = 1.25 + (n % 3) * 0.35;
+    return { angle, y, reach, radius: 1.02 + (n % 3) * 0.16 };
   });
   return <group position={position} scale={scale} rotation={[0, index * 1.71, 0]}>
     <mesh castShadow receiveShadow position={[0, height * 0.5, 0]} rotation={[0, 0, Math.sin(index * 2.7) * 0.045]}>
@@ -291,10 +296,10 @@ function FollowCamera({ position, moving }: { position: ForestPosition; moving: 
       heading.current += difference * Math.min(1, delta * 2.6);
     }
     previous.current.copy(next);
-    const distance = 7.4;
+    const distance = 5.6;
     const cameraGoal = new Vector3(
       position.x - Math.sin(heading.current) * distance,
-      4.25,
+      3.65,
       position.z - Math.cos(heading.current) * distance,
     );
     const targetGoal = new Vector3(
