@@ -392,9 +392,6 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: 
     {stylizedReady ? <Suspense fallback={null}><StylizedForestTrees/></Suspense> : treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
     {/* Real licensed nature replaces placeholder ferns and rocks in the playable scene. */}
     <Suspense fallback={null}><ForestNature/></Suspense>
-    {[-19,-12,-5].map(z => <group key={z} position={[0, 0, z]}>
-      {[-2.8,2.8].map(x => <mesh key={x} position={[x, 0.8, 0]} castShadow><boxGeometry args={[0.8, 1.6, 0.8]}/><meshStandardMaterial color="#7a8070"/></mesh>)}
-    </group>)}
     <ForestFloor/>
     <TrailDetails/>
     <ForestAtmosphere/>
@@ -417,6 +414,7 @@ function CinematicForest({ position, moving, onNavigate, portalReached }: Props)
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-0.035,0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x,-20,20), z: MathUtils.clamp(e.point.z,-28,9) }); }}>
       <planeGeometry args={[90,90]}/><meshStandardMaterial color="#385b43" roughness={1}/>
     </mesh>
+    <Suspense fallback={null}><StylizedForestTrees/></Suspense>
     <ForestCinematicAssets position={position} moving={moving} portalReached={portalReached}/>
     <FollowCamera position={position} moving={moving}/>
   </>;
