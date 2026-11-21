@@ -44,6 +44,7 @@ jobs:
           mkdir -p offline-preview
           cp -R dist offline-preview/dist
           cp package.json package-lock.json offline-preview/
+          printf 'TerraVox - build local\\nBranch: %s\\nCommit: %s\\nBuild UTC: %s\\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > offline-preview/VERSAO.txt
           cat > offline-preview/INICIAR_TERRAVOX.cmd <<'EOF'
           @echo off
           setlocal
@@ -65,9 +66,11 @@ jobs:
           )
           echo.
           echo TerraVox: http://localhost:3000
+          echo Versao deste pacote:
+          type VERSAO.txt
           echo Mantenha esta janela aberta enquanto estiver jogando.
           echo Para encerrar, pressione Ctrl+C.
-          start "" "http://localhost:3000"
+          echo Aguarde a mensagem de servidor iniciado antes de abrir o navegador.
           call npm start
           if errorlevel 1 pause
           EOF
@@ -79,8 +82,10 @@ jobs:
           WINDOWS (recommended):
           1. Extract the ZIP into a folder.
           2. Double-click INICIAR_TERRAVOX.cmd.
-          3. Wait for the first dependency install and use http://localhost:3000.
-          4. Keep the terminal window open while playing.
+          3. Wait for the first dependency install and server startup.
+          4. Open http://localhost:3000 in your browser.
+          5. Check VERSAO.txt to confirm which commit is installed.
+          Keep the terminal window open while playing.
 
           MANUAL (Windows/macOS/Linux):
           1. Open a terminal inside the extracted folder.
