@@ -76,6 +76,12 @@ try {
     throw new Error('Original forest explorer missing from playable scene');
   }
   checks.push('original forest explorer mounted in playable scene');
+  if (!forestSource.includes('<ForestGround onNavigate={onNavigate}/>') ||
+      !forestSource.includes('vertexColors roughness={1}') ||
+      !forestSource.includes('MathUtils.clamp(event.point.x, -20, 20)')) {
+    throw new Error('Full-width procedural forest ground or free-roam click navigation regressed');
+  }
+  checks.push('procedural forest ground and full-width click navigation present');
   // Guard against accidentally reintroducing the quiz modal or its clipped CTA.
   const arenaSource = await readFile('src/components/Arena3DPreview.tsx', 'utf8');
   const forbidden = ['PORTAL_QUESTION', 'challengeOpen', 'challengeFeedback', 'Interagir com o Guardião'];
@@ -85,6 +91,11 @@ try {
   if (!arenaSource.includes('Portal descoberto') || !arenaSource.includes('Forest3D')) {
     throw new Error('Free exploration flow or 3D scene missing from arena');
   }
+  if (!arenaSource.includes('Math.hypot(x, z + 24) < 3.4') ||
+      !arenaSource.includes('Math.max(-20, Math.min(20, next.x))')) {
+    throw new Error('Portal proximity or free-roam movement limits regressed');
+  }
+  checks.push('portal proximity and free-roam movement limits verified');
   checks.push('exploration UI contains no mandatory guardian challenge');
   // This distribution is exploration-only: it must start without requiring a
   // questions provider or network access beyond localhost. External quiz APIs
