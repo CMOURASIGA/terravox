@@ -371,9 +371,9 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     if (pathStep < adventure.challenges.length) setModal('path');
     else setModal('boss');
   };
-  const answerPath = async (option: string, completedInteraction = false): Promise<boolean> => {
+  const answerPath = async (option: string): Promise<boolean> => {
     const current = adventure.challenges[pathStep];
-    const correct = completedInteraction || (await checkAnswer(current.question, option)).correct;
+    const correct = (await checkAnswer(current.question, option)).correct;
     if (!correct) {
       const nextHp = Math.max(0, playerHp - 20);
       setPlayerHp(nextHp);
@@ -432,11 +432,13 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   </main>;
 }
 
-function MissionChallengeModal({ mode, eyebrow, title, prompt, options, onAnswer }: { mode: number; eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string, completedInteraction?: boolean) => Promise<boolean> }) {
+function MissionChallengeModal({ mode, eyebrow, title, prompt, options, onAnswer }: { mode: number; eyebrow: string; title: string; prompt: string; options: string[]; onAnswer: (option: string) => Promise<boolean> }) {
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [sequence, setSequence] = useState<string[]>([]);
+  const [sequenceReady, setSequenceReady] = useState(false);
   const choose = async (option: string) => {
+    if (checking) return;
     setChecking(true);
     const correct = await onAnswer(option);
     setChecking(false);
@@ -448,13 +450,12 @@ function MissionChallengeModal({ mode, eyebrow, title, prompt, options, onAnswer
     setSequence(next);
     if (next.length === sequenceWords.length) {
       const correctOrder = next.every((item, index) => item === sequenceWords[index]);
-      let complete = false;
-      if (correctOrder) { setChecking(true); complete = await onAnswer('', true); setChecking(false); }
-      setError(complete ? null : 'A estratégia não está na ordem certa. Tente novamente.');
-      if (!complete) setSequence([]);
+      setSequenceReady(correctOrder);
+      setError(correctOrder ? null : 'A estratégia não está na ordem certa. Tente novamente.');
+      if (!correctOrder) setSequence([]);
     }
   };
   const labels = ['PERGUNTA RÁPIDA', 'INVESTIGUE A PISTA', 'MONTE A ESTRATÉGIA', 'ESCOLHA O RECURSO'];
-  const instructions = [prompt, prompt, 'Organize a estratégia do explorador: primeiro observe, depois pense e então proteja.', prompt];
-  return <div className="absolute inset-0 z-40 grid place-items-end bg-[#071528]/80 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"><section className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-5 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-8 w-8 text-yellow-200 sm:h-9 sm:w-9"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow} · {labels[mode]}</p><h2 className="mt-2 text-xl font-black sm:text-2xl">{title}</h2><p className="my-4 text-base font-bold leading-relaxed sm:my-5 sm:text-lg">{instructions[mode]}</p>{mode === 1 && <div className="mb-4 rounded-2xl border border-cyan-100/40 bg-cyan-300/10 p-4 text-left"><p className="text-xs font-black tracking-[.16em] text-cyan-100">PISTA ENCONTRADA</p><p className="mt-2 text-sm text-slate-100">Leia a pergunta acima e investigue as alternativas para encontrar a resposta correta.</p></div>}{mode === 2 && <><div className="mb-4 min-h-14 rounded-2xl border border-cyan-100/40 bg-slate-950/35 p-3 text-sm font-black text-cyan-100">{sequence.length ? sequence.map((word, index) => <span key={`${word}-${index}`} className="mr-2 inline-block rounded-lg bg-cyan-400/20 px-2 py-1">{index + 1}. {word}</span>) : 'Toque nas ações na ordem correta'}</div><div className="grid grid-cols-3 gap-2">{['PROTEGER', 'OBSERVAR', 'PENSAR'].map(word => <button key={word} disabled={sequence.includes(word) || checking} onClick={() => addWord(word)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-xs font-black transition hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-35">{word}</button>)}</div></>}{checking && <div className="my-4 flex items-center justify-center gap-2 text-sm font-bold text-cyan-100"><Loader2 className="h-4 w-4 animate-spin" /> Verificando resposta...</div>}{error && <div role="alert" className="my-4 rounded-xl border border-rose-200/70 bg-rose-950/65 px-4 py-3 text-left text-sm font-bold text-rose-50">{error}</div>}{mode !== 2 && <div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} disabled={checking} onClick={() => choose(option)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-50 sm:p-4">{option}</button>)}</div>}</section></div>;
+  const instructions = [prompt, prompt, sequenceReady ? prompt : 'Organize a estratégia do explorador: primeiro observe, depois pense e então proteja.', prompt];
+  return <div className="absolute inset-0 z-40 grid place-items-end bg-[#071528]/80 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"><section className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[2rem] border-2 border-yellow-200/70 bg-[linear-gradient(135deg,#174054,#3b1b68)] p-5 text-center shadow-2xl sm:p-9"><Shield className="mx-auto h-8 w-8 text-yellow-200 sm:h-9 sm:w-9"/><p className="mt-2 text-xs font-black tracking-[.2em] text-yellow-200">{eyebrow} · {labels[mode]}</p><h2 className="mt-2 text-xl font-black sm:text-2xl">{title}</h2><p className="my-4 text-base font-bold leading-relaxed sm:my-5 sm:text-lg">{instructions[mode]}</p>{mode === 1 && <div className="mb-4 rounded-2xl border border-cyan-100/40 bg-cyan-300/10 p-4 text-left"><p className="text-xs font-black tracking-[.16em] text-cyan-100">PISTA ENCONTRADA</p><p className="mt-2 text-sm text-slate-100">Leia a pergunta acima e investigue as alternativas para encontrar a resposta correta.</p></div>}{mode === 2 && !sequenceReady && <><div className="mb-4 min-h-14 rounded-2xl border border-cyan-100/40 bg-slate-950/35 p-3 text-sm font-black text-cyan-100">{sequence.length ? sequence.map((word, index) => <span key={`${word}-${index}`} className="mr-2 inline-block rounded-lg bg-cyan-400/20 px-2 py-1">{index + 1}. {word}</span>) : 'Toque nas ações na ordem correta'}</div><div className="grid grid-cols-3 gap-2">{['PROTEGER', 'OBSERVAR', 'PENSAR'].map(word => <button key={word} disabled={sequence.includes(word) || checking} onClick={() => addWord(word)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-xs font-black transition hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-35">{word}</button>)}</div></>}{checking && <div className="my-4 flex items-center justify-center gap-2 text-sm font-bold text-cyan-100"><Loader2 className="h-4 w-4 animate-spin" /> Verificando resposta...</div>}{error && <div role="alert" className="my-4 rounded-xl border border-rose-200/70 bg-rose-950/65 px-4 py-3 text-left text-sm font-bold text-rose-50">{error}</div>}{(mode !== 2 || sequenceReady) && <div className="grid gap-3 sm:grid-cols-2">{options.map(option => <button key={option} disabled={checking} onClick={() => choose(option)} className="rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm font-bold transition hover:scale-[1.02] hover:border-yellow-200 hover:bg-yellow-200 hover:text-slate-950 disabled:opacity-50 sm:p-4">{option}</button>)}</div>}</section></div>;
 }
