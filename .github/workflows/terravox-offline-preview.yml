@@ -44,7 +44,7 @@ jobs:
           mkdir -p offline-preview
           cp -R dist offline-preview/dist
           cp package.json package-lock.json offline-preview/
-          printf 'TerraVox - build local\\nBranch: %s\\nCommit: %s\\nBuild UTC: %s\\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > offline-preview/VERSAO.txt
+          printf 'TerraVox - build local\nBranch: %s\nCommit: %s\nBuild UTC: %s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > offline-preview/VERSAO.txt
           cat > offline-preview/INICIAR_TERRAVOX.cmd <<'EOF'
           @echo off
           setlocal
