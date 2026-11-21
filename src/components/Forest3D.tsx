@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { ForestCinematicAssets, FOREST_V2_ASSETS } from './ForestCinematicAssets';
+import { ForestCinematicAssets, ForestNature, FOREST_V2_ASSETS } from './ForestCinematicAssets';
 import { Color, MathUtils, Vector3 } from 'three';
 import type { Group } from 'three';
 
@@ -291,22 +291,8 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
       <planeGeometry args={[5, 43]}/><meshStandardMaterial color="#9e8562" roughness={1}/>
     </mesh>
     {treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
-    {Array.from({length: 24},(_,i)=>{
-      const z = -28+(i*3.71)%40, side = i%2 ? 1:-1;
-      const x = side*(3.7+(i%5)*0.5);
-      return <group key={'fern'+i} position={[x,0,z]}>
-        {Array.from({length:7},(_,j)=><mesh key={j} position={[Math.sin(j*2.4)*0.4,0.45,Math.cos(j*2.4)*0.4]} rotation={[0,j*Math.PI*2/7,0]} scale={[0.17,0.7,0.4]}><sphereGeometry args={[1,6,5]}/><meshStandardMaterial color={j%2 ? '#2d9b65':'#1d7854'}/></mesh>)}
-      </group>;
-    })}
-    {Array.from({length:18},(_,i)=>{
-      const z=-25+i*2.1, x=(i%2 ? 1:-1)*(5.2+(i%3)*0.5);
-      return <mesh key={'rock'+i} castShadow position={[x,0.28,z]} rotation={[i*0.15,i*1.7,i*0.11]} scale={[0.8+(i%3)*0.25,0.45,0.6]}><dodecahedronGeometry args={[1,0]}/><meshStandardMaterial color={i%2?'#68776c':'#4f655c'} roughness={1}/></mesh>;
-    })}
-    {Array.from({length: 48}, (_,i) => {
-      const x = Math.sin(i * 6.28) * (4.2 + (i % 8) * 1.5);
-      const z = (i * 7.3) % 39 - 28;
-      return <mesh key={i} position={[x, 0.3, z]} castShadow><dodecahedronGeometry args={[0.3 + (i%4)*0.12,0]}/><meshStandardMaterial color={i%2 ? '#4a8152' : '#759064'}/></mesh>;
-    })}
+    {/* Real licensed nature replaces placeholder ferns and rocks in the playable scene. */}
+    <Suspense fallback={null}><ForestNature/></Suspense>
     {[-19,-12,-5].map(z => <group key={z} position={[0, 0, z]}>
       {[-2.8,2.8].map(x => <mesh key={x} position={[x, 0.8, 0]} castShadow><boxGeometry args={[0.8, 1.6, 0.8]}/><meshStandardMaterial color="#7a8070"/></mesh>)}
     </group>)}
