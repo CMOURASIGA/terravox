@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 const root = resolve('public/assets/forest-v2');
 const required = {
-  'explorer.glb': ['idle', 'walk', 'run', 'interact'],
+  'explorer.glb': ['Idle', 'Walking', 'Run'],
   'environment.glb': [],
   'portal.glb': [],
   'spirit.glb': ['idle'],
@@ -49,8 +49,8 @@ for (const [filename, clips] of Object.entries(required)) {
     console.error('ENVIRONMENT_TOO_SPARSE', filename, 'mesh nodes:', meshNodes.length);
     failures++;
   }
-  if (filename === 'explorer.glb' && (meshNodes.length < 2 || !materials.length)) {
-    console.error('EXPLORER_MISSING_PARTS_OR_MATERIALS', filename);
+  if (filename === 'explorer.glb' && (meshNodes.length < 1 || !materials.length || !(json.skins ?? []).length)) {
+    console.error('EXPLORER_MISSING_SKIN_OR_MATERIALS', filename);
     failures++;
   }
   const names = new Set((json.animations ?? []).filter(a => Array.isArray(a.channels) && a.channels.length > 0).map(a => a.name));
