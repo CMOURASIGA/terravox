@@ -1,0 +1,37 @@
+{
+  "provider": "Poly Haven",
+  "assets": [
+    {
+      "category": "fern",
+      "name": "fern_02",
+      "file": "fern_02.glb",
+      "bytes": 415216,
+      "source": "https://polyhaven.com/a/fern_02",
+      "license": "CC0-1.0"
+    },
+    {
+      "category": "rock",
+      "name": "boulder_01",
+      "file": "boulder_01.glb",
+      "bytes": 3522676,
+      "source": "https://polyhaven.com/a/boulder_01",
+      "license": "CC0-1.0"
+    },
+    {
+      "category": "moss",
+      "name": "moss_01",
+      "file": "moss_01.glb",
+      "bytes": 210848,
+      "source": "https://polyhaven.com/a/moss_01",
+      "license": "CC0-1.0"
+    },
+    {
+      "category": "wood",
+      "name": "pine_roots",
+      "file": "pine_roots.glb",
+      "bytes": 6003420,
+      "source": "https://polyhaven.com/a/pine_roots",
+      "license": "CC0-1.0"
+    }
+  ]
+}
