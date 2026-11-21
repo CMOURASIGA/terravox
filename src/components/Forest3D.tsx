@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { ForestCinematicAssets, ForestNature, FOREST_V2_ASSETS } from './ForestCinematicAssets';
+import { ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
 import { Color, MathUtils, Vector3 } from 'three';
 import type { Group } from 'three';
 
@@ -374,7 +374,7 @@ function TrailDetails() {
   </group>;
 }
 
-function Forest({ position, moving, onNavigate, portalReached }: Props) {
+function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: Props & { stylizedReady: boolean }) {
   const groundColor = useMemo(() => new Color('#284f38'), []);
   return <>
     <color attach="background" args={['#739da4']}/>
@@ -389,7 +389,7 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
     <mesh receiveShadow position={[0, 0.035, -9]} rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -2.1, 2.1), z: MathUtils.clamp(e.point.z, -27, 9) }); }}>
       <planeGeometry args={[5, 43]}/><meshStandardMaterial color="#9e8562" roughness={1}/>
     </mesh>
-    {treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
+    {stylizedReady ? <Suspense fallback={null}><StylizedForestTrees/></Suspense> : treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
     {/* Real licensed nature replaces placeholder ferns and rocks in the playable scene. */}
     <Suspense fallback={null}><ForestNature/></Suspense>
     {[-19,-12,-5].map(z => <group key={z} position={[0, 0, z]}>
@@ -424,6 +424,7 @@ function CinematicForest({ position, moving, onNavigate, portalReached }: Props)
 
 export function Forest3D(props: Props) {
   const [cinematicReady, setCinematicReady] = useState(false);
+  const [stylizedReady, setStylizedReady] = useState(false);
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
@@ -444,10 +445,23 @@ export function Forest3D(props: Props) {
         if (mounted) setCinematicReady(results.every(Boolean));
       } catch { if (mounted) setCinematicReady(false); }
     };
+    const verifyStylized = async () => {
+      try {
+        const names = ['tree1', 'tree2', 'tree3', 'bush'];
+        const checks = await Promise.all(names.map(async name => {
+          const response = await fetch('/assets/forest-v2/stylized/' + name + '.glb', { signal: controller.signal });
+          if (!response.ok) return false;
+          const header = new Uint8Array(await response.arrayBuffer());
+          return header.length > 20 && String.fromCharCode(...header.slice(0, 4)) === 'glTF';
+        }));
+        if (mounted) setStylizedReady(checks.every(Boolean));
+      } catch { if (mounted) setStylizedReady(false); }
+    };
     void verify();
+    void verifyStylized();
     return () => { mounted = false; controller.abort(); };
   }, []);
   return <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-    {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props}/>}
+    {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props} stylizedReady={stylizedReady}/>}
   </Canvas>;
 }
