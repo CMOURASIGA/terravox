@@ -8,17 +8,29 @@ type Props = { position: ForestPosition; moving: boolean; onNavigate: (position:
 
 const treeLocations: [number, number, number][] = Array.from({ length: 85 }, (_, i) => {
   const angle = i * 2.399963229728653;
-  const radius = 4.2 + Math.sqrt(i / 85) * 25;
+  const radius = 5.5 + Math.sqrt(i / 85) * 27;
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius - 8;
   return [x, 0, z];
 }).filter(([x, , z]) => Math.abs(x) > 2.7 || z < -23 || z > 8);
 
 function Tree({ position, index }: { position: [number, number, number]; index: number }) {
-  const scale = 0.78 + (index % 7) * 0.11;
+  const scale = 0.8 + (index % 7) * 0.12;
+  const palm = index % 3 !== 0;
+  const greens = ['#126348', '#16794d', '#268456', '#0d5947', '#328d61'];
   return <group position={position} scale={scale}>
-    <mesh castShadow position={[0, 2.15, 0]}><cylinderGeometry args={[0.22, 0.4, 4.3, 7]} /><meshStandardMaterial color="#60402a" roughness={1}/></mesh>
-    {[0, 1, 2].map((n) => <mesh key={n} castShadow position={[0, 3.7 + n * 0.95, 0]}><coneGeometry args={[2.1 - n * 0.35, 2.9, 8]}/><meshStandardMaterial color={index % 3 === 0 ? '#247451' : '#1b5c41'} roughness={1}/></mesh>)}
+    <mesh castShadow position={[0, 2.7, 0]} rotation={[0, 0, Math.sin(index * 3) * 0.08]}><cylinderGeometry args={[0.19, 0.43, 5.4, 9]}/><meshStandardMaterial color={palm ? '#745139' : '#55412d'} roughness={1}/></mesh>
+    {palm ? <>
+      {Array.from({ length: 9 }, (_, n) => {
+        const angle = n * Math.PI * 2 / 9;
+        return <group key={n} position={[0, 5.3, 0]} rotation={[0, angle, 0]}>
+          <mesh castShadow position={[0, -0.32, 1.65]} rotation={[-0.34, 0, 0]}><sphereGeometry args={[0.58, 7, 5]}/><meshStandardMaterial color={greens[(index + n) % greens.length]} roughness={0.95}/></mesh>
+          <mesh castShadow position={[0, -0.53, 2.35]} rotation={[-0.47, 0, 0]} scale={[0.55, 0.18, 2.2]}><sphereGeometry args={[1, 8, 6]}/><meshStandardMaterial color={greens[(index + n + 1) % greens.length]} side={2}/></mesh>
+        </group>;
+      })}
+      <mesh castShadow position={[0, 5.4, 0]}><sphereGeometry args={[0.8, 8, 6]}/><meshStandardMaterial color="#1c704b"/></mesh>
+    </> : [0,1,2,3].map(n => <mesh key={n} castShadow position={[0, 3.6 + n * 0.75, 0]} scale={[1.3 - n * 0.16, 0.6, 1.3 - n * 0.16]}><icosahedronGeometry args={[1.65, 1]}/><meshStandardMaterial color={greens[(index+n)%greens.length]} roughness={1}/></mesh>)}
+    {index % 4 === 0 && <mesh position={[0.4, 0.5, 0.4]}><sphereGeometry args={[0.65, 7, 5]}/><meshStandardMaterial color="#39764a"/></mesh>}
   </group>;
 }
 
@@ -49,15 +61,22 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
 
 function Portal({ active }: { active: boolean }) {
   const ring = useRef<Group>(null);
-  useFrame((state) => { if (ring.current) ring.current.rotation.z = Math.sin(state.clock.elapsedTime) * 0.025; });
+  useFrame((state) => { if (ring.current) ring.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.7) * 0.012; });
   return <group position={[0, 0, -24]}>
-    <mesh receiveShadow position={[0, 0.2, 0]}><cylinderGeometry args={[3.4, 3.9, 0.4, 10]}/><meshStandardMaterial color="#5a6d64"/></mesh>
-    <group ref={ring} position={[0, 4, 0]}>
-      <mesh castShadow><torusGeometry args={[2.8, 0.55, 12, 16]}/><meshStandardMaterial color="#667b71" roughness={0.9}/></mesh>
-      <mesh><circleGeometry args={[2.45, 48]}/><meshBasicMaterial color={active ? '#f7d97e' : '#0ccac4'} transparent opacity={0.55} depthWrite={false}/></mesh>
-      <pointLight color="#1df5e2" intensity={12} distance={15}/>
+    {[0,1,2].map(i=><mesh key={i} receiveShadow position={[0, 0.2+i*0.19, 0.6+i*0.25]}><cylinderGeometry args={[4.6-i*0.45, 4.9-i*0.45, 0.32, 10]}/><meshStandardMaterial color={i%2 ? '#555e55' : '#788075'} roughness={1}/></mesh>)}
+    <group ref={ring} position={[0, 4.7, -0.3]}>
+      <mesh castShadow><torusGeometry args={[3.15, 0.68, 9, 12]}/><meshStandardMaterial color="#586c61" roughness={0.95}/></mesh>
+      <mesh><torusGeometry args={[2.95, 0.12, 8, 32]}/><meshStandardMaterial color="#62f3dd" emissive="#1ab6b0" emissiveIntensity={1.6}/></mesh>
+      <mesh><circleGeometry args={[2.55, 40]}/><meshBasicMaterial color={active ? '#f7d97e' : '#11bcb8'} transparent opacity={0.68} depthWrite={false}/></mesh>
+      <pointLight color="#1df5e2" intensity={22} distance={19}/>
     </group>
-    {[-3.2, 3.2].map(x=><mesh key={x} castShadow position={[x, 1.8, 0]}><cylinderGeometry args={[0.65, 0.85, 3.6, 8]}/><meshStandardMaterial color="#667b71"/></mesh>)}
+    {[-3.4, 3.4].map(x=><group key={x} position={[x,0,-0.3]}>
+      <mesh castShadow position={[0,2.2,0]}><boxGeometry args={[1.5,4.4,1.4]}/><meshStandardMaterial color="#59665d" roughness={1}/></mesh>
+      {[0.65,1.55,2.45,3.35].map(y=><mesh key={y} position={[0, y, 0.73]}><boxGeometry args={[1.35,0.09,0.08]}/><meshStandardMaterial color="#91a392"/></mesh>)}
+      <mesh castShadow position={[0,4.6,0]}><boxGeometry args={[1.9,0.6,1.8]}/><meshStandardMaterial color="#6e7d6c"/></mesh>
+      <mesh position={[x>0 ? -0.45 : 0.45,4.8,0.75]}><sphereGeometry args={[0.2,8,8]}/><meshStandardMaterial color="#65f5d6" emissive="#10c5bd" emissiveIntensity={2}/></mesh>
+    </group>)}
+    {Array.from({length:14},(_,i)=><mesh key={i} position={[(i%7-3)*1.1, 0.7+(i%3)*0.33, 1.2+Math.floor(i/7)*0.9]} rotation={[i*0.2,i*0.8,i*0.12]} castShadow><dodecahedronGeometry args={[0.35+(i%3)*0.14,0]}/><meshStandardMaterial color={i%2 ? '#6c796b':'#536b61'} roughness={1}/></mesh>)}
   </group>;
 }
 
@@ -74,20 +93,31 @@ function FollowCamera({ position }: { position: ForestPosition }) {
 }
 
 function Forest({ position, moving, onNavigate, portalReached }: Props) {
-  const groundColor = useMemo(() => new Color('#355d41'), []);
+  const groundColor = useMemo(() => new Color('#284f38'), []);
   return <>
-    <color attach="background" args={['#9dc4b9']}/>
-    <fog attach="fog" args={['#9dc4b9', 18, 58]}/>
-    <ambientLight intensity={1.5}/>
-    <hemisphereLight args={['#c7e9f3', '#344a2c', 2.1]}/>
-    <directionalLight castShadow position={[-8, 17, 6]} intensity={2.4} shadow-mapSize={[1024, 1024]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
+    <color attach="background" args={['#8aaeb2']}/>
+    <fog attach="fog" args={['#8aaeb2', 23, 72]}/>
+    <ambientLight intensity={0.75}/>
+    <hemisphereLight args={['#c7e9f3', '#243e2c', 1.2]}/>
+    <directionalLight castShadow position={[-8, 17, 6]} intensity={2.7} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
     <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -20, 20), z: MathUtils.clamp(e.point.z, -28, 9) }); }}>
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
     <mesh receiveShadow position={[0, 0.035, -9]} rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -2.1, 2.1), z: MathUtils.clamp(e.point.z, -27, 9) }); }}>
-      <planeGeometry args={[5, 43]}/><meshStandardMaterial color="#9c8765" roughness={1}/>
+      <planeGeometry args={[5, 43]}/><meshStandardMaterial color="#9e8562" roughness={1}/>
     </mesh>
     {treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
+    {Array.from({length: 24},(_,i)=>{
+      const z = -28+(i*3.71)%40, side = i%2 ? 1:-1;
+      const x = side*(3.7+(i%5)*0.5);
+      return <group key={'fern'+i} position={[x,0,z]}>
+        {Array.from({length:7},(_,j)=><mesh key={j} position={[Math.sin(j*2.4)*0.4,0.45,Math.cos(j*2.4)*0.4]} rotation={[0,j*Math.PI*2/7,0]} scale={[0.17,0.7,0.4]}><sphereGeometry args={[1,6,5]}/><meshStandardMaterial color={j%2 ? '#2d9b65':'#1d7854'}/></mesh>)}
+      </group>;
+    })}
+    {Array.from({length:18},(_,i)=>{
+      const z=-25+i*2.1, x=(i%2 ? 1:-1)*(3.4+(i%3)*0.5);
+      return <mesh key={'rock'+i} castShadow position={[x,0.28,z]} rotation={[i*0.15,i*1.7,i*0.11]} scale={[0.8+(i%3)*0.25,0.45,0.6]}><dodecahedronGeometry args={[1,0]}/><meshStandardMaterial color={i%2?'#68776c':'#4f655c'} roughness={1}/></mesh>;
+    })}
     {Array.from({length: 48}, (_,i) => {
       const x = Math.sin(i * 6.28) * (4.2 + (i % 8) * 1.5);
       const z = (i * 7.3) % 39 - 28;
