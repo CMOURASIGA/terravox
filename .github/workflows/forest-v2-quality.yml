@@ -1,0 +1,43 @@
+name: TerraVox forest-v2 quality gates
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/components/Forest3D.tsx'
+      - 'src/components/ForestCinematicAssets.tsx'
+      - 'scripts/validate-forest-v2-assets.mjs'
+      - 'scripts/stage-forest-v2-assets.py'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/forest-v2-quality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Game preview smoke
+        run: npm run test:game-preview
+      - name: Verify forest asset gate reports missing assets
+        run: |
+          if node scripts/validate-forest-v2-assets.mjs; then
+            echo 'Unexpected success: assets must be staged and reviewed before release'
+            exit 1
+          fi
+          echo 'Asset release gate correctly remains closed'
