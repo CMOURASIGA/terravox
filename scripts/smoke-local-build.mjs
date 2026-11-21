@@ -38,6 +38,15 @@ try {
     }
     checks.push(name + ' served (' + data.length + ' bytes)');
   }
+  // The stylized forest is part of the playable experience, not an optional remote dependency.
+  for (const name of ['tree1', 'tree2', 'tree3', 'bush']) {
+    const response = await fetch(host + '/assets/forest-v2/stylized/' + name + '.glb');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!response.ok || bytes.length < 1000 || String.fromCharCode(...bytes.slice(0, 4)) !== 'glTF') {
+      throw new Error('Missing or invalid stylized forest GLB: ' + name);
+    }
+    checks.push('stylized/' + name + '.glb served (' + bytes.length + ' bytes)');
+  }
   const response = await fetch(host + '/api/game/questions?category=Geografia%2CCi%C3%AAncias&amount=10&difficulty=medium');
   if (response.status === 503) {
     // External questions provider is unavailable in this runner.
