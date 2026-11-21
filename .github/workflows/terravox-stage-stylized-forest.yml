@@ -1,0 +1,52 @@
+name: TerraVox stage licensed stylized forest models
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - name: Download traceable CC0 Quaternius models
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/assets/forest-v2/stylized
+          for model in tree1 tree2 tree3 bush; do
+            curl --fail --location --retry 3 --silent --show-error \
+              "https://raw.githubusercontent.com/anshaneja5/skyline-run/main/public/assets/models/${model}.glb" \
+              -o "public/assets/forest-v2/stylized/${model}.glb"
+          done
+          python3 - <<'PY'
+          import pathlib,struct
+          for p in pathlib.Path('public/assets/forest-v2/stylized').glob('*.glb'):
+              data=p.read_bytes()
+              assert len(data)>1000 and data[:4]==b'glTF' and struct.unpack_from('<I',data,8)[0]==len(data),p
+              print(p,len(data))
+          PY
+      - name: Record attribution and provenance
+        run: |
+          cat > public/assets/forest-v2/stylized/SOURCE.md <<'EOF'
+          # TerraVox stylized forest assets
+          tree1.glb, tree2.glb, tree3.glb, bush.glb
+          Original creator: Quaternius, Stylized Nature MegaKit.
+          Original page: https://quaternius.itch.io/stylized-nature-megakit
+          License: CC0 1.0 (verify original pack terms before production).
+          Converted web GLB redistribution: https://github.com/anshaneja5/skyline-run
+          Attribution: https://github.com/anshaneja5/skyline-run/blob/main/CREDITS.md
+          These models are reference-quality stylized vegetation, not a claim of Kena-level visual parity.
+          EOF
+      - name: Commit assets to develop only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/forest-v2/stylized
+          if git diff --cached --quiet; then echo "Assets already staged"; exit 0; fi
+          git commit -m "assets(terravox): stage licensed Quaternius stylized nature GLBs"
+          git push origin HEAD:develop
