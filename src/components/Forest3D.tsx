@@ -191,18 +191,46 @@ function Portal({ active }: { active: boolean }) {
   </group>;
 }
 
-function FollowCamera({ position }: { position: ForestPosition }) {
+function FollowCamera({ position, moving }: { position: ForestPosition; moving: boolean }) {
   const { camera } = useThree();
-  const target = useRef(new Vector3());
+  const lookAt = useRef(new Vector3(0, 1.8, -5));
+  const previous = useRef(new Vector3(position.x, 0, position.z));
+  const heading = useRef(Math.PI);
+  const initialized = useRef(false);
   useFrame((_, delta) => {
-    const t = Math.min(1, delta * 3.5);
-    camera.position.lerp(new Vector3(position.x, position.z < -19 ? 6.3 : 5.3, position.z + (position.z < -19 ? 6.6 : 9.8)), t);
-    target.current.lerp(new Vector3(position.x, position.z < -19 ? 3.2 : 2.1, position.z < -19 ? -24 : position.z - 5), t);
-    camera.lookAt(target.current);
+    const next = new Vector3(position.x, 0, position.z);
+    const displacement = next.clone().sub(previous.current);
+    // Keep the camera behind the explorer. Rotate only when there is real movement,
+    // avoiding abrupt camera flips when the player stops.
+    if (moving && displacement.lengthSq() > 0.0001) {
+      const desired = Math.atan2(displacement.x, displacement.z);
+      const difference = Math.atan2(Math.sin(desired - heading.current), Math.cos(desired - heading.current));
+      heading.current += difference * Math.min(1, delta * 2.6);
+    }
+    previous.current.copy(next);
+    const distance = 7.4;
+    const cameraGoal = new Vector3(
+      position.x - Math.sin(heading.current) * distance,
+      4.25,
+      position.z - Math.cos(heading.current) * distance,
+    );
+    const targetGoal = new Vector3(
+      position.x + Math.sin(heading.current) * 3.5,
+      1.85,
+      position.z + Math.cos(heading.current) * 3.5,
+    );
+    if (!initialized.current) {
+      camera.position.copy(cameraGoal);
+      lookAt.current.copy(targetGoal);
+      initialized.current = true;
+    } else {
+      camera.position.lerp(cameraGoal, 1 - Math.exp(-delta * 3.1));
+      lookAt.current.lerp(targetGoal, 1 - Math.exp(-delta * 4.1));
+    }
+    camera.lookAt(lookAt.current);
   });
   return null;
 }
-
 
 function ScenicBackdrop() {
   const clouds = useRef<Group>(null);
@@ -303,7 +331,7 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
     <ForestSpirit position={position} moving={moving}/>
     <Portal active={portalReached}/>
     <Explorer position={position} moving={moving}/>
-    <FollowCamera position={position}/>
+    <FollowCamera position={position} moving={moving}/>
   </>;
 }
 
@@ -319,7 +347,7 @@ function CinematicForest({ position, moving, onNavigate, portalReached }: Props)
       <planeGeometry args={[90,90]}/><meshStandardMaterial color="#385b43" roughness={1}/>
     </mesh>
     <ForestCinematicAssets position={position} moving={moving} portalReached={portalReached}/>
-    <FollowCamera position={position}/>
+    <FollowCamera position={position} moving={moving}/>
   </>;
 }
 
