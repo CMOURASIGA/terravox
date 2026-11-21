@@ -19,8 +19,11 @@ permissions:
 
 jobs:
   build-and-package:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,14 +58,11 @@ jobs:
             pause
             exit /b 1
           )
-          if not exist "node_modules" (
-            echo Instalando dependencias na primeira execucao...
-            call npm ci --no-audit --no-fund
-            if errorlevel 1 (
-              echo Falha ao instalar dependencias. Confira a conexao com a internet.
-              pause
-              exit /b 1
-            )
+          if not exist "node_modules\express" (
+            echo Pacote incompleto: dependencias locais ausentes.
+            echo Baixe novamente o pacote completo do GitHub Actions.
+            pause
+            exit /b 1
           )
           echo.
           echo TerraVox: http://localhost:3000
@@ -98,14 +98,15 @@ jobs:
           services for features that depend on authentication or remote data.
           This package is not a Vercel deployment and does not validate GPU visuals.
           EOF
-      - name: Include production dependencies for first-run offline play
+      - name: Include Windows-native production dependencies for offline play
         run: |
           cd offline-preview
           npm ci --omit=dev --no-audit --no-fund
           test -d node_modules/express
           test -d node_modules/react
           test -d node_modules/three
-          echo "Runtime dependencies bundled; Windows does not need npm access to launch."
+          node -e "require('express'); require('three'); console.log('Windows runtime imports OK')"
+          echo "Windows-native runtime dependencies bundled; no npm access needed to launch."
       - name: Verify Windows offline bundle integrity
         run: |
           test -s offline-preview/VERSAO.txt
