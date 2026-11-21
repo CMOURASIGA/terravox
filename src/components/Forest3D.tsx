@@ -347,7 +347,7 @@ export function Forest3D(props: Props) {
         // Do not render an incomplete scene or present the old scene as the new version.
         const results = await Promise.all(Object.values(FOREST_V2_ASSETS).map(async (url) => {
           const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
-          return response.ok && (response.headers.get('content-type') || '').toLowerCase().includes('model/gltf-binary');
+          return response.ok && Number(response.headers.get('content-length') || 0) > 20 && !(response.headers.get('content-type') || '').toLowerCase().includes('text/html');
         }));
         if (mounted) setCinematicReady(results.every(Boolean));
       } catch { if (mounted) setCinematicReady(false); }
