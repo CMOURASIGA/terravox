@@ -47,7 +47,7 @@ jobs:
 
           1. Extract the ZIP into a folder.
           2. Open PowerShell or terminal in that folder.
-          3. Run: npm ci --omit=dev
+          3. Run: npm ci
           4. Run: npm start
           5. Open: http://localhost:3000
 
@@ -68,5 +68,5 @@ jobs:
         run: |
           echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
           echo 'Typecheck, production build, HTTP smoke, four GLB assets, questions and answer API verified locally.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download the terravox-offline-preview artifact, extract, npm ci --omit=dev, npm start, open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download the terravox-offline-preview artifact, extract, npm ci, npm start, open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
