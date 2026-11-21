@@ -1,0 +1,72 @@
+name: TerraVox offline playable build
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'app/**'
+      - 'scripts/smoke-local-build.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'server.ts'
+      - 'vite.config.ts'
+      - '.github/workflows/terravox-offline-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run lint
+      - name: Compile playable game
+        run: npm run build
+      - name: Smoke-test local server, GLBs and game APIs
+        run: node scripts/smoke-local-build.mjs
+      - name: Package standalone local testing bundle
+        run: |
+          mkdir -p offline-preview
+          cp -R dist offline-preview/dist
+          cp package.json package-lock.json offline-preview/
+          cat > offline-preview/README.txt <<'EOF'
+          TerraVox - local playable preview (develop)
+
+          Requirements: Node.js 22 or newer, internet for first npm install.
+
+          1. Extract the ZIP into a folder.
+          2. Open PowerShell or terminal in that folder.
+          3. Run: npm ci --omit=dev
+          4. Run: npm start
+          5. Open: http://localhost:3000
+
+          Stop with Ctrl+C.
+
+          The built client and server are included. The app may require external
+          services for features that depend on authentication or remote data.
+          This package is not a Vercel deployment and does not validate GPU visuals.
+          EOF
+          cd offline-preview && zip -qr ../terravox-offline-preview.zip .
+      - name: Publish playable preview ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: terravox-offline-preview
+          path: terravox-offline-preview.zip
+          retention-days: 14
+      - name: Report verification scope
+        run: |
+          echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Typecheck, production build, HTTP smoke, four GLB assets, questions and answer API verified locally.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download the terravox-offline-preview artifact, extract, npm ci --omit=dev, npm start, open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
