@@ -25,8 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
-          printf 'B3.3-A test SHA: %s
-' "$actual_sha"
+          printf "B3.3-A test SHA: %s\n" "$actual_sha"
           test "$actual_sha" = "$B3_3_A_TEST_SHA"
       - uses: actions/setup-node@1e60f620b9541d5eaa0db02eec305a5c8a2968e6
         with:
