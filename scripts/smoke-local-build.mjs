@@ -47,6 +47,26 @@ try {
     }
     checks.push('stylized/' + name + '.glb served (' + bytes.length + ' bytes)');
   }
+  // The animated explorer is mandatory in the playable forest. A successful
+  // build with a missing character model would otherwise pass this smoke test.
+  {
+    const response = await fetch(host + '/assets/forest-v2/explorer.glb');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!response.ok || bytes.length < 1000 || String.fromCharCode(...bytes.slice(0, 4)) !== 'glTF') {
+      throw new Error('Missing or invalid animated explorer GLB');
+    }
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (view.getUint32(4, true) !== 2 || view.getUint32(8, true) !== bytes.length) {
+      throw new Error('Corrupted animated explorer GLB header');
+    }
+    const jsonLength = view.getUint32(12, true);
+    const json = JSON.parse(new TextDecoder().decode(bytes.slice(20, 20 + jsonLength)));
+    const clips = new Set((json.animations ?? []).filter(clip => clip.channels?.length).map(clip => clip.name));
+    if (!json.skins?.length || !['Idle', 'Walking', 'Run'].every(clip => clips.has(clip))) {
+      throw new Error('Explorer GLB missing rig or required locomotion animations');
+    }
+    checks.push('animated explorer served with skin and Idle/Walking/Run clips');
+  }
   const response = await fetch(host + '/api/game/questions?category=Geografia%2CCi%C3%AAncias&amount=10&difficulty=medium');
   if (response.status === 503) {
     // External questions provider is unavailable in this runner.
