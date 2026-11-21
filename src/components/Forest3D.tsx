@@ -111,6 +111,50 @@ function ForestSpirit({ position, moving }: { position: ForestPosition; moving: 
   </group>;
 }
 
+function SpiritTrail({ position }: { position: ForestPosition }) {
+  const particles = useRef<Group>(null);
+  const history = useRef<Array<[number, number, number]>>([]);
+  const emission = useRef(0);
+  const points = useMemo(() => Array.from({ length: 24 }, (_, i) => ({
+    phase: i * 2.399963,
+    size: 0.055 + (i % 4) * 0.016,
+  })), []);
+  useFrame(({ clock }, delta) => {
+    if (!particles.current) return;
+    const time = clock.elapsedTime;
+    const current: [number, number, number] = [
+      position.x + 1.3 + Math.sin(time * 0.7) * 0.35,
+      1.9 + Math.sin(time * 2.1) * 0.2,
+      position.z + 1.15,
+    ];
+    emission.current += delta;
+    if (emission.current > 0.055) {
+      history.current.unshift(current);
+      history.current.length = Math.min(24, history.current.length);
+      emission.current = 0;
+    }
+    particles.current.children.forEach((child, index) => {
+      const p = history.current[index];
+      if (!p) { child.visible = false; return; }
+      child.visible = true;
+      const age = index / 24;
+      const phase = points[index].phase;
+      child.position.set(
+        p[0] + Math.sin(time * 1.5 + phase) * age * 0.24,
+        p[1] - age * 0.32 + Math.cos(time * 2 + phase) * 0.08,
+        p[2] + Math.cos(time * 1.2 + phase) * age * 0.18,
+      );
+      child.scale.setScalar((1 - age) * (0.75 + Math.sin(time * 3 + phase) * 0.16));
+    });
+  });
+  return <group ref={particles}>
+    {points.map((p, i) => <mesh key={i} visible={false}>
+      <sphereGeometry args={[p.size, 7, 6]}/>
+      <meshBasicMaterial color={i % 5 === 0 ? '#fff2bb' : '#93ffe1'} transparent opacity={0.56} depthWrite={false}/>
+    </mesh>)}
+  </group>;
+}
+
 function ForestCanopyLight() {
   const beams = useMemo(() => Array.from({ length: 11 }, (_, i) => ({
     x: Math.sin(i * 4.9) * 17, z: -28 + (i * 5.7) % 37, angle: -0.12 + i * 0.028,
@@ -451,6 +495,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
     <ForestAtmosphere/>
     <ForestCanopyLight/>
     <ForestSpirit position={position} moving={moving}/>
+    <SpiritTrail position={position}/>
     <Portal active={portalReached}/>
     {explorerReady ? <Suspense fallback={null}><AnimatedExplorer position={position} moving={moving}/></Suspense> : <Explorer position={position} moving={moving}/>}
     <FollowCamera position={position} moving={moving}/>
