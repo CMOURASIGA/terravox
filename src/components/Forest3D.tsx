@@ -612,6 +612,35 @@ function ForestTrail({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
   </mesh>;
 }
 
+/** Subtle layered earth and worn footpath break up the single-color trail. */
+function TrailSurfaceDetail() {
+  const patches = useRef<InstancedMesh>(null);
+  useEffect(() => {
+    if (!patches.current) return;
+    const dummy = new Object3D();
+    const palette = ['#c0a77d', '#8d7556', '#b69b70', '#776d52'].map(hex => new Color(hex));
+    for (let i = 0; i < 180; i++) {
+      const z = -29.5 + (i * 0.733) % 42;
+      const center = Math.sin(z * 0.16) * 0.32 + Math.sin(z * 0.43) * 0.13;
+      const width = 2.35 + Math.sin(z * 0.31) * 0.20 + Math.sin(z * 0.91) * 0.13;
+      const x = center + Math.sin(i * 17.13) * width * 0.82;
+      const size = 0.11 + (i % 7) * 0.055;
+      dummy.position.set(x, 0.045 + (i % 3) * 0.0006, z);
+      dummy.rotation.set(-Math.PI / 2, 0, i * 1.618);
+      dummy.scale.set(size * (1.3 + (i % 4) * 0.4), size * (0.5 + (i % 3) * 0.2), 1);
+      dummy.updateMatrix();
+      patches.current.setMatrixAt(i, dummy.matrix);
+      patches.current.setColorAt(i, palette[i % palette.length]);
+    }
+    patches.current.instanceMatrix.needsUpdate = true;
+    if (patches.current.instanceColor) patches.current.instanceColor.needsUpdate = true;
+  }, []);
+  return <instancedMesh ref={patches} args={[undefined, undefined, 180]} receiveShadow={false} frustumCulled={false}>
+    <circleGeometry args={[1, 12]}/>
+    <meshStandardMaterial roughness={1} transparent opacity={0.27} depthWrite={false} polygonOffset polygonOffsetFactor={-2}/>
+  </instancedMesh>;
+}
+
 /** Soft ground contact keeps the explorer visually anchored under the chase camera. */
 function ExplorerContactShadow({ position }: { position: ForestPosition }) {
   const shadow = useRef<Group>(null);
@@ -645,6 +674,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
     <ForestTrail onNavigate={onNavigate}/>
+    <TrailSurfaceDetail/>
     <ForestTerrainBanks/>
     <ForestGroundCover/>
     {stylizedReady ? <Suspense fallback={null}><StylizedForestTrees/></Suspense> : treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
