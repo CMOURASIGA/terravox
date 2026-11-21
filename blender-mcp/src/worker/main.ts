@@ -1,6 +1,9 @@
 import { getEnv } from "../config/env.js";
 import { createLogger } from "../lib/logger.js";
 import { createSupabaseJobRepository } from "../repositories/supabaseJobRepository.js";
+import { createSupabaseAssetProcessingRepository } from "../repositories/assetProcessingRepository.js";
+import { createSupabaseProcessingObjectStore } from "../repositories/processingObjectStore.js";
+import { AssetPipelineWorker } from "./assetPipelineWorker.js";
 import { AssetResolver } from "./assetResolver.js";
 import { loadWorkerConfig } from "./config.js";
 import { toWorkerError } from "./errors.js";
@@ -42,7 +45,12 @@ async function main(): Promise<number> {
   await workspaces.sweepStale(config.staleWorkspaceMaxAgeMs);
 
   const repository = createSupabaseJobRepository(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-  const processor = new JobProcessor({ repository, runner, config, logger, assets, scripts, workspaces });
+  const pipeline = new AssetPipelineWorker({
+    processings: createSupabaseAssetProcessingRepository(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
+    objects: createSupabaseProcessingObjectStore(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
+    workspaces, scripts, runner, blenderPath: config.blenderPath, timeoutMs: config.blenderTimeoutMs,
+  });
+  const processor = new JobProcessor({ repository, runner, config, logger, assets, scripts, workspaces, pipeline });
   const worker = new BlenderWorker({ repository, processor, config, logger });
 
   let signals = 0;

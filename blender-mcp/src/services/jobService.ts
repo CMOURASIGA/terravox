@@ -14,6 +14,13 @@ export interface CreateSimulatedExportInput {
   correlationId?: string;
 }
 
+export interface CreateAssetPipelineExportInput {
+  assetId: string;
+  processingId: string;
+  sourceObjectId: string;
+  correlationId: string;
+}
+
 export class JobService {
   constructor(private readonly repository: JobRepository) {}
 
@@ -24,6 +31,17 @@ export class JobService {
       assetId: input.assetId,
       payload: { exportProfile: input.exportProfile, simulated: true },
       correlationId: input.correlationId ?? randomUUID(),
+    });
+  }
+
+  createAssetPipelineExport(input: CreateAssetPipelineExportInput): Promise<BlenderJob> {
+    return this.repository.create({
+      id: randomUUID(),
+      operation: "export_glb",
+      assetId: input.assetId,
+      // IDs only. Source paths, signed URLs, tokens and credentials are never queued.
+      payload: { profile: "terravox-web-default", processingId: input.processingId, sourceObjectId: input.sourceObjectId },
+      correlationId: input.correlationId,
     });
   }
 

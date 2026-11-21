@@ -9,8 +9,8 @@ describe("ScriptRegistry allowlist", () => {
     expect(registry.forOperation("inspect_asset").absolutePath).toBe("/srv/app/tools/blender/inspect.py");
   });
 
-  it.each(["validate_asset", "render_preview", "optimize_asset", "export_glb"] as const)(
-    "does not support %s in B2",
+  it.each(["render_preview", "optimize_asset"] as const)(
+    "does not support unimplemented %s",
     (operation) => {
       expect(() => registry.forOperation(operation)).toThrowError(
         expect.objectContaining({ code: "OPERATION_NOT_SUPPORTED" }) as WorkerError,
@@ -18,7 +18,12 @@ describe("ScriptRegistry allowlist", () => {
     },
   );
 
-  it.each(["evil.py", "../inspect.py", "/etc/passwd", "inspect.py ", "inspect.PY", "validate.py", "render_preview.py"])(
+  it.each([["validate_asset", "validate.py"], ["export_glb", "export_glb.py"]] as const)(
+    "maps %s to closed script %s",
+    (operation, fileName) => expect(registry.forOperation(operation).absolutePath).toBe(`/srv/app/tools/blender/${fileName}`),
+  );
+
+  it.each(["evil.py", "../inspect.py", "/etc/passwd", "inspect.py ", "inspect.PY", "render_preview.py"])(
     "rejects script %j outside the allowlist",
     (name) => {
       expect(() => registry.resolveFile(name)).toThrowError(

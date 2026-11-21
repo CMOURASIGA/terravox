@@ -6,6 +6,7 @@ import {
   type BlenderJob,
 } from "../src/domain/job.js";
 import { JobService } from "../src/services/jobService.js";
+import { parseBlenderJobRow } from "../src/repositories/supabaseJobRepository.js";
 import { FakeJobRepository } from "./support/fakeJobRepository.js";
 
 describe("B1 persistent job service", () => {
@@ -99,5 +100,28 @@ describe("B1 persistent job service", () => {
         correlationId: "b1000000-0000-4000-8000-202609220002",
       }).success,
     ).toBe(true);
+  });
+
+  it("maps persisted UUID identifiers and rejects malformed job rows", () => {
+    const row = {
+      id: "b1000000-0000-4000-8000-202609220001",
+      operation: "export_glb",
+      status: "queued",
+      asset_id: "chr-explorer-v001",
+      payload: { simulated: true },
+      result: null,
+      error: null,
+      attempts: 0,
+      created_at: "2026-09-22T17:38:00.000000+00:00",
+      started_at: null,
+      finished_at: null,
+      correlation_id: "b1000000-0000-4000-8000-202609220002",
+    };
+    expect(parseBlenderJobRow(row)).toMatchObject({
+      id: row.id,
+      correlationId: row.correlation_id,
+    });
+    expect(() => parseBlenderJobRow({ ...row, id: "invalid", correlation_id: "invalid" }))
+      .toThrow(/Blender job returned malformed fields: id,correlationId; row_keys=.*; id_type=string,correlation_id_type=string; id_uuid=false,correlation_id_uuid=false/);
   });
 });

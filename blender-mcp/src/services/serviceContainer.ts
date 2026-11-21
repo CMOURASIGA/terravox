@@ -1,11 +1,14 @@
 import { getEnv } from "../config/env.js";
 import { createSupabaseAssetStorageRepository } from "../repositories/assetStorageRepository.js";
 import { createSupabaseJobRepository } from "../repositories/supabaseJobRepository.js";
+import { createSupabaseAssetProcessingRepository } from "../repositories/assetProcessingRepository.js";
 import { AssetStorageService } from "./assetStorageService.js";
+import { AssetProcessingService } from "./assetProcessingService.js";
 import { JobService } from "./jobService.js";
 
 let cachedJobService: JobService | undefined;
 let cachedAssetStorageService: AssetStorageService | undefined;
+let cachedAssetProcessingService: AssetProcessingService | undefined;
 
 export function getJobService(): JobService {
   if (!cachedJobService) {
@@ -31,7 +34,19 @@ export function getAssetStorageService(): AssetStorageService {
   return cachedAssetStorageService;
 }
 
+export function getAssetProcessingService(): AssetProcessingService {
+  if (!cachedAssetProcessingService) {
+    const env = getEnv();
+    cachedAssetProcessingService = new AssetProcessingService(
+      createSupabaseAssetProcessingRepository(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
+      getJobService(),
+    );
+  }
+  return cachedAssetProcessingService;
+}
+
 export function resetServiceContainerForTests(): void {
   cachedJobService = undefined;
   cachedAssetStorageService = undefined;
+  cachedAssetProcessingService = undefined;
 }

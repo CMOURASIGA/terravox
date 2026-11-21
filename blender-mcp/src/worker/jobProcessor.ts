@@ -11,6 +11,7 @@ import type { ProcessRunner } from "./processRunner.js";
 import { Redactor } from "./redactor.js";
 import type { ScriptRegistry } from "./scriptRegistry.js";
 import type { Workspace, WorkspaceManager } from "./workspace.js";
+import type { AssetPipelineWorker } from "./assetPipelineWorker.js";
 
 export type JobOutcome = "completed" | "failed" | "retry" | "released" | "lease_lost" | "persist_failed";
 
@@ -23,9 +24,11 @@ export interface JobProcessorDeps {
   scripts: ScriptRegistry;
   workspaces: WorkspaceManager;
   sleep?: (ms: number) => Promise<void>;
+  pipeline?: AssetPipelineWorker;
 }
 
 const inspectPayloadSchema = z.object({}).strict();
+const pipelinePayloadSchema = z.object({ processingId: z.uuid(), sourceObjectId: z.uuid(), profile: z.literal("terravox-web-default") }).strict();
 const DB_WRITE_ATTEMPTS = 3;
 
 export class JobProcessor {
@@ -139,7 +142,20 @@ export class JobProcessor {
     log: Logger,
     onWorkspace: (workspace: Workspace) => void,
   ): Promise<Record<string, unknown>> {
-    const { assets, scripts, workspaces, config } = this.deps;
+    const { assets, scripts, workspaces, config, pipeline } = this.deps;
+
+    const pipelinePayload = pipelinePayloadSchema.safeParse(job.payload);
+    if (job.operation === "export_glb" && pipelinePayload.success) {
+      if (!pipeline) throw new WorkerError("OPERATION_NOT_SUPPORTED", "B3.3 pipeline worker is not configured");
+      // Pipeline owns its workspace and transitions the associated processing row.
+      const record = await pipeline.getProcessing(pipelinePayload.data.processingId);
+      if (!record) throw new WorkerError("ASSET_NOT_FOUND", "Asset processing does not exist");
+      await pipeline.process(record, signal);
+      return { operation: job.operation, assetId: job.assetId, correlationId: job.correlationId, processingId: pipelinePayload.data.processingId, worker: { id: config.workerId, attempt: job.attempts } };
+    }
+    if (job.operation !== "inspect_asset") {
+      throw new WorkerError("OPERATION_NOT_SUPPORTED", `Operation ${job.operation} requires a valid B3.3 pipeline payload`);
+    }
 
     const script = scripts.forOperation(job.operation);
     if (!inspectPayloadSchema.safeParse(job.payload).success) {

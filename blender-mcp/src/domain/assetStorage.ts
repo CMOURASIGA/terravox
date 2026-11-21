@@ -97,7 +97,13 @@ export function isActorAllowedInEnvironment(actorInput: ServerActor, environment
 
 export function canActorAccessAsset(actorInput: ServerActor, objectInput: AssetObject): boolean {
   const actor = serverActorSchema.parse(actorInput);
-  const object = assetObjectSchema.parse(objectInput);
+  const parsed = assetObjectSchema.safeParse(objectInput);
+  if (!parsed.success) {
+    const raw = objectInput as unknown as Record<string, unknown>;
+    const isUuid = (value: unknown): boolean => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    throw new Error(`Asset authorization received malformed metadata fields: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(",")}; id_present=${typeof raw.id === "string" && raw.id.length > 0},id_uuid=${isUuid(raw.id)},correlation_id_present=${typeof raw.correlationId === "string" && raw.correlationId.length > 0},correlation_id_uuid=${isUuid(raw.correlationId)}`);
+  }
+  const object = parsed.data;
   return (
     isActorAllowedInEnvironment(actor, object.environment) &&
     (actor.userId === object.ownerId || actor.userId === object.requestedById)
