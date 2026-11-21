@@ -34,6 +34,43 @@ function Tree({ position, index }: { position: [number, number, number]; index: 
   </group>;
 }
 
+function ForestSpirit({ position, moving }: { position: ForestPosition; moving: boolean }) {
+  const spirit = useRef<Group>(null);
+  const wings = useRef<Group>(null);
+  useFrame(({ clock }, delta) => {
+    if (!spirit.current) return;
+    const t = clock.elapsedTime;
+    const destination = new Vector3(position.x + 1.3 + Math.sin(t * 0.7) * 0.35, 1.9 + Math.sin(t * 2.1) * 0.2, position.z + 1.15 + (moving ? 0.45 : 0));
+    spirit.current.position.lerp(destination, Math.min(1, delta * 3.8));
+    spirit.current.rotation.y = Math.sin(t * 0.8) * 0.3;
+    if (wings.current) wings.current.rotation.z = Math.sin(t * 12) * 0.28;
+  });
+  return <group ref={spirit} position={[position.x + 1.3, 1.9, position.z + 1.15]}>
+    <pointLight color="#a0ffe5" intensity={2.2} distance={5}/>
+    <mesh><sphereGeometry args={[0.28, 18, 14]}/><meshStandardMaterial color="#c6fff1" emissive="#5bfbd8" emissiveIntensity={1.9} roughness={0.25}/></mesh>
+    <mesh position={[0, -0.24, 0]} scale={[0.8, 1.2, 0.75]}><sphereGeometry args={[0.22, 14, 10]}/><meshStandardMaterial color="#b4f6e1" emissive="#39c8ad" emissiveIntensity={0.9}/></mesh>
+    <group ref={wings}>
+      {[-1,1].map(side => <mesh key={side} position={[side * 0.36, 0.05, -0.08]} rotation={[0, side * 0.32, side * -0.25]} scale={[0.36, 0.56, 0.08]}>
+        <sphereGeometry args={[1, 12, 10]}/><meshStandardMaterial color="#b9fff1" emissive="#44d9c5" emissiveIntensity={0.7} transparent opacity={0.72} depthWrite={false}/>
+      </mesh>)}
+    </group>
+    {[-0.1,0.1].map(x => <mesh key={x} position={[x,0.045,0.253]}><sphereGeometry args={[0.035,8,8]}/><meshBasicMaterial color="#174f4a"/></mesh>)}
+    <mesh position={[0,-0.075,0.26]} scale={[1,0.35,0.5]}><sphereGeometry args={[0.065,10,8]}/><meshBasicMaterial color="#317b6b"/></mesh>
+  </group>;
+}
+
+function ForestCanopyLight() {
+  const beams = useMemo(() => Array.from({ length: 11 }, (_, i) => ({
+    x: Math.sin(i * 4.9) * 17, z: -28 + (i * 5.7) % 37, angle: -0.12 + i * 0.028,
+  })), []);
+  return <group>
+    {beams.map((p, i) => <mesh key={i} position={[p.x, 8, p.z]} rotation={[0,0,p.angle]}>
+      <coneGeometry args={[1.1 + (i % 3) * 0.3, 16, 12, 1, true]}/>
+      <meshBasicMaterial color="#fff2bf" transparent opacity={0.035} depthWrite={false} side={2}/>
+    </mesh>)}
+  </group>;
+}
+
 function ForestAtmosphere() {
   const fireflies = useRef<Group>(null);
   const particles = useMemo(() => Array.from({ length: 38 }, (_, i) => ({
@@ -243,9 +280,9 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
     <color attach="background" args={['#739da4']}/>
     <ScenicBackdrop/>
     <fog attach="fog" args={['#739da4', 40, 110]}/>
-    <ambientLight intensity={0.5}/>
-    <hemisphereLight args={['#c7e9f3', '#243e2c', 1.0]}/>
-    <directionalLight castShadow position={[-18, 25, 12]} intensity={2.2} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
+    <ambientLight intensity={0.35}/>
+    <hemisphereLight args={['#d7f5ed', '#1a3429', 1.25]}/>
+    <directionalLight castShadow position={[-18, 25, 12]} intensity={2.5} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
     <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -20, 20), z: MathUtils.clamp(e.point.z, -28, 9) }); }}>
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
@@ -275,6 +312,8 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
     <ForestFloor/>
     <TrailDetails/>
     <ForestAtmosphere/>
+    <ForestCanopyLight/>
+    <ForestSpirit position={position} moving={moving}/>
     <Portal active={portalReached}/>
     <Explorer position={position} moving={moving}/>
     <FollowCamera position={position}/>
