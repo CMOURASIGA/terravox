@@ -47,6 +47,27 @@ try {
     }
     checks.push('stylized/' + name + '.glb served (' + bytes.length + ' bytes)');
   }
+  // A GLB can have a valid header yet contain no renderable geometry.
+  // Inspect each embedded glTF JSON chunk to reject empty/placeholder trees.
+  for (const name of ['tree1', 'tree2', 'tree3', 'bush']) {
+    const response = await fetch(host + '/assets/forest-v2/stylized/' + name + '.glb');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (bytes.length < 20 || view.getUint32(8, true) !== bytes.length ||
+        view.getUint32(16, true) !== 0x4e4f534a) {
+      throw new Error('Malformed stylized GLB structure: ' + name);
+    }
+    const jsonLength = view.getUint32(12, true);
+    if (jsonLength < 2 || 20 + jsonLength > bytes.length) {
+      throw new Error('Invalid glTF JSON chunk: ' + name);
+    }
+    const gltf = JSON.parse(new TextDecoder().decode(bytes.slice(20, 20 + jsonLength)));
+    if (!Array.isArray(gltf.meshes) || !gltf.meshes.some(mesh => mesh.primitives?.length) ||
+        !Array.isArray(gltf.nodes) || !gltf.nodes.length) {
+      throw new Error('Stylized forest model has no renderable geometry: ' + name);
+    }
+    checks.push('stylized/' + name + '.glb geometry verified');
+  }
   // The animated explorer is mandatory in the playable forest. A successful
   // build with a missing character model would otherwise pass this smoke test.
   {
