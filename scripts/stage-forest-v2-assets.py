@@ -12,7 +12,7 @@ import urllib.request
 
 API = "https://api.polyhaven.com"
 UA = "TerraVox-forest-v2-asset-pipeline/0.1 (github.com/CMOURASIGA/terravox)"
-ASSETS = ("fern_02", "boulder_01", "rock_moss_set_01", "tree_stump_01")
+CATEGORIES = {"fern": ("fern", "plant"), "rock": ("rock", "boulder"), "moss": ("moss", "stone"), "wood": ("stump", "log", "root")}
 
 
 def get_json(url):
@@ -76,8 +76,28 @@ def main():
     args = parser.parse_args()
     output = pathlib.Path(args.output)
     manifest = {"provider": "Poly Haven", "license": "CC0-1.0", "api": API, "assets": []}
-    for asset in ASSETS:
-        files = get_json(f"{API}/files/{asset}")
+    catalog = get_json(f"{API}/assets?t=models")
+    if not isinstance(catalog, dict):
+        raise RuntimeError("Unexpected Poly Haven model catalog response")
+    chosen = set()
+    for category, terms in CATEGORIES.items():
+        ranked = sorted(
+            (key for key, metadata in catalog.items()
+             if key not in chosen and any(term in (key + " " + " ".join(metadata.get("tags", []))).lower() for term in terms)),
+            key=lambda key: (0 if any(term in key.lower() for term in terms) else 1, key),
+        )
+        asset = None
+        for candidate in ranked:
+            try:
+                candidate_files = get_json(f"{API}/files/{candidate}")
+                select_gltf(candidate_files)
+                asset, files = candidate, candidate_files
+                break
+            except (RuntimeError, KeyError, ValueError):
+                continue
+        if not asset:
+            raise RuntimeError(f"No usable glTF model for category {category}")
+        chosen.add(asset)
         _, _, resolution, fmt, entry = select_gltf(files)
         folder = output / asset
         source_name = pathlib.PurePosixPath(urllib.parse.urlparse(entry["url"]).path).name
@@ -88,7 +108,7 @@ def main():
             download(item["url"], folder / target)
             dependencies.append(str(target))
         manifest["assets"].append({
-            "id": asset, "source": f"https://polyhaven.com/a/{asset}",
+            "id": asset, "category": category, "source": f"https://polyhaven.com/a/{asset}",
             "resolution": resolution, "format": fmt,
             "model": str(pathlib.Path(asset) / source_name), "dependencies": dependencies,
         })
