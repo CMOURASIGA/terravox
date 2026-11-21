@@ -1,5 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
 import { Color, Float32BufferAttribute, MathUtils, Object3D, PlaneGeometry, Shape, ShapeGeometry, Vector3 } from 'three';
 import type { Group, InstancedMesh } from 'three';
@@ -805,6 +806,24 @@ function CinematicForest({ position, moving, onNavigate, portalReached }: Props)
   </>;
 }
 
+class ForestRenderBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('TerraVox 3D rendering failed:', error, info.componentStack);
+  }
+  render() {
+    if (this.state.failed) {
+      return <div role="alert" className="flex h-full w-full flex-col items-center justify-center bg-[#102c31] p-6 text-center text-white">
+        <h2 className="text-xl font-bold">Não foi possível iniciar a floresta 3D</h2>
+        <p className="mt-3 max-w-md text-sm text-white/80">Verifique se a aceleração de hardware está habilitada no navegador e se os drivers de vídeo estão atualizados.</p>
+        <button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-xl bg-cyan-300 px-5 py-3 font-bold text-slate-950">Tentar novamente</button>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
 export function Forest3D(props: Props) {
   const [cinematicReady, setCinematicReady] = useState(false);
   const [stylizedReady, setStylizedReady] = useState(false);
@@ -844,7 +863,9 @@ export function Forest3D(props: Props) {
     void verifyStylized();
     return () => { mounted = false; controller.abort(); };
   }, []);
-  return <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-    {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props} stylizedReady={stylizedReady}/>}
-  </Canvas>;
+  return <ForestRenderBoundary>
+    <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
+      {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props} stylizedReady={stylizedReady}/>}
+    </Canvas>
+  </ForestRenderBoundary>;
 }
