@@ -239,7 +239,13 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
     if (!root.current) return;
     const next = new Vector3(position.x, 0, position.z);
     const direction = next.clone().sub(last.current);
-    if (direction.lengthSq() > 0.0001) root.current.rotation.y = MathUtils.lerp(root.current.rotation.y, Math.atan2(direction.x, direction.z), Math.min(1, delta * 9));
+    if (direction.lengthSq() > 0.0001) {
+      const heading = Math.atan2(direction.x, direction.z);
+      const current = root.current.rotation.y;
+      // Rotate through the shortest arc so crossing +/-PI never spins the explorer.
+      const angularDifference = Math.atan2(Math.sin(heading - current), Math.cos(heading - current));
+      root.current.rotation.y = current + angularDifference * (1 - Math.exp(-delta * 11));
+    }
     root.current.position.lerp(next, Math.min(1, delta * 12));
     last.current.copy(next);
     if (moving) stridePhase.current += delta * 8.5;
@@ -251,7 +257,7 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
     if (rightArm.current) rightArm.current.rotation.x = MathUtils.damp(rightArm.current.rotation.x, stride * 0.7, 12, delta);
     if (head.current) head.current.rotation.z = MathUtils.damp(head.current.rotation.z, moving ? Math.sin(stridePhase.current * 0.5) * 0.035 : 0, 6, delta);
   });
-  return <group ref={root} position={[position.x, 0, position.z]}>
+  return <group ref={root} position={[position.x, 0, position.z]} rotation={[0, Math.PI, 0]}>
     <group ref={body}>
       <mesh castShadow position={[0, 1.55, 0]}><capsuleGeometry args={[0.38, 0.65, 6, 12]}/><meshStandardMaterial color="#168e91" roughness={0.85}/></mesh>
       <group ref={head} position={[0,2.55,0]}>
