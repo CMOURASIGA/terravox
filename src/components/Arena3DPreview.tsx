@@ -14,11 +14,11 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   const destination = useRef<ForestPosition | null>(null);
   const portalRef = useRef(false);
   const move = useCallback((next: ForestPosition) => {
-    const x = Math.max(-2.1, Math.min(2.1, next.x));
-    const z = Math.max(-27, Math.min(9, next.z));
+    const x = Math.max(-20, Math.min(20, next.x));
+    const z = Math.max(-28, Math.min(18, next.z));
     positionRef.current = { x, z };
     setPosition({ x, z });
-    if (z < -21 && !portalRef.current) {
+    if (Math.hypot(x, z + 24) < 3.4 && !portalRef.current) {
       portalRef.current = true;
       setPortalReached(true);
       setMessage('Portal descoberto! Continue explorando a floresta livremente.');
@@ -57,7 +57,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); keys.current.clear(); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
   }, [move]);
-  const navigate = (target: ForestPosition) => { destination.current = target; };
+  const navigate = (target: ForestPosition) => { destination.current = { x: Math.max(-20, Math.min(20, target.x)), z: Math.max(-28, Math.min(18, target.z)) }; };
   return <main className="flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
     <header className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-white/15 bg-slate-950/90 px-4 py-3 sm:px-6">
       <div><p className="text-[10px] font-black tracking-[.2em] text-cyan-300">TERRAVOX · EXPERIÊNCIA 3D</p><h1 className="text-base font-black sm:text-xl">Floresta do Brasil · Trilha do Portal</h1></div>
@@ -65,7 +65,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     </header>
     <section className="relative min-h-0 flex-1" aria-label="Floresta 3D explorável">
       <Forest3D position={position} moving={moving} onNavigate={navigate} onPortal={() => {}} portalReached={portalReached}/>
-      <div className="pointer-events-none absolute left-3 top-3 max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-slate-950/65 px-3 py-2 text-[11px] font-semibold leading-relaxed text-white shadow-lg backdrop-blur-sm sm:text-xs">WASD / Setas · Caminhar<br/>Clique no chão · Ir até o ponto<br/>Objetivo · Encontrar o portal</div>
+      <div className="pointer-events-none absolute left-3 top-3 max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-slate-950/65 px-3 py-2 text-[11px] font-semibold leading-relaxed text-white shadow-lg backdrop-blur-sm sm:text-xs">WASD / Setas · Caminhar<br/>Clique no chão · Ir até o ponto<br/>Explore a floresta · Descubra o portal</div>
       {portalReached && <div role="status" className="pointer-events-none absolute bottom-4 right-4 z-10 max-w-[min(19rem,calc(100%-2rem))] rounded-xl border border-cyan-200/40 bg-slate-950/75 px-4 py-2 text-right text-xs font-semibold text-cyan-100 shadow-xl sm:text-sm">Portal descoberto · Exploração livre</div>}
       <div className="absolute bottom-3 left-3 grid touch-none select-none grid-cols-3 gap-1 rounded-xl border border-white/20 bg-slate-950/75 p-2 shadow-lg sm:hidden">
         <span/><button type="button" aria-label="Avançar" onPointerDown={() => keys.current.add('w')} onPointerUp={() => keys.current.delete('w')} onPointerCancel={() => keys.current.delete('w')} onPointerLeave={() => keys.current.delete('w')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↑</button><span/>
