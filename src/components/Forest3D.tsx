@@ -1,7 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatedExplorer, ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
-import { Color, MathUtils, Vector3 } from 'three';
+import { Color, MathUtils, Shape, ShapeGeometry, Vector3 } from 'three';
 import type { Group } from 'three';
 
 export type ForestPosition = { x: number; z: number };
@@ -472,6 +472,38 @@ function TrailDetails() {
   </group>;
 }
 
+/** Irregular, gently winding trail. Its edges are part of the actual mesh,
+ * rather than a perfectly rectangular ground decal.
+ */
+function ForestTrail({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
+  const geometry = useMemo(() => {
+    const left: Array<[number, number]> = [];
+    const right: Array<[number, number]> = [];
+    for (let i = 0; i <= 90; i++) {
+      const z = -30 + i * (44 / 90);
+      const center = Math.sin(z * 0.16) * 0.32 + Math.sin(z * 0.43) * 0.13;
+      const width = 2.35 + Math.sin(z * 0.31) * 0.20 + Math.sin(z * 0.91) * 0.13;
+      const irregularity = Math.sin(z * 2.15) * 0.11 + Math.sin(z * 3.37) * 0.055;
+      left.push([center - width + irregularity, -z]);
+      right.push([center + width + irregularity * 0.75, -z]);
+    }
+    const outline = [...left, ...right.reverse()];
+    const shape = new Shape();
+    shape.moveTo(...outline[0]);
+    for (let i = 1; i < outline.length; i++) shape.lineTo(...outline[i]);
+    shape.closePath();
+    return new ShapeGeometry(shape);
+  }, []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <mesh receiveShadow geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.038, 0]}
+    onPointerDown={(event) => {
+      event.stopPropagation();
+      onNavigate({ x: MathUtils.clamp(event.point.x, -2.1, 2.1), z: MathUtils.clamp(event.point.z, -27, 9) });
+    }}>
+    <meshStandardMaterial color="#9e8562" roughness={1}/>
+  </mesh>;
+}
+
 function Forest({ position, moving, onNavigate, portalReached, stylizedReady, explorerReady }: Props & { stylizedReady: boolean; explorerReady: boolean }) {
   const groundColor = useMemo(() => new Color('#284f38'), []);
   return <>
@@ -484,9 +516,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
     <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -20, 20), z: MathUtils.clamp(e.point.z, -28, 9) }); }}>
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
-    <mesh receiveShadow position={[0, 0.035, -9]} rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -2.1, 2.1), z: MathUtils.clamp(e.point.z, -27, 9) }); }}>
-      <planeGeometry args={[5, 43]}/><meshStandardMaterial color="#9e8562" roughness={1}/>
-    </mesh>
+    <ForestTrail onNavigate={onNavigate}/>
     {stylizedReady ? <Suspense fallback={null}><StylizedForestTrees/></Suspense> : treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
     {/* Real licensed nature replaces placeholder ferns and rocks in the playable scene. */}
     <Suspense fallback={null}><ForestNature/></Suspense>
