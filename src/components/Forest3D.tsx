@@ -181,20 +181,47 @@ function ForestAtmosphere() {
 }
 
 function ForestFloor() {
-  const details = useMemo(() => Array.from({length: 160}, (_, i) => {
-    const z = -30 + (i * 7.73) % 44;
-    const side = i % 2 ? 1 : -1;
-    const x = side * (3.5 + (i * 5.11) % 22);
-    return {x,z,rotation:i * 1.71,scale:0.32 + (i%5)*0.12};
-  }), []);
+  const stones = useRef<InstancedMesh>(null);
+  const shoots = useRef<InstancedMesh>(null);
+  const count = 160;
+  useEffect(() => {
+    if (!stones.current || !shoots.current) return;
+    const dummy = new Object3D();
+    const stonePalette = ['#375d39', '#487b45', '#3f6941'].map(value => new Color(value));
+    const shootPalette = ['#66a65e', '#7ba95b', '#4b8b50'].map(value => new Color(value));
+    for (let i = 0; i < count; i++) {
+      const z = -30 + (i * 7.73) % 44;
+      const side = i % 2 ? 1 : -1;
+      const x = side * (3.5 + (i * 5.11) % 22);
+      const size = 0.32 + (i % 5) * 0.12;
+      dummy.position.set(x, 0.05 + size * 0.24, z);
+      dummy.rotation.set(0, i * 1.71, 0);
+      dummy.scale.setScalar(size);
+      dummy.updateMatrix();
+      stones.current.setMatrixAt(i, dummy.matrix);
+      stones.current.setColorAt(i, stonePalette[i % stonePalette.length]);
+      const hasShoot = i % 4 === 0;
+      dummy.position.set(x + 0.4 * size, 0.05 + 0.35 * size, z + 0.1 * size);
+      dummy.rotation.set(0, 0.6 + i * 0.17, 0.7);
+      dummy.scale.set(hasShoot ? 0.22 * size : 0, hasShoot ? 1.1 * size : 0, hasShoot ? 0.22 * size : 0);
+      dummy.updateMatrix();
+      shoots.current.setMatrixAt(i, dummy.matrix);
+      shoots.current.setColorAt(i, shootPalette[i % shootPalette.length]);
+    }
+    stones.current.instanceMatrix.needsUpdate = true;
+    shoots.current.instanceMatrix.needsUpdate = true;
+    if (stones.current.instanceColor) stones.current.instanceColor.needsUpdate = true;
+    if (shoots.current.instanceColor) shoots.current.instanceColor.needsUpdate = true;
+  }, []);
   return <group>
-    {details.map((p,i) => <group key={i} position={[p.x,0.05,p.z]} rotation={[0,p.rotation,0]} scale={p.scale}>
-      <mesh castShadow position={[0,0.24,0]}><icosahedronGeometry args={[0.5,1]}/><meshStandardMaterial color={i%3===0 ? '#375d39' : '#487b45'} roughness={1}/></mesh>
-      {i%4===0 && <mesh position={[0.4,0.35,0.1]} rotation={[0,0.6,0.7]}><coneGeometry args={[0.22,1.1,5]}/><meshStandardMaterial color="#66a65e" side={2}/></mesh>}
-    </group>)}
-    {Array.from({length:35},(_,i)=><mesh key={i} receiveShadow position={[Math.sin(i*7.1)*1.5,0.062,-27+i*1.05]} rotation={[-Math.PI/2,0,i*2.4]} scale={[0.32+(i%4)*0.16,0.23+(i%3)*0.12,1]}>
-      <circleGeometry args={[1,7]}/><meshStandardMaterial color={i%3===0?'#8c795f':'#b29b78'} roughness={1}/>
-    </mesh>)}
+    <instancedMesh ref={stones} args={[undefined, undefined, count]} castShadow={false} receiveShadow={false} frustumCulled={false}>
+      <icosahedronGeometry args={[0.5, 1]}/>
+      <meshStandardMaterial roughness={1}/>
+    </instancedMesh>
+    <instancedMesh ref={shoots} args={[undefined, undefined, count]} castShadow={false} receiveShadow={false} frustumCulled={false}>
+      <coneGeometry args={[0.22, 1.1, 5]}/>
+      <meshStandardMaterial roughness={1} side={2}/>
+    </instancedMesh>
   </group>;
 }
 
