@@ -1,0 +1,60 @@
+name: B3.3 Blender GLB isolated validation
+on:
+  push:
+    branches: [develop]
+    paths: [.github/workflows/b3-3-blender-glb-validation.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  blender-glb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 144167b20b18d2e14ae9c3a0f2f3f25982e0441a
+          persist-credentials: false
+      - name: Verify immutable source
+        run: test "$(git rev-parse HEAD)" = "144167b20b18d2e14ae9c3a0f2f3f25982e0441a"
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+          blender --version
+      - name: Generate and export real cube asset
+        working-directory: blender-mcp
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/terravox-g2
+          blender --background --factory-startup --disable-autoexec --python tools/blender/make_cube.py -- /tmp/terravox-g2/cube.blend
+          test -s /tmp/terravox-g2/cube.blend
+          blender --background --factory-startup --disable-autoexec /tmp/terravox-g2/cube.blend --python tools/blender/export_glb.py -- --output /tmp/terravox-g2/export.json --glb-output /tmp/terravox-g2/output.glb --correlation-id 00000000-0000-4000-8000-000000000001
+          blender --background --factory-startup --disable-autoexec /tmp/terravox-g2/cube.blend --python tools/blender/validate.py -- --output /tmp/terravox-g2/validation.json --correlation-id 00000000-0000-4000-8000-000000000001
+      - name: Verify GLB binary and validation report
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, struct
+          root=pathlib.Path('/tmp/terravox-g2')
+          glb=(root/'output.glb').read_bytes()
+          assert len(glb)>20, 'empty GLB'
+          magic,version,total=struct.unpack_from('<III',glb)
+          assert magic==0x46546c67 and version==2 and total==len(glb), 'invalid GLB header'
+          export=json.loads((root/'export.json').read_text())
+          report=json.loads((root/'validation.json').read_text())
+          assert export['glbPath']=='output.glb'
+          assert report['valid'] is True, report
+          assert report['metrics']['triangles']>0
+          print(json.dumps({'gate':'G2','status':'PASS','glbBytes':len(glb),'triangles':report['metrics']['triangles']}))
+          PY
+      - name: Publish evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terravox-g2-blender-glb
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            /tmp/terravox-g2/export.json
+            /tmp/terravox-g2/validation.json
+            /tmp/terravox-g2/output.glb
