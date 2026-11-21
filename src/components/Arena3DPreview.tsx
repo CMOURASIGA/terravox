@@ -59,8 +59,10 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   }, [move]);
   const portalDistance = Math.hypot(position.x, position.z + 24);
   const progress = Math.max(0, Math.min(100, Math.round((1 - portalDistance / 32) * 100)));
-  const portalDirection = Math.atan2(-position.x, -24 - position.z) * 180 / Math.PI;
-  const directionLabel = Math.abs(portalDirection) < 22 ? 'Norte' : portalDirection > 0 ? 'Leste' : 'Oeste';
+  const lateralOffset = -position.x;
+  const directionLabel = position.z < -24
+    ? 'Atrás de você'
+    : Math.abs(lateralOffset) < 2.5 ? 'À frente' : lateralOffset < 0 ? 'À esquerda' : 'À direita';
   const navigate = (target: ForestPosition) => { destination.current = { x: Math.max(-20, Math.min(20, target.x)), z: Math.max(-28, Math.min(18, target.z)) }; };
   return <main className="flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
     <header className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-white/15 bg-slate-950/90 px-4 py-3 sm:px-6">
