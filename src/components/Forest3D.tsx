@@ -76,8 +76,30 @@ function ForestSpirit({ position, moving }: { position: ForestPosition; moving: 
     if (wings.current) wings.current.rotation.z = Math.sin(t * 12) * 0.28;
   });
   return <group ref={spirit} position={[position.x + 1.3, 1.9, position.z + 1.15]}>
-    <pointLight color="#a0ffe5" intensity={2.2} distance={5}/>
-    <mesh><sphereGeometry args={[0.28, 18, 14]}/><meshStandardMaterial color="#c6fff1" emissive="#5bfbd8" emissiveIntensity={1.9} roughness={0.25}/></mesh>
+    <pointLight color="#a0ffe5" intensity={1.7} distance={5}/>
+    {/* The companion is a small forest guardian, not just a floating light. */}
+    <mesh position={[0,-0.37,-0.025]} rotation={[0,0,Math.PI]} castShadow>
+      <coneGeometry args={[0.20,0.64,10]}/>
+      <meshStandardMaterial color="#78c6ac" emissive="#1b857c" emissiveIntensity={0.35} roughness={0.85}/>
+    </mesh>
+    <mesh position={[0,0.06,0]} castShadow>
+      <sphereGeometry args={[0.30,24,20]}/>
+      <meshStandardMaterial color="#d4f7e6" emissive="#5bd2b7" emissiveIntensity={0.85} roughness={0.64}/>
+    </mesh>
+    {[-1,1].map(side=><group key={'ear'+side} position={[side*0.27,0.19,0]} rotation={[0,0,side*-0.45]}>
+      <mesh castShadow position={[0,0.15,0]} scale={[0.75,1.25,0.42]}>
+        <coneGeometry args={[0.17,0.47,9]}/>
+        <meshStandardMaterial color="#a4ead3" emissive="#43a992" emissiveIntensity={0.35}/>
+      </mesh>
+    </group>)}
+    <mesh position={[0,0.34,-0.07]} rotation={[0,0,-0.22]}>
+      <coneGeometry args={[0.10,0.32,8]}/>
+      <meshStandardMaterial color="#a9d7a4" roughness={1}/>
+    </mesh>
+    <mesh position={[0.11,0.35,-0.07]} rotation={[0,0,0.34]}>
+      <coneGeometry args={[0.08,0.25,8]}/>
+      <meshStandardMaterial color="#8cc99a" roughness={1}/>
+    </mesh>
     <mesh position={[0, -0.24, 0]} scale={[0.8, 1.2, 0.75]}><sphereGeometry args={[0.22, 14, 10]}/><meshStandardMaterial color="#b4f6e1" emissive="#39c8ad" emissiveIntensity={0.9}/></mesh>
     <group ref={wings}>
       {[-1,1].map(side => <mesh key={side} position={[side * 0.36, 0.05, -0.08]} rotation={[0, side * 0.32, side * -0.25]} scale={[0.36, 0.56, 0.08]}>
