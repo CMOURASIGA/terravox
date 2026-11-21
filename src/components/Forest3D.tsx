@@ -380,9 +380,9 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: 
     <color attach="background" args={['#739da4']}/>
     <ScenicBackdrop/>
     <fog attach="fog" args={['#739da4', 40, 110]}/>
-    <ambientLight intensity={0.35}/>
-    <hemisphereLight args={['#d7f5ed', '#1a3429', 1.25]}/>
-    <directionalLight castShadow position={[-18, 25, 12]} intensity={2.5} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
+    <ambientLight intensity={0.24}/>
+    <hemisphereLight args={['#d7f5ed', '#1a3429', 0.95]}/>
+    <directionalLight castShadow position={[-18, 25, 12]} intensity={2.3} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
     <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -20, 20), z: MathUtils.clamp(e.point.z, -28, 9) }); }}>
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
@@ -408,9 +408,9 @@ function CinematicForest({ position, moving, onNavigate, portalReached }: Props)
   return <>
     <color attach="background" args={['#8faea4']}/>
     <fog attach="fog" args={['#8faea4', 35, 125]}/>
-    <ambientLight intensity={0.55}/>
-    <hemisphereLight args={['#d9f2df', '#253d32', 1.4]}/>
-    <directionalLight castShadow position={[-14, 25, 11]} intensity={2.2} shadow-mapSize={[2048,2048]} shadow-camera-left={-32} shadow-camera-right={32} shadow-camera-top={32} shadow-camera-bottom={-32}/>
+    <ambientLight intensity={0.28}/>
+    <hemisphereLight args={['#d9f2df', '#253d32', 1.05]}/>
+    <directionalLight castShadow position={[-14, 25, 11]} intensity={2.6} shadow-mapSize={[2048,2048]} shadow-camera-left={-32} shadow-camera-right={32} shadow-camera-top={32} shadow-camera-bottom={-32}/>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-0.035,0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x,-20,20), z: MathUtils.clamp(e.point.z,-28,9) }); }}>
       <planeGeometry args={[90,90]}/><meshStandardMaterial color="#385b43" roughness={1}/>
     </mesh>
@@ -447,10 +447,10 @@ export function Forest3D(props: Props) {
       try {
         const names = ['tree1', 'tree2', 'tree3', 'bush'];
         const checks = await Promise.all(names.map(async name => {
-          const response = await fetch('/assets/forest-v2/stylized/' + name + '.glb', { signal: controller.signal });
+          const response = await fetch('/assets/forest-v2/stylized/' + name + '.glb', { headers: { Range: 'bytes=0-19' }, signal: controller.signal });
           if (!response.ok) return false;
           const header = new Uint8Array(await response.arrayBuffer());
-          return header.length > 20 && String.fromCharCode(...header.slice(0, 4)) === 'glTF';
+          return header.length >= 20 && String.fromCharCode(...header.slice(0, 4)) === 'glTF' && new DataView(header.buffer, header.byteOffset, header.byteLength).getUint32(4, true) === 2;
         }));
         if (mounted) setStylizedReady(checks.every(Boolean));
       } catch { if (mounted) setStylizedReady(false); }
