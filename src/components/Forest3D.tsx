@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatedExplorer, ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
+import { ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
 import { Color, MathUtils, Object3D, Shape, ShapeGeometry, Vector3 } from 'three';
 import type { Group, InstancedMesh } from 'three';
 
@@ -649,7 +649,7 @@ function ExplorerContactShadow({ position }: { position: ForestPosition }) {
   </group>;
 }
 
-function Forest({ position, moving, onNavigate, portalReached, stylizedReady, explorerReady }: Props & { stylizedReady: boolean; explorerReady: boolean }) {
+function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: Props & { stylizedReady: boolean }) {
   const groundColor = useMemo(() => new Color('#284f38'), []);
   return <>
     <color attach="background" args={['#739da4']}/>
@@ -675,7 +675,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
     <SpiritTrail position={position}/>
     <ExplorerContactShadow position={position}/>
     <Portal active={portalReached}/>
-    {explorerReady ? <Suspense fallback={null}><AnimatedExplorer position={position} moving={moving}/></Suspense> : <Explorer position={position} moving={moving}/>}
+    <Explorer position={position} moving={moving}/>
     <FollowCamera position={position} moving={moving}/>
   </>;
 }
@@ -700,7 +700,6 @@ function CinematicForest({ position, moving, onNavigate, portalReached }: Props)
 export function Forest3D(props: Props) {
   const [cinematicReady, setCinematicReady] = useState(false);
   const [stylizedReady, setStylizedReady] = useState(false);
-  const [explorerReady, setExplorerReady] = useState(false);
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
@@ -733,20 +732,11 @@ export function Forest3D(props: Props) {
         if (mounted) setStylizedReady(checks.every(Boolean));
       } catch { if (mounted) setStylizedReady(false); }
     };
-    const verifyExplorer = async () => {
-      try {
-        const response = await fetch(FOREST_V2_ASSETS.explorer, { headers: { Range: 'bytes=0-19' }, signal: controller.signal });
-        if (!response.ok) return;
-        const header = new Uint8Array(await response.arrayBuffer());
-        if (mounted && header.length >= 20 && String.fromCharCode(...header.slice(0, 4)) === 'glTF') setExplorerReady(true);
-      } catch { if (mounted) setExplorerReady(false); }
-    };
     void verify();
     void verifyStylized();
-    void verifyExplorer();
     return () => { mounted = false; controller.abort(); };
   }, []);
   return <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-    {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props} stylizedReady={stylizedReady} explorerReady={explorerReady}/>}
+    {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props} stylizedReady={stylizedReady}/>}
   </Canvas>;
 }
