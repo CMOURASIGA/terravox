@@ -279,41 +279,24 @@ function Portal({ active }: { active: boolean }) {
   </group>;
 }
 
-function FollowCamera({ position, moving }: { position: ForestPosition; moving: boolean }) {
+function FollowCamera({ position }: { position: ForestPosition; moving: boolean }) {
   const { camera } = useThree();
-  const lookAt = useRef(new Vector3(0, 1.8, -5));
-  const previous = useRef(new Vector3(position.x, 0, position.z));
-  const heading = useRef(Math.PI);
+  const lookAt = useRef(new Vector3(0, 1.6, -4));
   const initialized = useRef(false);
   useFrame((_, delta) => {
-    const next = new Vector3(position.x, 0, position.z);
-    const displacement = next.clone().sub(previous.current);
-    // Keep the camera behind the explorer. Rotate only when there is real movement,
-    // avoiding abrupt camera flips when the player stops.
-    if (moving && displacement.lengthSq() > 0.0001) {
-      const desired = Math.atan2(displacement.x, displacement.z);
-      const difference = Math.atan2(Math.sin(desired - heading.current), Math.cos(desired - heading.current));
-      heading.current += difference * Math.min(1, delta * 2.6);
-    }
-    previous.current.copy(next);
-    const distance = 5.6;
-    const cameraGoal = new Vector3(
-      position.x - Math.sin(heading.current) * distance,
-      3.65,
-      position.z - Math.cos(heading.current) * distance,
-    );
-    const targetGoal = new Vector3(
-      position.x + Math.sin(heading.current) * 3.5,
-      1.85,
-      position.z + Math.cos(heading.current) * 3.5,
-    );
+    // Fixed forward-facing chase camera: the portal is at negative Z.
+    // Do not spin the camera when the player strafes or reverses.
+    // That previously placed foreground trees between the player and the lens.
+    const cameraGoal = new Vector3(position.x, 3.65, position.z + 6.4);
+    const targetGoal = new Vector3(position.x, 1.7, position.z - 4.2);
     if (!initialized.current) {
       camera.position.copy(cameraGoal);
       lookAt.current.copy(targetGoal);
       initialized.current = true;
     } else {
-      camera.position.lerp(cameraGoal, 1 - Math.exp(-delta * 3.1));
-      lookAt.current.lerp(targetGoal, 1 - Math.exp(-delta * 4.1));
+      const follow = 1 - Math.exp(-delta * 3.5);
+      camera.position.lerp(cameraGoal, follow);
+      lookAt.current.lerp(targetGoal, follow);
     }
     camera.lookAt(lookAt.current);
   });
