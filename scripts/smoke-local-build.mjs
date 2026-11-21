@@ -2,8 +2,10 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const host = 'http://127.0.0.1:3000';
+const runtimeEnv = { ...process.env };
+delete runtimeEnv.NODE_ENV; // Match Windows `npm start` without a configured NODE_ENV.
 const server = spawn(process.execPath, ['dist/server.cjs'], {
-  env: { ...process.env, NODE_ENV: 'production' },
+  env: runtimeEnv,
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let output = '';
