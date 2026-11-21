@@ -1,0 +1,13 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "heap": 50400000,
+  "frames": 9,
+  "fps": 2.81,
+  "p95_ms": 400,
+  "draw_calls_median": 1132,
+  "entry_to_first_frames_s": 2.85,
+  "viewport": [
+    1280,
+    720
+  ]
+}

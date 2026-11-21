@@ -5,10 +5,11 @@ import { ForestCinematicAssets, ForestNature, StylizedForestTrees } from './Fore
 import { Color, Float32BufferAttribute, MathUtils, Object3D, PlaneGeometry, Shape, ShapeGeometry, Vector3 } from 'three';
 import type { Group, InstancedMesh } from 'three';
 
+import { ForestProfiler } from './ForestProfiler';
 import { forestHeight, canStand } from '../lib/forestNavigation';
 
 export type ForestPosition = { x: number; z: number };
-type Props = { position: ForestPosition; moving: boolean; onNavigate: (position: ForestPosition) => void; sprinting?: boolean; active?: boolean; interacting?: boolean; paused?: boolean; portalReached: boolean };
+type Props = { position: ForestPosition; moving: boolean; onNavigate: (position: ForestPosition) => void; low?: boolean; report?: (value: string) => void; sprinting?: boolean; active?: boolean; interacting?: boolean; paused?: boolean; portalReached: boolean };
 
 const treeLocations: [number, number, number][] = Array.from({ length: 85 }, (_, i) => {
   const angle = i * 2.399963229728653;
@@ -831,7 +832,8 @@ class ForestRenderBoundary extends Component<{ children: ReactNode }, { failed: 
 export function Forest3D(props: Props) {
   const classic = new URLSearchParams(window.location.search).get('floresta') === 'classica';
   return <ForestRenderBoundary>
-    <Canvas shadows={classic} frameloop={props.paused ? 'demand' : 'always'} dpr={[1, 1.25]} camera={{ position: [0, 3, 13], fov: 57, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
+    <Canvas shadows={classic} frameloop={props.paused ? 'demand' : 'always'} dpr={props.low ? .75 : [1, 1.25]} camera={{ position: [0, 3, 13], fov: 57, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
+      {props.report && <ForestProfiler report={props.report}/>}
       {classic ? <Forest {...props} stylizedReady/> : <Suspense fallback={null}><CinematicForest {...props}/></Suspense>}
     </Canvas>
   </ForestRenderBoundary>;

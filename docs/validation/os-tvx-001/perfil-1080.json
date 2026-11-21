@@ -1,0 +1,34 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "jsHeapBytes": 27600000,
+  "buffer": [
+    1920,
+    961
+  ],
+  "viewport": [
+    1920,
+    1080
+  ],
+  "sampleFrames": 17,
+  "averageFPS": 2.38,
+  "p95FrameMs": 566.7,
+  "medianDrawCalls": 17,
+  "entryToFourFramesSeconds": 1.66,
+  "models": [
+    "environment.glb",
+    "explorer.glb",
+    "portal.glb",
+    "spirit.glb"
+  ],
+  "checks": [
+    "local assets only",
+    "map entry",
+    "pause and resume",
+    "sprint to portal",
+    "activate",
+    "resize",
+    "restart",
+    "WebGL restore",
+    "return to map"
+  ]
+}

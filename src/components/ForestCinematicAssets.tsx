@@ -1,4 +1,4 @@
-import { useAnimations, useGLTF } from '@react-three/drei';
+import { useAnimations, useGLTF, useTexture } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { LoopOnce, Box3, Group, Mesh, MathUtils, Vector3 } from 'three';
@@ -215,7 +215,8 @@ type RegionProps = ActorProps & { active: boolean; onNavigate: (p: ForestPositio
 
 export function ForestCinematicAssets({ active, onNavigate, ...actor }: RegionProps) {
   const environment = useGLTF(FOREST_V2_ASSETS.environment);
-  const terrain = useMemo(() => paintForest(environment.scene.clone(true)), [environment.scene]);
+  const soil = useTexture('/assets/forest-v2/solo.webp');
+  const terrain = useMemo(() => paintForest(environment.scene.clone(true), soil), [environment.scene, soil]);
   useEffect(() => () => terrain.traverse(node => { if (node instanceof Mesh) node.material.dispose(); }), [terrain]);
   const portal = useGLTF(FOREST_V2_ASSETS.portal);
   return <>

@@ -65,9 +65,12 @@ with sync_playwright() as p:
     page.keyboard.press('Escape')
     page.get_by_role('dialog').wait_for()
     page.get_by_role('button',name='Continuar exploração').click()
+    # Warm the scene before sampling so compilation is reported separately from the route.
+    page.wait_for_timeout(3000)
     page.evaluate('window.frames3D=[]')
-    page.keyboard.down('Shift')
     page.keyboard.down('w')
+    page.wait_for_timeout(1800)
+    page.keyboard.down('Shift')
     portal = page.get_by_role('button',name=re.compile('Ativar portal'))
     portal.wait_for(timeout=180000)
     page.keyboard.up('w')

@@ -18,6 +18,9 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     const timer = window.setTimeout(() => setInteracting(false), 1250);
     return () => window.clearTimeout(timer);
   }, [interacting, paused]);
+  const [low, setLow] = useState(false);
+  const [showMetrics, setShowMetrics] = useState(false);
+  const [metrics, setMetrics] = useState('');
   const [message, setMessage] = useState('Use WASD ou as setas para caminhar. Também é possível clicar no terreno.');
   const keys = useRef(new Set<string>());
   const positionRef = useRef(INITIAL);
@@ -92,7 +95,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
+      const dt = Math.min(.25, (now - last) / 1000);
       last = now;
       if (pausedRef.current) {
         raf = requestAnimationFrame(tick);
@@ -115,9 +118,11 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       if (distance > 0.01) {
         // Avoid oscillation around the destination at low frame rates.
         const step = destination.current && !dx && !dz ? Math.min(distance, dt * speed) : dt * speed;
-        const previous = positionRef.current;
-        const next = { x: previous.x + (nextX / distance) * step, z: previous.z + (nextZ / distance) * step };
-        if (next.x !== previous.x || next.z !== previous.z) move(next);
+        const count = Math.ceil(step / .18);
+        for (let part = 0; part < count; part++) {
+          const previous = positionRef.current;
+          move({ x: previous.x + nextX / distance * step / count, z: previous.z + nextZ / distance * step / count });
+        }
         if (destination.current && !dx && !dz && step >= distance) destination.current = null;
       }
       raf = requestAnimationFrame(tick);
@@ -160,11 +165,16 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       </div>
     </header>
     <section className="relative min-h-0 flex-1" aria-label="Floresta 3D explorável">
-      <Forest3D position={position} moving={moving} onNavigate={navigate} sprinting={sprinting} active={active} interacting={interacting} paused={paused} portalReached={portalReached}/>
+      <Forest3D position={position} moving={moving} onNavigate={navigate} sprinting={sprinting} active={active} low={low} report={showMetrics ? setMetrics : undefined} interacting={interacting} paused={paused} portalReached={portalReached}/>
       {paused && <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Jogo pausado">
         <div className="w-full max-w-sm rounded-2xl border border-white/20 bg-slate-900 p-6 text-center shadow-2xl">
           <h2 className="text-2xl font-black">Exploração pausada</h2>
           <p className="mt-2 text-sm text-slate-300">Continue explorando a floresta quando estiver pronto.</p>
+          <fieldset className="mt-4 grid gap-2 text-left text-sm">
+            <legend className="mb-2 font-bold">Desempenho</legend>
+            <label><input type="checkbox" checked={low} onChange={e => setLow(e.target.checked)}/> Reduzir resolução 3D para 75%</label>
+            <label><input type="checkbox" checked={showMetrics} onChange={e => setShowMetrics(e.target.checked)}/> Mostrar FPS e chamadas de desenho</label>
+          </fieldset>
           <button type="button" onClick={togglePause} autoFocus className="mt-5 w-full rounded-xl bg-cyan-300 px-5 py-3 font-bold text-slate-950 hover:bg-cyan-200">Continuar exploração</button>
           <button type="button" onClick={resetExplorer} className="mt-2 w-full rounded-xl border border-white/25 px-5 py-3 font-semibold hover:bg-white/10">Reiniciar exploração</button>
         </div>
@@ -192,6 +202,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     </section>
     <footer className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-white/15 bg-slate-950/90 p-3">
       <p role="status" className="min-w-0 flex-1 text-xs text-cyan-100 sm:text-sm">{message}</p>
+      {showMetrics && <output className="text-xs tabular-nums text-amber-200">{metrics}</output>}
       <span className="shrink-0 rounded-full border border-cyan-300/50 px-3 py-1 text-xs text-cyan-200">{portalReached ? 'Portal encontrado' : sprinting ? 'Correndo' : moving ? 'Caminhando' : 'Exploração livre'}</span>
     </footer>
   </main>;
