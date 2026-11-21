@@ -135,7 +135,7 @@ export function StylizedForestTrees() {
   )}</group>;
 }
 
-function AnimatedExplorer({ position, moving }: { position: ForestPosition; moving: boolean }) {
+export function AnimatedExplorer({ position, moving }: { position: ForestPosition; moving: boolean }) {
   const root = useRef<Group>(null);
   const last = useRef(new Vector3(position.x, 0, position.z));
   const { scene, animations } = useGLTF(FOREST_V2_ASSETS.explorer);
