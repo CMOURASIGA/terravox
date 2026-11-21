@@ -2,6 +2,7 @@ import { useAnimations, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { Box3, Group, MathUtils, Vector3 } from 'three';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { ForestPosition } from './Forest3D';
 
 /** Asset-driven scene. Requires licensed GLB files at the paths below. */
