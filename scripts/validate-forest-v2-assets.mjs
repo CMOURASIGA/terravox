@@ -32,7 +32,28 @@ for (const [filename, clips] of Object.entries(required)) {
   try { json = JSON.parse(data.toString('utf8', 20, 20 + jsonLength)); }
   catch { console.error('INVALID_GLTF_JSON', filename); failures++; continue; }
   if (json.asset?.version !== '2.0') { console.error('INVALID_GLTF_VERSION', filename); failures++; continue; }
-  const names = new Set((json.animations ?? []).map(a => a.name));
+  // A syntactically valid GLB is not sufficient for a playable cinematic scene.
+  // Reject empty placeholder exports, broken mesh references and animation names
+  // with no channels (which would pass the previous check without animating).
+  const scenes = json.scenes ?? [];
+  const nodes = json.nodes ?? [];
+  const meshes = json.meshes ?? [];
+  const materials = json.materials ?? [];
+  const meshNodes = nodes.filter(node => Number.isInteger(node.mesh) && node.mesh >= 0 && node.mesh < meshes.length);
+  const validPrimitives = meshes.flatMap(mesh => mesh.primitives ?? []).filter(p => Number.isInteger(p.attributes?.POSITION));
+  if (!scenes.length || !meshNodes.length || !validPrimitives.length) {
+    console.error('EMPTY_OR_INVALID_SCENE', filename);
+    failures++;
+  }
+  if (filename === 'environment.glb' && (meshNodes.length < 3 || validPrimitives.length < 3)) {
+    console.error('ENVIRONMENT_TOO_SPARSE', filename, 'mesh nodes:', meshNodes.length);
+    failures++;
+  }
+  if (filename === 'explorer.glb' && (meshNodes.length < 2 || !materials.length)) {
+    console.error('EXPLORER_MISSING_PARTS_OR_MATERIALS', filename);
+    failures++;
+  }
+  const names = new Set((json.animations ?? []).filter(a => Array.isArray(a.channels) && a.channels.length > 0).map(a => a.name));
   for (const clip of clips) {
     if (!names.has(clip)) { console.error('MISSING_ANIMATION', filename, clip); failures++; }
   }
