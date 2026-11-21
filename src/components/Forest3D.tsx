@@ -623,9 +623,9 @@ function ExplorerContactShadow({ position }: { position: ForestPosition }) {
   return <group ref={shadow} position={[position.x, 0.048, position.z]}>
     <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[0.72, 0.49, 1]} renderOrder={2}>
       <circleGeometry args={[1, 32]}/>
-      <meshBasicMaterial color="#091a12" transparent opacity={0.22} depthWrite={false}/>
+      <meshBasicMaterial color="#091a12" transparent opacity={0.22} depthWrite={false} polygonOffset polygonOffsetFactor={-1}/>
     </mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} scale={[1.1, 0.76, 1]} renderOrder={1}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} scale={[1.1, 0.76, 1]} renderOrder={1}>
       <circleGeometry args={[1, 32]}/>
       <meshBasicMaterial color="#0b1d15" transparent opacity={0.09} depthWrite={false}/>
     </mesh>
