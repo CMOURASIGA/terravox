@@ -16,22 +16,46 @@ const treeLocations: [number, number, number][] = Array.from({ length: 85 }, (_,
 }).filter(([x, , z]) => Math.abs(x) > 2.7 || z < -23 || z > 8);
 
 function Tree({ position, index }: { position: [number, number, number]; index: number }) {
-  const scale = 0.8 + (index % 7) * 0.12;
-  const palm = index % 3 !== 0;
-  const greens = ['#126348', '#16794d', '#268456', '#0d5947', '#328d61'];
-  return <group position={position} scale={scale}>
-    <mesh castShadow position={[0, 2.7, 0]} rotation={[0, 0, Math.sin(index * 3) * 0.08]}><cylinderGeometry args={[0.19, 0.43, 5.4, 9]}/><meshStandardMaterial color={palm ? '#745139' : '#55412d'} roughness={1}/></mesh>
-    {palm ? <>
-      {Array.from({ length: 9 }, (_, n) => {
-        const angle = n * Math.PI * 2 / 9;
-        return <group key={n} position={[0, 5.3, 0]} rotation={[0, angle, 0]}>
-          <mesh castShadow position={[0, -0.32, 1.65]} rotation={[-0.34, 0, 0]}><sphereGeometry args={[0.58, 7, 5]}/><meshStandardMaterial color={greens[(index + n) % greens.length]} roughness={0.95}/></mesh>
-          <mesh castShadow position={[0, -0.53, 2.35]} rotation={[-0.47, 0, 0]} scale={[0.55, 0.18, 2.2]}><sphereGeometry args={[1, 8, 6]}/><meshStandardMaterial color={greens[(index + n + 1) % greens.length]} side={2}/></mesh>
-        </group>;
-      })}
-      <mesh castShadow position={[0, 5.4, 0]}><sphereGeometry args={[0.8, 8, 6]}/><meshStandardMaterial color="#1c704b"/></mesh>
-    </> : [0,1,2,3].map(n => <mesh key={n} castShadow position={[0, 3.6 + n * 0.75, 0]} scale={[1.3 - n * 0.16, 0.6, 1.3 - n * 0.16]}><icosahedronGeometry args={[1.65, 1]}/><meshStandardMaterial color={greens[(index+n)%greens.length]} roughness={1}/></mesh>)}
-    {index % 4 === 0 && <mesh position={[0.4, 0.5, 0.4]}><sphereGeometry args={[0.65, 7, 5]}/><meshStandardMaterial color="#39764a"/></mesh>}
+  // Layered Atlantic-forest canopy, buttress roots and asymmetric branching.
+  // Meshes use smooth organic silhouettes instead of the original cone/sphere trees.
+  const scale = 0.95 + (index % 7) * 0.14;
+  const tall = index % 5 !== 0;
+  const height = tall ? 8.6 + (index % 4) * 1.15 : 5.8 + (index % 3) * 0.7;
+  const palette = ['#1a6041', '#256c46', '#327b4b', '#1e5940', '#477d4d', '#4c8552'];
+  const trunk = index % 3 === 0 ? '#665039' : '#554333';
+  const branches = Array.from({ length: tall ? 7 : 5 }, (_, n) => {
+    const angle = n * 2.399963 + index * 0.83;
+    const y = height * (0.57 + (n % 4) * 0.09);
+    const reach = 1.5 + (n % 3) * 0.43;
+    return { angle, y, reach, radius: 1.25 + (n % 3) * 0.24 };
+  });
+  return <group position={position} scale={scale} rotation={[0, index * 1.71, 0]}>
+    <mesh castShadow receiveShadow position={[0, height * 0.5, 0]} rotation={[0, 0, Math.sin(index * 2.7) * 0.045]}>
+      <cylinderGeometry args={[0.24, 0.62, height, 12, 6]}/>
+      <meshStandardMaterial color={trunk} roughness={1}/>
+    </mesh>
+    {[0,1,2,3,4].map(n => <mesh key={'root'+n} castShadow position={[Math.sin(n*1.256)*0.6,0.36,Math.cos(n*1.256)*0.6]} rotation={[Math.cos(n*1.256)*0.55,0,Math.sin(n*1.256)*0.55]}>
+      <coneGeometry args={[0.28,1.65,5]}/><meshStandardMaterial color={trunk} roughness={1}/>
+    </mesh>)}
+    {branches.map((branch,n)=><group key={n} position={[0,branch.y,0]} rotation={[0,branch.angle,0]}>
+      <mesh castShadow position={[0,0.2,branch.reach*0.46]} rotation={[-0.58,0,0]}>
+        <cylinderGeometry args={[0.07,0.17,branch.reach*1.5,7]}/><meshStandardMaterial color={trunk} roughness={1}/>
+      </mesh>
+      <mesh castShadow receiveShadow position={[0,0.38,branch.reach]} scale={[branch.radius*1.18,0.83+(n%3)*0.12,branch.radius*0.94]}>
+        <icosahedronGeometry args={[1,2]}/><meshStandardMaterial color={palette[(index+n)%palette.length]} roughness={0.96} flatShading={false}/>
+      </mesh>
+      <mesh castShadow position={[0.45,0.78,branch.reach+0.15]} scale={[0.84,0.59,0.8]}>
+        <icosahedronGeometry args={[1,2]}/><meshStandardMaterial color={palette[(index+n+2)%palette.length]} roughness={1}/>
+      </mesh>
+    </group>)}
+    <mesh castShadow receiveShadow position={[0,height+0.15,0]} scale={[1.75,1.23,1.7]}>
+      <icosahedronGeometry args={[1,2]}/><meshStandardMaterial color={palette[(index+2)%palette.length]} roughness={1}/>
+    </mesh>
+    {index % 3 === 0 && <group position={[0.55,0.5,0.55]}>
+      {[0,1,2].map(n=><mesh key={n} castShadow rotation={[0,n*2.1,-0.45]} position={[Math.sin(n*2.1)*0.4,0.2,Math.cos(n*2.1)*0.4]} scale={[0.28,0.75,0.16]}>
+        <sphereGeometry args={[1,8,8]}/><meshStandardMaterial color="#438b4c" roughness={1}/>
+      </mesh>)}
+    </group>}
   </group>;
 }
 
