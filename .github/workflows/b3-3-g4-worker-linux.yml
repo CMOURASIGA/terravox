@@ -1,5 +1,8 @@
 name: B3.4 G4 isolated Linux Worker and artifacts
 on:
+  push:
+    branches: [develop]
+    paths: [.github/workflows/b3-3-g4-worker-linux.yml]
   workflow_dispatch:
 permissions:
   contents: read
