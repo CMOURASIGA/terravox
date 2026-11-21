@@ -3,6 +3,7 @@ import { GameState, PlayerProfile } from './types';
 import { MapScreen, MAX_LEVEL, TERRITORIES } from './components/MapScreen';
 import { ExpeditionScreen } from './components/ExpeditionScreen';
 import { BattleScreen } from './components/BattleScreen';
+import { Arena3DPreview } from './components/Arena3DPreview';
 import { PassportScreen } from './components/PassportScreen';
 import { Camera, Check, Play, Share2 } from 'lucide-react';
 
@@ -48,7 +49,7 @@ export function Avatar({ value, className = '' }: { value: string; className?: s
 }
 
 export default function App() {
-  const [gameState, setGameState] = useState<GameState | 'LOGIN' | 'PROFILE'>('LOGIN');
+  const [gameState, setGameState] = useState<GameState | 'LOGIN' | 'PROFILE' | 'ARENA_3D'>('LOGIN');
   const [activeTerritory, setActiveTerritory] = useState<string | null>(null);
   const [profile, setProfile] = useState<PlayerProfile>(emptyProfile());
   const [inputName, setInputName] = useState('');
@@ -104,7 +105,8 @@ export default function App() {
 
   if (gameState === 'LOGIN') return <LoginScreen name={inputName} avatar={inputAvatar} onName={setInputName} onAvatar={setInputAvatar} onUpload={readAvatar} onSubmit={handleLogin} />;
   if (gameState === 'PROFILE') return <ProfileEditor profile={profile} onSave={(next) => { setProfile(next); setGameState('MAP'); }} onCancel={() => setGameState('MAP')} onUpload={readAvatar} />;
-  if (gameState === 'MAP') return <MapScreen profile={profile} onSelectTerritory={handleSelectTerritory} onOpenPassport={() => setGameState('PASSPORT')} onEditProfile={() => setGameState('PROFILE')} onLogout={logout} />;
+  if (gameState === 'MAP') return <MapScreen profile={profile} onSelectTerritory={handleSelectTerritory} onOpenPassport={() => setGameState('PASSPORT')} onEditProfile={() => setGameState('PROFILE')} onLogout={logout} onOpen3D={() => setGameState('ARENA_3D')} />;
+  if (gameState === 'ARENA_3D') return <Arena3DPreview onBack={() => setGameState('MAP')} />;
   if (gameState === 'EXPEDITION' && activeTerritory) return <ExpeditionScreen territoryId={activeTerritory} onComplete={handleExpeditionComplete} onCancel={() => { setGameState('MAP'); setActiveTerritory(null); }} />;
   if (gameState === 'BATTLE' && activeTerritory) return <BattleScreen territoryId={activeTerritory} profile={profile} onWin={handleBattleWin} onLeave={() => { setGameState('MAP'); setActiveTerritory(null); }} />;
   if (gameState === 'PASSPORT') return <PassportScreen profile={profile} onBack={() => setGameState('MAP')} onEditProfile={() => setGameState('PROFILE')} />;
