@@ -35,7 +35,9 @@ jobs:
         run: npm run build
       - name: Smoke-test local server, GLBs and game APIs
         run: node scripts/smoke-local-build.mjs
-      - name: Verify cinematic assets before any visual-release packaging
+      - name: Check cinematic asset completeness (does not block playable preview)
+        id: cinematic
+        continue-on-error: true
         run: node scripts/validate-forest-v2-assets.mjs
       - name: Package standalone local testing bundle
         run: |
@@ -59,15 +61,16 @@ jobs:
           services for features that depend on authentication or remote data.
           This package is not a Vercel deployment and does not validate GPU visuals.
           EOF
-      - name: Publish cinematic-ready playable preview ZIP
+      - name: Publish playable development preview ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: terravox-cinematic-preview
+          name: terravox-develop-playable-preview
           path: offline-preview/
           retention-days: 14
       - name: Report verification scope
         run: |
+          echo 'Cinematic asset check outcome: ${{ steps.cinematic.outcome }}' >> "$GITHUB_STEP_SUMMARY"
           echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Typecheck, production build, HTTP smoke and four cinematic GLB assets validated (including nonempty animation channels). Quiz API may be UNVERIFIED when its provider returns HTTP 503; inspect the smoke log.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download and extract the terravox-cinematic-preview artifact once. From the folder containing package-lock.json, run npm ci, npm start, then open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'This workflow blocks packaging when cinematic assets are absent or structurally invalid. Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Typecheck, production build and HTTP smoke executed. Cinematic GLB completeness is checked separately and does not block the playable preview. Quiz API may be UNVERIFIED when its provider returns HTTP 503; inspect the smoke log.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download and extract the terravox-develop-playable-preview artifact once. From the folder containing package-lock.json, run npm ci, npm start, then open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Missing cinematic assets do not block testing the existing playable scene. Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
