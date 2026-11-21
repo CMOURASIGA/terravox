@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const host = 'http://127.0.0.1:3000';
@@ -88,6 +89,16 @@ try {
     }
     checks.push('animated explorer served with skin and Idle/Walking/Run clips');
   }
+  // Guard against accidentally reintroducing the quiz modal or its clipped CTA.
+  const arenaSource = await readFile('src/components/Arena3DPreview.tsx', 'utf8');
+  const forbidden = ['PORTAL_QUESTION', 'challengeOpen', 'challengeFeedback', 'Interagir com o Guardião'];
+  for (const token of forbidden) {
+    if (arenaSource.includes(token)) throw new Error('Exploration-only UI regression: ' + token);
+  }
+  if (!arenaSource.includes('Portal descoberto') || !arenaSource.includes('Forest3D')) {
+    throw new Error('Free exploration flow or 3D scene missing from arena');
+  }
+  checks.push('exploration UI contains no mandatory guardian challenge');
   // This distribution is exploration-only: it must start without requiring a
   // questions provider or network access beyond localhost. External quiz APIs
   // are deliberately outside the acceptance criteria for this build.
