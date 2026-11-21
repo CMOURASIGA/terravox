@@ -12,7 +12,8 @@ import urllib.request
 
 API = "https://api.polyhaven.com"
 UA = "TerraVox-forest-v2-asset-pipeline/0.1 (github.com/CMOURASIGA/terravox)"
-CATEGORIES = {"fern": ("fern", "plant"), "rock": ("rock", "boulder"), "moss": ("moss", "stone"), "wood": ("stump", "log", "root")}
+CATEGORIES = {"fern": ("fern",), "rock": ("rock", "boulder", "stone"), "moss": ("moss",), "wood": ("stump", "roots", "root", "log")}
+EXCLUDE = ("chair", "furniture", "iceplant", "crystalline", "sofa", "table", "indoor")
 
 
 def get_json(url):
@@ -83,7 +84,9 @@ def main():
     for category, terms in CATEGORIES.items():
         ranked = sorted(
             (key for key, metadata in catalog.items()
-             if key not in chosen and any(term in (key + " " + " ".join(metadata.get("tags", []))).lower() for term in terms)),
+             if key not in chosen
+             and any(term in key.lower().replace("-", "_").split("_") for term in terms)
+             and not any(excluded in key.lower() for excluded in EXCLUDE)),
             key=lambda key: (0 if any(term in key.lower() for term in terms) else 1, key),
         )
         asset = None
