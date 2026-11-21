@@ -1,6 +1,11 @@
 name: TerraVox forest-v2 licensed asset staging
 on:
   workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - 'scripts/stage-forest-v2-assets.py'
+      - '.github/workflows/forest-v2-stage-assets.yml'
 
 permissions:
   contents: read
@@ -13,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: develop
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
