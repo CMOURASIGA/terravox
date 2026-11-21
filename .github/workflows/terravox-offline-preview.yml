@@ -35,6 +35,8 @@ jobs:
         run: npm run build
       - name: Smoke-test local server, GLBs and game APIs
         run: node scripts/smoke-local-build.mjs
+      - name: Verify cinematic assets before any visual-release packaging
+        run: node scripts/validate-forest-v2-assets.mjs
       - name: Package standalone local testing bundle
         run: |
           mkdir -p offline-preview
@@ -57,15 +59,15 @@ jobs:
           services for features that depend on authentication or remote data.
           This package is not a Vercel deployment and does not validate GPU visuals.
           EOF
-      - name: Publish playable preview ZIP
+      - name: Publish cinematic-ready playable preview ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: terravox-offline-preview
+          name: terravox-cinematic-preview
           path: offline-preview/
           retention-days: 14
       - name: Report verification scope
         run: |
           echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Typecheck, production build, HTTP smoke and four GLB assets checked locally. Quiz API may be UNVERIFIED when its provider returns HTTP 503; inspect the smoke log.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download and extract the terravox-offline-preview artifact once. From the folder containing package-lock.json, run npm ci, npm start, then open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Typecheck, production build, HTTP smoke and four cinematic GLB assets validated (including nonempty animation channels). Quiz API may be UNVERIFIED when its provider returns HTTP 503; inspect the smoke log.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download and extract the terravox-cinematic-preview artifact once. From the folder containing package-lock.json, run npm ci, npm start, then open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This workflow blocks packaging when cinematic assets are absent or structurally invalid. Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
