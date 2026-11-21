@@ -34,6 +34,49 @@ function Tree({ position, index }: { position: [number, number, number]; index: 
   </group>;
 }
 
+function ForestAtmosphere() {
+  const fireflies = useRef<Group>(null);
+  const particles = useMemo(() => Array.from({ length: 38 }, (_, i) => ({
+    x: Math.sin(i * 8.31) * (3.5 + (i % 7) * 1.8),
+    y: 0.9 + (i % 6) * 0.38,
+    z: -26 + (i * 6.19) % 36,
+    phase: i * 1.73,
+  })), []);
+  useFrame(({ clock }) => {
+    if (!fireflies.current) return;
+    const t = clock.elapsedTime;
+    fireflies.current.children.forEach((child, i) => {
+      const p = particles[i];
+      child.position.set(p.x + Math.sin(t * 0.55 + p.phase) * 0.35, p.y + Math.sin(t * 1.2 + p.phase) * 0.22, p.z);
+      child.scale.setScalar(0.7 + Math.sin(t * 2.3 + p.phase) * 0.25);
+    });
+  });
+  return <group ref={fireflies}>
+    {particles.map((p, i) => <mesh key={i} position={[p.x,p.y,p.z]}>
+      <sphereGeometry args={[0.055, 6, 6]}/>
+      <meshBasicMaterial color={i % 4 === 0 ? '#f5d58b' : '#a5ffe2'} transparent opacity={0.78} depthWrite={false}/>
+    </mesh>)}
+  </group>;
+}
+
+function ForestFloor() {
+  const details = useMemo(() => Array.from({length: 160}, (_, i) => {
+    const z = -30 + (i * 7.73) % 44;
+    const side = i % 2 ? 1 : -1;
+    const x = side * (3.5 + (i * 5.11) % 22);
+    return {x,z,rotation:i * 1.71,scale:0.32 + (i%5)*0.12};
+  }), []);
+  return <group>
+    {details.map((p,i) => <group key={i} position={[p.x,0.05,p.z]} rotation={[0,p.rotation,0]} scale={p.scale}>
+      <mesh castShadow position={[0,0.24,0]}><icosahedronGeometry args={[0.5,1]}/><meshStandardMaterial color={i%3===0 ? '#375d39' : '#487b45'} roughness={1}/></mesh>
+      {i%4===0 && <mesh position={[0.4,0.35,0.1]} rotation={[0,0.6,0.7]}><coneGeometry args={[0.22,1.1,5]}/><meshStandardMaterial color="#66a65e" side={2}/></mesh>}
+    </group>)}
+    {Array.from({length:35},(_,i)=><mesh key={i} receiveShadow position={[Math.sin(i*7.1)*1.5,0.062,-27+i*1.05]} rotation={[-Math.PI/2,0,i*2.4]} scale={[0.32+(i%4)*0.16,0.23+(i%3)*0.12,1]}>
+      <circleGeometry args={[1,7]}/><meshStandardMaterial color={i%3===0?'#8c795f':'#b29b78'} roughness={1}/>
+    </mesh>)}
+  </group>;
+}
+
 function Explorer({ position, moving }: { position: ForestPosition; moving: boolean }) {
   const root = useRef<Group>(null);
   const body = useRef<Group>(null);
@@ -137,6 +180,8 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
     {[-19,-12,-5].map(z => <group key={z} position={[0, 0, z]}>
       {[-2.8,2.8].map(x => <mesh key={x} position={[x, 0.8, 0]} castShadow><boxGeometry args={[0.8, 1.6, 0.8]}/><meshStandardMaterial color="#7a8070"/></mesh>)}
     </group>)}
+    <ForestFloor/>
+    <ForestAtmosphere/>
     <Portal active={portalReached}/>
     <Explorer position={position} moving={moving}/>
     <FollowCamera position={position}/>
