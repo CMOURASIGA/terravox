@@ -583,6 +583,49 @@ function ForestGroundCover() {
   </instancedMesh>;
 }
 
+/** Small mushroom colonies create recognizable points of interest off the path.
+ * All 180 mushrooms share two draw calls instead of hundreds of meshes.
+ */
+function ForestMushrooms() {
+  const stems = useRef<InstancedMesh>(null);
+  const caps = useRef<InstancedMesh>(null);
+  const count = 180;
+  useEffect(() => {
+    if (!stems.current || !caps.current) return;
+    const dummy = new Object3D();
+    const capColors = ['#d99c65', '#b65e4c', '#e4b57a', '#8e604d'].map(hex => new Color(hex));
+    for (let i = 0; i < count; i++) {
+      const z = -30 + ((i * 0.61803398875) % 1) * 47;
+      const side = i % 2 ? 1 : -1;
+      const x = side * (4.1 + ((i * 0.754877666) % 1) * 17);
+      const height = 0.14 + (i % 6) * 0.035;
+      dummy.position.set(x, height * 0.5, z);
+      dummy.rotation.set(0, i * 2.4, 0);
+      dummy.scale.set(0.045, height, 0.045);
+      dummy.updateMatrix();
+      stems.current.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(x, height, z);
+      dummy.scale.set(0.13 + (i % 4) * 0.018, 0.095, 0.13 + (i % 4) * 0.018);
+      dummy.updateMatrix();
+      caps.current.setMatrixAt(i, dummy.matrix);
+      caps.current.setColorAt(i, capColors[i % capColors.length]);
+    }
+    stems.current.instanceMatrix.needsUpdate = true;
+    caps.current.instanceMatrix.needsUpdate = true;
+    if (caps.current.instanceColor) caps.current.instanceColor.needsUpdate = true;
+  }, []);
+  return <group>
+    <instancedMesh ref={stems} args={[undefined, undefined, count]} frustumCulled={false}>
+      <cylinderGeometry args={[0.8, 1, 1, 6]}/>
+      <meshStandardMaterial color="#e4d7b1" roughness={1}/>
+    </instancedMesh>
+    <instancedMesh ref={caps} args={[undefined, undefined, count]} frustumCulled={false}>
+      <sphereGeometry args={[1, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.5]}/>
+      <meshStandardMaterial roughness={0.9}/>
+    </instancedMesh>
+  </group>;
+}
+
 function ForestTerrainBanks() {
   const mounds = useMemo(() => Array.from({ length: 44 }, (_, i) => {
     const side = i % 2 === 0 ? -1 : 1;
@@ -729,6 +772,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: 
     <TrailSurfaceDetail/>
     <ForestTerrainBanks/>
     <ForestGroundCover/>
+    <ForestMushrooms/>
     {stylizedReady ? <Suspense fallback={null}><StylizedForestTrees/></Suspense> : treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
     {/* Real licensed nature replaces placeholder ferns and rocks in the playable scene. */}
     <Suspense fallback={null}><ForestNature/></Suspense>
