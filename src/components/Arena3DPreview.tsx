@@ -31,7 +31,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       }
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
-    const blur = () => keys.current.clear();
+    const blur = () => { keys.current.clear(); destination.current = null; setMoving(false); };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     window.addEventListener('blur', blur);
@@ -55,7 +55,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
+    return () => { cancelAnimationFrame(raf); keys.current.clear(); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
   }, [move]);
   const navigate = (target: ForestPosition) => { destination.current = target; };
   return <main className="flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
@@ -65,17 +65,17 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     </header>
     <section className="relative min-h-0 flex-1" aria-label="Floresta 3D explorável">
       <Forest3D position={position} moving={moving} onNavigate={navigate} onPortal={() => {}} portalReached={portalReached}/>
-      <div className="pointer-events-none absolute left-3 top-3 rounded-xl bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white sm:text-sm">WASD / Setas · Caminhar<br/>Clique no chão · Ir até o ponto<br/>Objetivo · Encontrar o portal</div>
+      <div className="pointer-events-none absolute left-3 top-3 max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-slate-950/65 px-3 py-2 text-[11px] font-semibold leading-relaxed text-white shadow-lg backdrop-blur-sm sm:text-xs">WASD / Setas · Caminhar<br/>Clique no chão · Ir até o ponto<br/>Objetivo · Encontrar o portal</div>
       {portalReached && <div role="status" className="pointer-events-none absolute bottom-4 right-4 z-10 max-w-[min(19rem,calc(100%-2rem))] rounded-xl border border-cyan-200/40 bg-slate-950/75 px-4 py-2 text-right text-xs font-semibold text-cyan-100 shadow-xl sm:text-sm">Portal descoberto · Exploração livre</div>}
-      <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1 rounded-xl bg-slate-950/70 p-2 sm:hidden">
-        <span/><button type="button" aria-label="Avançar" onPointerDown={() => keys.current.add('w')} onPointerUp={() => keys.current.delete('w')} onPointerLeave={() => keys.current.delete('w')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↑</button><span/>
-        <button type="button" aria-label="Esquerda" onPointerDown={() => keys.current.add('a')} onPointerUp={() => keys.current.delete('a')} onPointerLeave={() => keys.current.delete('a')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">←</button>
-        <button type="button" aria-label="Recuar" onPointerDown={() => keys.current.add('s')} onPointerUp={() => keys.current.delete('s')} onPointerLeave={() => keys.current.delete('s')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↓</button>
-        <button type="button" aria-label="Direita" onPointerDown={() => keys.current.add('d')} onPointerUp={() => keys.current.delete('d')} onPointerLeave={() => keys.current.delete('d')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">→</button>
+      <div className="absolute bottom-3 left-3 grid touch-none select-none grid-cols-3 gap-1 rounded-xl border border-white/20 bg-slate-950/75 p-2 shadow-lg sm:hidden">
+        <span/><button type="button" aria-label="Avançar" onPointerDown={() => keys.current.add('w')} onPointerUp={() => keys.current.delete('w')} onPointerCancel={() => keys.current.delete('w')} onPointerLeave={() => keys.current.delete('w')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↑</button><span/>
+        <button type="button" aria-label="Esquerda" onPointerDown={() => keys.current.add('a')} onPointerUp={() => keys.current.delete('a')} onPointerCancel={() => keys.current.delete('a')} onPointerLeave={() => keys.current.delete('a')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">←</button>
+        <button type="button" aria-label="Recuar" onPointerDown={() => keys.current.add('s')} onPointerUp={() => keys.current.delete('s')} onPointerCancel={() => keys.current.delete('s')} onPointerLeave={() => keys.current.delete('s')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↓</button>
+        <button type="button" aria-label="Direita" onPointerDown={() => keys.current.add('d')} onPointerUp={() => keys.current.delete('d')} onPointerCancel={() => keys.current.delete('d')} onPointerLeave={() => keys.current.delete('d')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">→</button>
       </div>
     </section>
-    <footer className="z-10 flex items-center justify-between gap-3 border-t border-white/15 bg-slate-950/90 p-3">
-      <p role="status" className="text-xs text-cyan-100 sm:text-sm">{message}</p>
+    <footer className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-white/15 bg-slate-950/90 p-3">
+      <p role="status" className="min-w-0 flex-1 text-xs text-cyan-100 sm:text-sm">{message}</p>
       <span className="shrink-0 rounded-full border border-cyan-300/50 px-3 py-1 text-xs text-cyan-200">{portalReached ? 'Portal encontrado' : 'Exploração livre'}</span>
     </footer>
   </main>;
