@@ -48,8 +48,8 @@ jobs:
           echo 'PREVIEW_SMOKE_NOT_VERIFIED' >> "$GITHUB_STEP_SUMMARY"
       - name: Validate complete forest asset bundle when present
         run: |
-          if [ -d public/assets/forest-v2 ]; then
+          if [ -f public/assets/forest-v2/explorer.glb ] && [ -f public/assets/forest-v2/environment.glb ] && [ -f public/assets/forest-v2/portal.glb ] && [ -f public/assets/forest-v2/spirit.glb ]; then
             node scripts/validate-forest-v2-assets.mjs
           else
-            echo 'Cinematic assets not staged; existing scene remains active'
+            echo 'Full cinematic character/world/portal/spirit bundle not staged; nature assets alone do not activate the cinematic scene'
           fi
