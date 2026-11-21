@@ -5,7 +5,13 @@ import type { ForestPosition } from './Forest3D';
 
 const INITIAL = { x: 0, z: 7 };
 
-export function Arena3DPreview({ onBack }: { onBack: () => void }) {
+type ForestMission = {
+  title: string; target: ForestPosition; objective: string; action: string; progress: string;
+  energy: number; feedback: string; ready: boolean; busy: boolean; boss: boolean;
+  activate: () => void; retry?: () => void;
+};
+
+export function Arena3DPreview({ onBack, mission }: { onBack: () => void; mission?: ForestMission }) {
   const [position, setPosition] = useState<ForestPosition>(INITIAL);
   const [moving, setMoving] = useState(false);
   const [sprinting, setSprinting] = useState(false);
@@ -35,13 +41,25 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     setMoving(false);
     setSprinting(false);
   };
+  useEffect(() => {
+    if (mission?.busy) {
+      keys.current.clear(); destination.current = null;
+      setMoving(false); setSprinting(false);
+    }
+  }, [mission?.busy]);
   const activatePortal = useCallback(() => {
     const { x, z } = positionRef.current;
+    if (mission) {
+      if (mission.ready && !mission.busy && !pausedRef.current && Math.hypot(x - mission.target.x, z - mission.target.z) <= 2.2) {
+        mission.activate();
+      }
+      return;
+    }
     if (pausedRef.current || Math.hypot(x, z + 24) >= 3.4 || active) return;
     setActive(true);
     setInteracting(true);
     setMessage('Portal ativado. O beija-luz despertou a passagem da floresta.');
-  }, [active]);
+  }, [active, mission]);
   const move = useCallback((next: ForestPosition) => {
     let x = Math.max(-20, Math.min(20, next.x));
     let z = Math.max(-28, Math.min(18, next.z));
@@ -59,6 +77,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   }, []);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (mission?.busy) return;
       if (e.key.toLowerCase() === 'e' && !e.repeat) activatePortal();
       if (e.key.toLowerCase() === 'escape') {
         e.preventDefault();
@@ -97,7 +116,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     const tick = (now: number) => {
       const dt = Math.min(.25, (now - last) / 1000);
       last = now;
-      if (pausedRef.current) {
+      if (pausedRef.current || mission?.busy) {
         raf = requestAnimationFrame(tick);
         return;
       }
@@ -157,7 +176,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   };
   return <main className="relative flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
     <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 bg-gradient-to-b from-black/65 to-transparent px-5 pb-9 pt-4 sm:px-8">
-      <div><p className="text-[10px] font-black tracking-[.2em] text-cyan-300">TERRAVOX</p><h1 className="font-serif text-xl tracking-wide drop-shadow-md sm:text-2xl">Floresta do Brasil · Trilha do Portal</h1></div>
+      <div><p className="text-[10px] font-black tracking-[.2em] text-cyan-300">TERRAVOX</p><h1 className="font-serif text-xl tracking-wide drop-shadow-md sm:text-2xl">{mission?.title ?? 'Floresta do Brasil · Trilha do Portal'}</h1></div>
       <div className="pointer-events-auto flex shrink-0 flex-wrap items-center gap-2">
         <button type="button" onClick={togglePause} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">{paused ? "Continuar" : "Pausar"}</button>
         <button type="button" onClick={resetExplorer} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">Reiniciar</button>
@@ -165,7 +184,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       </div>
     </header>
     <section className="relative min-h-0 flex-1" aria-label="Floresta 3D explorável">
-      <Forest3D position={position} moving={moving} onNavigate={navigate} sprinting={sprinting} active={active} low={low} report={showMetrics ? setMetrics : undefined} interacting={interacting} paused={paused} portalReached={portalReached}/>
+      <Forest3D checkpoint={mission?.ready ? mission.target : undefined} position={position} moving={moving} onNavigate={navigate} sprinting={sprinting} active={mission ? mission.boss : active} low={low} report={showMetrics ? setMetrics : undefined} interacting={interacting} paused={paused || mission?.busy} portalReached={portalReached}/>
       {paused && <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Jogo pausado">
         <div className="w-full max-w-sm rounded-2xl border border-white/20 bg-slate-900 p-6 text-center shadow-2xl">
           <h2 className="text-2xl font-black">Exploração pausada</h2>
@@ -179,7 +198,14 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
           <button type="button" onClick={resetExplorer} className="mt-2 w-full rounded-xl border border-white/25 px-5 py-3 font-semibold hover:bg-white/10">Reiniciar exploração</button>
         </div>
       </div>}
-      <div className="pointer-events-none absolute bottom-20 left-5 hidden w-52 rounded-lg bg-black/45 px-3 py-2 text-xs text-white sm:block">
+      {mission && <aside className="absolute left-3 top-28 rounded-xl bg-slate-950/80 px-4 py-3 text-sm text-white sm:top-20">
+        <p className="text-xs text-amber-200">{mission.progress} · Energia {mission.energy}/100</p>
+        <p className="font-bold">{mission.objective}{mission.ready && ' · ' + Math.round(Math.hypot(position.x-mission.target.x, position.z-mission.target.z)) + ' m'}</p>
+        {mission.ready && Math.hypot(position.x-mission.target.x, position.z-mission.target.z) <= 2.2 &&
+          <button type="button" onClick={activatePortal} className="mt-2 rounded-lg bg-amber-200 px-3 py-2 font-bold text-slate-950">{mission.action} (E)</button>}
+        {mission.retry && <button type="button" onClick={mission.retry} className="mt-2 underline">Recarregar desafios</button>}
+      </aside>}
+      {!mission && <>      <div className="pointer-events-none absolute bottom-20 left-5 hidden w-52 rounded-lg bg-black/45 px-3 py-2 text-xs text-white sm:block">
 
 
         <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
@@ -193,6 +219,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       </div>
       {portalReached && <div role="status" className="pointer-events-none absolute bottom-24 right-3 z-10 max-w-[min(19rem,calc(100%-2rem))] sm:bottom-4 sm:right-4 rounded-xl border border-cyan-200/40 bg-slate-950/75 px-4 py-2 text-right text-xs font-semibold text-cyan-100 shadow-xl sm:text-sm">{active ? 'Portal ativado · Trilha concluída' : 'Portal descoberto'}
         {!active && portalDistance < 3.4 && <button type="button" className="pointer-events-auto ml-3 rounded-lg bg-amber-200 px-3 py-2 text-slate-950" onClick={activatePortal}>Ativar portal (E)</button>}</div>}
+      </>}
       <div className="absolute bottom-3 left-3 grid touch-none select-none grid-cols-3 gap-1 rounded-xl border border-white/20 bg-slate-950/75 p-2 shadow-lg sm:hidden">
         <span/><button type="button" aria-label="Avançar" onPointerDown={() => keys.current.add('w')} onPointerUp={() => keys.current.delete('w')} onPointerCancel={() => keys.current.delete('w')} onPointerLeave={() => keys.current.delete('w')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↑</button><span/>
         <button type="button" aria-label="Esquerda" onPointerDown={() => keys.current.add('a')} onPointerUp={() => keys.current.delete('a')} onPointerCancel={() => keys.current.delete('a')} onPointerLeave={() => keys.current.delete('a')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">←</button>
@@ -201,9 +228,9 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       </div>
     </section>
     <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent px-5 pb-2 pt-7">
-      <p role="status" className="min-w-0 flex-1 text-xs text-cyan-100 sm:text-sm">{message}</p>
+      <p role="status" className="min-w-0 flex-1 text-xs text-cyan-100 sm:text-sm">{mission?.feedback ?? message}</p>
       {showMetrics && <output className="text-xs tabular-nums text-amber-200">{metrics}</output>}
-      <span className="shrink-0 rounded-full border border-cyan-300/50 px-3 py-1 text-xs text-cyan-200">{portalReached ? 'Portal encontrado' : sprinting ? 'Correndo' : moving ? 'Caminhando' : 'Exploração livre'}</span>
+      <span className="shrink-0 rounded-full border border-cyan-300/50 px-3 py-1 text-xs text-cyan-200">{mission ? 'Missão do Brasil' : portalReached ? 'Portal encontrado' : sprinting ? 'Correndo' : moving ? 'Caminhando' : 'Exploração livre'}</span>
     </footer>
   </main>;
 }

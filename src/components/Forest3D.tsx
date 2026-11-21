@@ -9,7 +9,7 @@ import { ForestProfiler } from './ForestProfiler';
 import { forestHeight, canStand } from '../lib/forestNavigation';
 
 export type ForestPosition = { x: number; z: number };
-type Props = { position: ForestPosition; moving: boolean; onNavigate: (position: ForestPosition) => void; low?: boolean; report?: (value: string) => void; sprinting?: boolean; active?: boolean; interacting?: boolean; paused?: boolean; portalReached: boolean };
+type Props = { checkpoint?: ForestPosition; position: ForestPosition; moving: boolean; onNavigate: (position: ForestPosition) => void; low?: boolean; report?: (value: string) => void; sprinting?: boolean; active?: boolean; interacting?: boolean; paused?: boolean; portalReached: boolean };
 
 const treeLocations: [number, number, number][] = Array.from({ length: 85 }, (_, i) => {
   const angle = i * 2.399963229728653;
@@ -805,6 +805,10 @@ function CinematicForest(props: Props) {
     <fog attach="fog" args={['#95ad95', 11, 74]}/>
     <hemisphereLight args={['#e5eddb', '#8c785c', 1.55]}/>
     <directionalLight position={[9, 13, 8]} color="#ffe4b8" intensity={2.15}/>
+    {props.checkpoint && <group position={[props.checkpoint.x, .04, props.checkpoint.z]}>
+      <mesh rotation={[-Math.PI / 2,0,0]}><ringGeometry args={[.7,.83,48]}/><meshBasicMaterial color="#ffd875" side={2}/></mesh>
+      <mesh position={[0,1.3,0]}><octahedronGeometry args={[.25]}/><meshStandardMaterial color="#ffc659" emissive="#c28120"/></mesh>
+    </group>}
     <ForestCinematicAssets {...props} active={Boolean(props.active)}/>
     <ExplorerContactShadow position={props.position}/>
     <FollowCamera position={props.position} moving={props.moving}/>
@@ -834,7 +838,7 @@ export function Forest3D(props: Props) {
   return <ForestRenderBoundary>
     <Canvas shadows={classic} frameloop={props.paused ? 'demand' : 'always'} dpr={props.low ? .75 : [1, 1.25]} camera={{ position: [0, 3, 13], fov: 57, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
       {props.report && <ForestProfiler report={props.report}/>}
-      {classic ? <Forest {...props} stylizedReady/> : <Suspense fallback={null}><CinematicForest {...props}/></Suspense>}
+      {classic && !props.checkpoint ? <Forest {...props} stylizedReady/> : <Suspense fallback={null}><CinematicForest {...props}/></Suspense>}
     </Canvas>
   </ForestRenderBoundary>;
 }
