@@ -28,7 +28,11 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift'].includes(e.key.toLowerCase())) {
-        e.preventDefault(); keys.current.add(e.key.toLowerCase()); destination.current = null;
+        e.preventDefault();
+        const key = e.key.toLowerCase();
+        keys.current.add(key);
+        // Sprint must not cancel an active click-to-move destination.
+        if (key !== 'shift') destination.current = null;
       }
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
@@ -55,7 +59,14 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       const running = pressed.has('shift') && distance > 0.01;
       setSprinting(previous => previous === running ? previous : running);
       const speed = running ? 8.2 : 5.2;
-      if (distance > 0.01) move({ x: positionRef.current.x + (nextX / distance) * dt * speed, z: positionRef.current.z + (nextZ / distance) * dt * speed });
+      if (distance > 0.01) {
+        // Avoid oscillation around the destination at low frame rates.
+        const step = destination.current && !dx && !dz ? Math.min(distance, dt * speed) : dt * speed;
+        const previous = positionRef.current;
+        const next = { x: previous.x + (nextX / distance) * step, z: previous.z + (nextZ / distance) * step };
+        if (next.x !== previous.x || next.z !== previous.z) move(next);
+        if (destination.current && !dx && !dz && step >= distance) destination.current = null;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
