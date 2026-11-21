@@ -1,7 +1,7 @@
 import { useAnimations, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { Group, MathUtils, Vector3 } from 'three';
+import { Box3, Group, MathUtils, Vector3 } from 'three';
 import type { ForestPosition } from './Forest3D';
 
 /** Asset-driven scene. Requires licensed GLB files at the paths below. */
@@ -20,6 +20,10 @@ const NATURE = {
   roots: '/assets/forest-v2/nature/pine_roots.glb',
 } as const;
 
+/** Normalize source GLBs into world units. Poly Haven exports have different axes,
+ * scales and origin offsets; copying raw scene scale made vegetation enormous.
+ * This component is shared by both the playable and cinematic forests.
+ */
 export function ForestNature() {
   const fern = useGLTF(NATURE.fern);
   const boulder = useGLTF(NATURE.boulder);
@@ -27,22 +31,51 @@ export function ForestNature() {
   const roots = useGLTF(NATURE.roots);
   const items = useMemo(() => {
     const source = [fern.scene, boulder.scene, moss.scene, roots.scene];
-    return Array.from({ length: 68 }, (_, i) => {
-      const type = i % 4;
-      const z = -29 + (i * 7.31) % 41;
-      const side = i % 2 ? 1 : -1;
-      const x = side * (4.5 + (i * 1.93) % 16);
-      const scale = type === 0 ? 1.1 : type === 1 ? 0.75 : type === 2 ? 0.95 : 1.2;
-      const object = source[type].clone(true);
-      object.traverse(child => {
+    const targetHeights = [0.85, 0.9, 0.18, 1.2];
+    const prepared = source.map((scene, type) => {
+      const model = scene.clone(true);
+      model.updateMatrixWorld(true);
+      const bounds = new Box3().setFromObject(model);
+      const size = bounds.getSize(new Vector3());
+      const center = bounds.getCenter(new Vector3());
+      const maxDimension = Math.max(size.x, size.y, size.z);
+      if (!Number.isFinite(maxDimension) || maxDimension < 0.0001) return null;
+      // Some roots and moss assets are broad rather than tall; size by maximum
+      // dimension to avoid absurdly wide props along the walking corridor.
+      const normalization = targetHeights[type] / maxDimension;
+      const anchor = new Group();
+      model.position.set(-center.x, -bounds.min.y, -center.z);
+      model.scale.setScalar(normalization);
+      // Apply the normalization to the offset as well.
+      model.position.multiplyScalar(normalization);
+      model.traverse(child => {
         if ('isMesh' in child && child.isMesh) {
           const mesh = child as import('three').Mesh;
-          mesh.castShadow = true;
+          mesh.castShadow = type === 1 || type === 3;
           mesh.receiveShadow = true;
         }
       });
-      return { id: i, object, position: [x, 0, z] as [number, number, number], rotation: (i * 2.399963) % (Math.PI * 2), scale };
+      anchor.add(model);
+      return anchor;
     });
+    return Array.from({ length: 64 }, (_, i) => {
+      const type = i % 4;
+      const z = -30 + ((i * 7.31) % 43);
+      const side = i % 2 ? 1 : -1;
+      const distance = 6.4 + ((i * 1.93) % 15);
+      const x = side * distance;
+      const sourceModel = prepared[type];
+      if (!sourceModel) return null;
+      const object = sourceModel.clone(true);
+      const variation = 0.85 + (i % 5) * 0.075;
+      return {
+        id: i,
+        object,
+        position: [x, 0.02, z] as [number, number, number],
+        rotation: (i * 2.399963) % (Math.PI * 2),
+        scale: variation,
+      };
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
   }, [fern.scene, boulder.scene, moss.scene, roots.scene]);
   return <group>{items.map(item =>
     <primitive key={item.id} object={item.object} position={item.position} rotation={[0, item.rotation, 0]} scale={item.scale}/>
