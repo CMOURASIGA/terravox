@@ -1,5 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { ForestCinematicAssets, FOREST_V2_ASSETS } from './ForestCinematicAssets';
 import { Color, MathUtils, Vector3 } from 'three';
 import type { Group } from 'three';
 
@@ -320,6 +321,41 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
   </>;
 }
 
+/** The cinematic scene is opt-in and is only mounted after all licensed GLB assets exist. */
+function CinematicForest({ position, moving, onNavigate, portalReached }: Props) {
+  return <>
+    <color attach="background" args={['#8faea4']}/>
+    <fog attach="fog" args={['#8faea4', 35, 125]}/>
+    <ambientLight intensity={0.55}/>
+    <hemisphereLight args={['#d9f2df', '#253d32', 1.4]}/>
+    <directionalLight castShadow position={[-14, 25, 11]} intensity={2.2} shadow-mapSize={[2048,2048]} shadow-camera-left={-32} shadow-camera-right={32} shadow-camera-top={32} shadow-camera-bottom={-32}/>
+    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-0.035,0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x,-20,20), z: MathUtils.clamp(e.point.z,-28,9) }); }}>
+      <planeGeometry args={[90,90]}/><meshStandardMaterial color="#385b43" roughness={1}/>
+    </mesh>
+    <ForestCinematicAssets position={position} moving={moving} portalReached={portalReached}/>
+    <FollowCamera position={position}/>
+  </>;
+}
+
 export function Forest3D(props: Props) {
-  return <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}><Forest {...props}/></Canvas>;
+  const [cinematicReady, setCinematicReady] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    const verify = async () => {
+      try {
+        // Do not render an incomplete scene or present the old scene as the new version.
+        const results = await Promise.all(Object.values(FOREST_V2_ASSETS).map(async (url) => {
+          const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+          return response.ok && (response.headers.get('content-type') || '').toLowerCase().includes('model/gltf-binary');
+        }));
+        if (mounted) setCinematicReady(results.every(Boolean));
+      } catch { if (mounted) setCinematicReady(false); }
+    };
+    void verify();
+    return () => { mounted = false; controller.abort(); };
+  }, []);
+  return <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
+    {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props}/>}
+  </Canvas>;
 }
