@@ -87,12 +87,13 @@ function AnimatedExplorer({ position, moving }: { position: ForestPosition; movi
   const last = useRef(new Vector3(position.x, 0, position.z));
   const { scene, animations } = useGLTF(FOREST_V2_ASSETS.explorer);
   const model = useMemo(() => scene.clone(true), [scene]);
-  const { actions } = useAnimations(animations, root);
+  const { actions } = useAnimations(animations, model);
   useEffect(() => {
     const selected = moving ? actions.walk : actions.idle;
     if (!selected) return;
-    selected.reset().fadeIn(0.2).play();
-    return () => { selected.fadeOut(0.2); };
+    selected.enabled = true;
+    selected.reset().fadeIn(0.25).play();
+    return () => { selected.fadeOut(0.25); };
   }, [actions, moving]);
   useFrame((_, delta) => {
     if (!root.current) return;
@@ -113,8 +114,13 @@ function Companion({ position }: { position: ForestPosition }) {
   const { scene, animations } = useGLTF(FOREST_V2_ASSETS.spirit);
   const root = useRef<Group>(null);
   const model = useMemo(() => scene.clone(true), [scene]);
-  const { actions } = useAnimations(animations, root);
-  useEffect(() => { actions.idle?.play(); return () => { actions.idle?.stop(); }; }, [actions]);
+  const { actions } = useAnimations(animations, model);
+  useEffect(() => {
+    const idle = actions.idle;
+    if (!idle) return;
+    idle.reset().play();
+    return () => { idle.stop(); };
+  }, [actions]);
   useFrame(({ clock }, delta) => {
     if (!root.current) return;
     const t = clock.elapsedTime;
