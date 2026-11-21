@@ -481,6 +481,29 @@ function TrailDetails() {
 /** Irregular, gently winding trail. Its edges are part of the actual mesh,
  * rather than a perfectly rectangular ground decal.
  */
+/** Low rolling earth banks break up the flat green plane while leaving
+ * the central walkable corridor and click-to-move controls unobstructed.
+ */
+function ForestTerrainBanks() {
+  const mounds = useMemo(() => Array.from({ length: 44 }, (_, i) => {
+    const side = i % 2 === 0 ? -1 : 1;
+    const z = -33 + (i * 7.37) % 51;
+    const x = side * (6.5 + (i * 3.11) % 21);
+    const width = 3.8 + (i % 5) * 1.05;
+    const height = 0.38 + (i % 6) * 0.16;
+    return { x, z, width, height, rotation: i * 1.37 };
+  }), []);
+  return <group>
+    {mounds.map((mound, i) => <mesh key={i} receiveShadow
+      position={[mound.x, -0.25, mound.z]}
+      rotation={[0, mound.rotation, 0]}
+      scale={[mound.width, mound.height, mound.width * (0.7 + (i % 3) * 0.14)]}>
+      <sphereGeometry args={[1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]}/>
+      <meshStandardMaterial color={i % 4 === 0 ? '#335a3b' : i % 4 === 1 ? '#416849' : '#365f40'} roughness={1}/>
+    </mesh>)}
+  </group>;
+}
+
 function ForestTrail({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
   const geometry = useMemo(() => {
     const left: Array<[number, number]> = [];
@@ -523,6 +546,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
     <ForestTrail onNavigate={onNavigate}/>
+    <ForestTerrainBanks/>
     {stylizedReady ? <Suspense fallback={null}><StylizedForestTrees/></Suspense> : treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
     {/* Real licensed nature replaces placeholder ferns and rocks in the playable scene. */}
     <Suspense fallback={null}><ForestNature/></Suspense>
