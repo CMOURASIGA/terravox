@@ -139,7 +139,7 @@ export function AnimatedExplorer({ position, moving }: { position: ForestPositio
   const root = useRef<Group>(null);
   const last = useRef(new Vector3(position.x, 0, position.z));
   const { scene, animations } = useGLTF(FOREST_V2_ASSETS.explorer);
-  const model = useMemo(() => scene.clone(true), [scene]);
+  const model = useMemo(() => cloneSkeleton(scene), [scene]);
   const { actions } = useAnimations(animations, model);
   useEffect(() => {
     const selected = moving ? (actions.Walking ?? actions.Run ?? actions.walk) : (actions.Idle ?? actions.idle);
