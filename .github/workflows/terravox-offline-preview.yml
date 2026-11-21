@@ -98,6 +98,21 @@ jobs:
           services for features that depend on authentication or remote data.
           This package is not a Vercel deployment and does not validate GPU visuals.
           EOF
+      - name: Verify Windows offline bundle integrity
+        run: |
+          test -s offline-preview/VERSAO.txt
+          test -s offline-preview/INICIAR_TERRAVOX.cmd
+          test -s offline-preview/README.txt
+          test -s offline-preview/dist/server.cjs
+          test -s offline-preview/dist/index.html
+          test -s offline-preview/package-lock.json
+          grep -q "$GITHUB_SHA" offline-preview/VERSAO.txt
+          grep -q "npm start" offline-preview/INICIAR_TERRAVOX.cmd
+          test -s offline-preview/dist/assets/forest-v2/explorer.glb
+          for asset in tree1 tree2 tree3 bush; do
+            test -s "offline-preview/dist/assets/forest-v2/stylized/${asset}.glb"
+          done
+          echo "Windows bundle files and commit identity verified."
       - name: Publish playable development preview ZIP
         uses: actions/upload-artifact@v4
         with:
