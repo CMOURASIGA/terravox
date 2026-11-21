@@ -5,6 +5,7 @@ import bpy
 import json
 import math
 import random
+import sys
 from pathlib import Path
 from mathutils import Vector
 from math import sin, cos, pi
@@ -71,35 +72,56 @@ def height(x,y):
     bank=min(1,max(0,(abs(x)-4)/6))
     return bank*(1.2+.8*sin(.34*x+.12*y)+.6*cos(.31*y))
 
-def trail(y): return 1.4*sin(y*.18)
+def trail(y): return 2.35*sin(y*.22)+1.1*sin(y*.34+.8)
 
-def leaf_sprays(crowns):
-    leaves=Surface(); rand=random.Random(474); uv=[(0,0),(1,0),(1,1),(0,1)]
-    for (x,y,z),tint in crowns:
-        for i in range(15):
-            a=TAU*i/15+rand.uniform(-.2,.2); dx,dy=cos(a),sin(a)
-            r=rand.uniform(1.6,2.6); h=z+rand.uniform(-.9,.85); w=rand.uniform(.64,1.25)
-            p=Vector((x+r*dx,y+r*dy,h)); right=Vector((-dy*w,dx*w,0))
-            top=Vector((dx*.65,dy*.65,rand.uniform(.75,1.5)))
-            start=len(leaves.vertices)
-            leaves.vertices.extend([p-right,p+right,p+right+top,p-right+top])
-            leaves.faces.append(tuple(start+k for k in range(4)))
-            leaves.colors.extend([linear(tint)]*4)
-    obj=leaves.object('Ramos_de_folhas')
-    mesh=obj.data; layer=mesh.uv_layers.new(name='Folhas')
-    for loop in mesh.loops:layer.data[loop.index].uv=uv[loop.vertex_index%4]
-    mat=obj.data.materials[0].copy();mat.name='Folhas_recortadas';obj.data.materials[0]=mat
-    tree=mat.node_tree; shader=tree.nodes.get('Principled BSDF'); tex=tree.nodes.new('ShaderNodeTexImage')
-    tex.image=bpy.data.images.load(str(Path.cwd()/'art/igarape/folhagem.png'))
-    mix=tree.nodes.new('ShaderNodeMixRGB');mix.blend_type='MULTIPLY';mix.inputs[0].default_value=1
-    tree.links.new(tree.nodes['Pigment'].outputs['Color'],mix.inputs[1]);tree.links.new(tex.outputs['Color'],mix.inputs[2])
-    tree.links.new(mix.outputs[0],shader.inputs['Base Color'])
-    clip=tree.nodes.new('ShaderNodeMath');clip.operation='GREATER_THAN';clip.inputs[1].default_value=.42
-    tree.links.new(tex.outputs['Alpha'],clip.inputs[0]);tree.links.new(clip.outputs[0],shader.inputs['Alpha'])
+def botanical_layers(crowns, ground):
+    """Curved, intersecting leaf sprays retain parallax from both sides of the path."""
+    rand=random.Random(4017)
+    cards=Surface()
+    uvs=[]
+    def frond(p,angle,width,height,lean,tile,tint):
+        right=Vector((cos(angle),sin(angle),0))
+        forward=Vector((-sin(angle),cos(angle),0))
+        base=len(cards.vertices)
+        for v in (0,.5,1):
+            for u in (0,.5,1):
+                cards.vertices.append(p+right*(u-.5)*width+Vector((0,0,v*height))+
+                                      forward*(lean*v*v+.16*width*sin(pi*u)*sin(pi*v)))
+                cards.colors.append(linear(tint))
+                uvs.append(((tile%2+.012+.976*u)/2,((1-tile//2)+.012+.976*v)/2))
+        for row in (0,1):
+            for col in (0,1):
+                a=base+row*3+col;cards.faces.append((a,a+1,a+4,a+3))
+    for j,((x,y,z),tint) in enumerate(crowns):
+        tile=1 if tint in ['c17a95','a66891','d898a3'] else 0
+        for k in range(8):
+            a=TAU*k/8+rand.uniform(-.35,.35);r=rand.uniform(.35,2.)
+            frond(Vector((x+r*cos(a),y+r*sin(a),z-rand.uniform(.8,1.6))),a,
+                  rand.uniform(2.6,4.2),rand.uniform(2.0,3.6),rand.uniform(.25,1),tile,
+                  rand.choice(['bac69d','d5d9b3','a4b799','c8ceaa']))
+    for i,(x,y,z) in enumerate(ground):
+        tile=3 if i%11==0 else 2
+        for k in range(3 if tile==3 else 5):
+            a=k*2.4+rand.uniform(-.6,.6)+i
+            size=rand.uniform(.72,1.45)
+            frond(Vector((x+.07*cos(a),y+.07*sin(a),z-.04)),a,
+                  size*(.76 if tile==2 else .65),size*(.85 if tile==2 else 1.2),
+                  size*(.74 if tile==2 else .22),tile,rand.choice(['d8dbb1','adb88e','c6cea6']))
+    obj=cards.object('Dossel_e_subbosque')
+    mesh=obj.data;uv=mesh.uv_layers.new(name='Botanica')
+    for loop in mesh.loops:uv.data[loop.index].uv=uvs[loop.vertex_index]
+    mat=bpy.data.materials.new('Botanica_recortada');mat.use_nodes=True
+    mesh.materials[0]=mat
+    tree=mat.node_tree; bsdf=tree.nodes.get('Principled BSDF')
+    tex=tree.nodes.new('ShaderNodeTexImage')
+    tex.image=bpy.data.images.load(str(Path.cwd()/'art/igarape/botanica.png'))
+    tree.links.new(tex.outputs['Color'],bsdf.inputs['Base Color'])
+    clip=tree.nodes.new('ShaderNodeMath');clip.operation='GREATER_THAN';clip.inputs[1].default_value=.34
+    tree.links.new(tex.outputs['Alpha'],clip.inputs[0]);tree.links.new(clip.outputs[0],bsdf.inputs['Alpha'])
     mat.use_backface_culling=False
 
 def environment():
-    reset(); s=Surface(); obstacles=[]; crowns=[]; vines=Surface(); ornaments=random.Random(29)
+    reset(); s=Surface(); obstacles=[]; crowns=[]; ground=[]; vines=Surface(); ornaments=random.Random(29)
     # Ground strips share vertices and continuous pigment variation, including the footpath.
     for j in range(78):
         y=j-27
@@ -124,7 +146,7 @@ def environment():
             tint=rng.choice(['35674f','508052','618955','46794e','778d50'])
             if i%9==2:tint=ornaments.choice(['c17a95','a66891','d898a3'])
             if i%13==4:tint=ornaments.choice(['b99955','c89e4e'])
-            foliage.bulb(tip,(2.8,2.5,1.35),tint,n=9);crowns.append((tip,tint))
+            crowns.append((tip,tint))
             if k%2==0:
                 tx,ty,tz=tip
                 vines.tube([(tx,ty,tz),(tx+.22,ty,tz-1.5),(tx+.13,ty-.12,tz-2.5),(tx-.2,ty,tz-3.3)],[.06,.055,.037,.009],'496044',5)
@@ -133,16 +155,14 @@ def environment():
         if i%4==0:
             r=rng.uniform(.3,1.35);obstacles.append([round(x,3),round(-y,3),round(r*.85,3)]);stones.bulb((x,y,z+.16*r),(r,r*.72,r*.58),'647668',n=8)
         else:
-            for j in range(6):
-                a=j*TAU/6+i; L=rng.uniform(.5,1.4);dx,dy=cos(a),sin(a);w=.14*L
-                pts=[(x,y,z),(x+dx*.52*L-dy*w,y+dy*.52*L+dx*w,z+.55*L),(x+dx*L,y+dy*L,z+.38*L),(x+dx*.52*L+dy*w,y+dy*.52*L-dx*w,z+.55*L),(x+dx*.52*L,y+dy*.52*L,z+.64*L)]
-                start=len(understory.vertices);understory.vertices.extend(pts);understory.colors.extend([linear(rng.choice(['568052','75a05c','398669','809652']))]*5)
-                for k in range(4):understory.faces.append((start+(k+1)%4,start+k,start+4))
-    leaf_sprays(crowns); vines.object('Cipos');bark.object('Troncos_e_sapopemas');foliage.object('Copas');stones.object('Seixos');understory.object('Bromelias')
-    hills=Surface()
-    for i in range(16):
-        hills.bulb((i*8-61,46+rng.uniform(0,8),-2),(9,9,rng.uniform(6,17)),rng.choice(['466a69','557677','647f74']),n=10)
-    hills.object('Serra_azul');export('environment')
+            ground.append((x,y,z))
+    # Understory skirts follow the meander, with room around the player spawn and gate.
+    for i in range(145):
+        y=ornaments.uniform(-17,35);x=trail(y)+ornaments.choice([-1,1])*ornaments.uniform(2.25,4.6)
+        if abs(y-24)>2.8:ground.append((x,y,height(x,y)))
+    botanical_layers(crowns,ground);vines.object('Cipos')
+    bark.object('Troncos_e_sapopemas');stones.object('Seixos')
+    export('environment')
     obstacles.extend([[-2.25,-24,.7],[2.25,-24,.7]])
     Path('src/lib/forest-obstacles.json').write_text(json.dumps(obstacles,separators=(',',':'))+'\n')
 
@@ -160,47 +180,171 @@ def portal():
 
 def spirit():
     reset();s=Surface()
-    s.bulb((0,0,0),(.24,.43,.23),'70dacc');s.bulb((0,-.29,.17),(.23,.24,.23),'a5f3ce')
-    s.tube([(0,-.43,.15),(0,-.74,.14)],[.09,.008],'d3a956')
-    for x in [-.15,.15]:s.bulb((x,-.445,.2),(.042,.036,.047),'192e35')
-    body=s.object('Beija_luz')
+    def feather(surface,root,tip,width,color):
+        root=Vector(root);tip=Vector(tip);axis=tip-root
+        lateral=Vector((-axis.y,axis.x,0)).normalized()
+        if lateral.length<.001:lateral=Vector((1,0,0))
+        rings=[]
+        for t in [0,.2,.47,.72,.91,1]:
+            mid=root+axis*t+Vector((0,0,.033*sin(pi*t)))
+            w=width*(.015+sin(pi*t)**.72)
+            rings.append([mid+lateral*w,mid+Vector((0,0,w*.28)),mid-lateral*w,mid-Vector((0,0,w*.12))])
+        surface.ring_mesh(rings,color)
+    s.bulb((0,.015,.01),(.14,.28,.125),'247f80',n=22)
+    s.bulb((0,-.16,.093),(.126,.13,.128),'348f86',n=22)
+    s.bulb((0,-.2,.044),(.10,.11,.083),'61bda5',n=18)
+    s.tube([(0,-.268,.095),(0,-.39,.115),(0,-.57,.12)],[.028,.016,.001],'483b37',12)
+    for side in [-1,1]:
+        s.bulb((side*.100,-.219,.121),(.028,.034,.029),'162d36',n=16)
+        s.bulb((side*.123,-.232,.135),(.008,.01,.008),'fff4c9')
+        for k in range(5):
+            feather(s,(side*.026,-.04,.12),(side*(.06+.02*k),.24-.035*k,.06),.034,'437d83')
+        feather(s,(side*.029,.20,.02),(side*.105,.53,-.105),.046,'226477')
+        feather(s,(side*.018,.20,.02),(side*.049,.59,-.12),.034,'579e94')
+    s.object('Beija_luz')
     for side in [-1,1]:
         w=Surface()
-        for k in range(5):
-            w.tube([(0,0,0),(side*(.26+k*.04),.09*k,.15),(side*(.67-k*.045),.13*k,.28)],[.075,.105,.006],['348b92','43ada6','6dccc2','92e3c8','e9c773'][k])
-        obj=w.object('Asa');obj.location=(side*.15,0,.09);obj.rotation_mode='XYZ'
-        for frame,angle in [(1,-.49),(5,.75),(9,-.49)]:
+        for k in range(9):
+            feather(w,(0,.006*k,0),(side*(.49-.029*k),.10+.031*k,.118-.013*k),
+                    .037,['357987','3d8793','469caa','70b7b0'][k%4])
+        obj=w.object('Asa');obj.location=(side*.087,-.026,.089);obj.rotation_mode='XYZ'
+        for frame,angle in [(1,-.7),(4,.9),(7,-.7)]:
             obj.rotation_euler.y=side*angle;obj.keyframe_insert(data_path='rotation_euler',frame=frame)
         action=obj.animation_data.action;track=obj.animation_data.nla_tracks.new();track.name='idle';track.strips.new('idle',1,action);obj.animation_data.action=None
     bpy.ops.export_scene.gltf(filepath=str(out/'spirit.glb'),export_animation_mode='NLA_TRACKS')
 
 def explorer():
     reset(); s=Surface(); bones={'Torso':((0,0,.94),(0,0,1.54),None),'Head':((0,0,1.54),(0,0,1.98),'Torso')}
-    s.bulb((0,0,1.17),(.27,.18,.34),'316d70','Torso')
-    s.bulb((0,0,1.69),(.255,.22,.285),'a46a4f','Head')
-    s.bulb((0,.055,1.78),(.276,.228,.23),'352e34','Head')
+    def garment(levels, color, bone='Torso', folds=.015, count=48):
+        rings=[]
+        for z,w,d,offset in levels:
+            ring=[]
+            for i in range(count):
+                a=TAU*i/count
+                pleat=1+folds*(sin(7*a+.6*z)+.45*cos(13*a))
+                ring.append((w*pleat*cos(a),offset+d*pleat*sin(a),z))
+            rings.append(ring)
+        s.ring_mesh(rings,color,bone)
+    # Fine rings let the forehead, cheekbones, bridge and lips turn in profile.
+    profile=[(1.475,.038,.063),(1.51,.102,.111),(1.56,.14,.142),
+             (1.62,.173,.16),(1.69,.187,.167),(1.77,.184,.168),
+             (1.84,.165,.15),(1.9,.11,.11),(1.929,.004,.006)]
+    rings=[]
+    for j in range(65):
+        z=1.475+.454*j/64
+        k=next((i for i in range(1,len(profile)) if profile[i][0]>=z),len(profile)-1)
+        lo,hi=profile[k-1],profile[k];t=(z-lo[0])/(hi[0]-lo[0])
+        w=lo[1]*(1-t)+hi[1]*t;depth=lo[2]*(1-t)+hi[2]*t
+        ring=[]
+        for i in range(80):
+            a=TAU*i/80;x=w*cos(a);front=max(0,-sin(a))
+            nose=.038*math.exp(-(x/.031)**2-((z-1.65)/.052)**2)
+            lips=.012*math.exp(-(x/.051)**2-((z-1.585)/.014)**2)
+            ring.append((x,depth*sin(a)-(nose+lips)*front,z))
+        rings.append(ring)
+    s.ring_mesh(rings,'ffffff','Head');face_end=len(s.faces)
+    s.tube([(0,0,1.34),(0,0,1.55)],[.077,.065],'af765f',16,'Torso')
     for side in [-1,1]:
-        s.bulb((side*.097,-.196,1.7),(.034,.021,.042),'302e32','Head')
-        s.bulb((side*.098,-.213,1.71),(.01,.009,.011),'f6dab2','Head')
-    # Expedition hood, brim, contrasting band and a curved plume.
-    s.bulb((0,.025,1.94),(.31,.27,.18),'377c7a','Head')
-    s.bulb((0,-.015,1.90),(.42,.36,.049),'d7aa63','Head')
-    s.tube([(.19,.06,1.98),(.30,.08,2.16),(.34,.12,2.29)],[.065,.067,.004],'ea9161',8,'Head')
-    for j,(z,r,col) in enumerate([(1.35,.31,'bd663d'),(1.31,.335,'e6ad62'),(1.28,.347,'934933')]):
-        s.bulb((0,0,z),(r,.21,.085),col,'Torso')
-    s.bulb((0,.195,1.15),(.215,.124,.24),'7d5039','Torso')
-    s.bulb((0,.28,1.25),(.214,.075,.123),'c48a50','Torso')
-    s.bulb((0,.349,1.2),(.038,.012,.043),'e7c679','Torso')
+        s.bulb((side*.181,.003,1.657),(.028,.032,.052),'b78470','Head',16)
+        s.bulb((side*.19,.004,1.608),(.014,.012,.021),'dfad5e','Head')
+    # Hair shell wraps the back and sweeps down to the nape. The painted
+    # hairline at the forehead and the strands at the temples meet this shell.
+    hair=[]
+    for j in range(18):
+        row=[]
+        for i in range(64):
+            a=TAU*i/64;bottom=.12+.83*max(0,-sin(a))+.10*cos(a)
+            lat=bottom+(pi/2-bottom)*j/18
+            row.append((.204*cos(lat)*cos(a),.019+.177*cos(lat)*sin(a),1.681+.269*sin(lat)))
+        hair.append(row)
+    s.ring_mesh(hair,'413332','Head')
+    for i in range(22):
+        a=.10+i*pi/23;points=[]
+        for j in range(9):
+            t=j/8;lat=1.38-(1.48+.32*sin(a))*t
+            phi=a+.25*sin(pi*t)
+            points.append((.201*cos(lat)*cos(phi),.023+.184*cos(lat)*sin(phi),1.68+.269*sin(lat)))
+        s.tube(points,[.014,.019,.026,.029,.03,.029,.025,.021,.008],
+               ['493837','5b423b','3c3032'][i%3],9,'Head')
+    for i in range(7):
+        x=.128+.021*sin(i*2.5);y=.143+.014*i;z=1.72-.056*i
+        s.bulb((x,y,z),(.066-.004*i,.064-.004*i,.07),'493439' if i%2 else '593e40','Head',15)
+    s.bulb((.119,.223,1.372),(.039,.038,.019),'e4b35f','Head',14)
+    garment([(.725,.287,.193,0),(.76,.281,.19,0),(.87,.252,.174,0),
+             (.94,.204,.151,0),(1.07,.155,.116,0),(1.22,.20,.134,0),
+             (1.33,.203,.119,0),(1.375,.093,.075,0)],'917051',folds=.024)
+    garment([(.724,.293,.198,0),(.741,.291,.197,0)],'bf945b',folds=.024)
+    garment([(.904,.236,.172,0),(.947,.218,.163,0)],'643e2e',folds=.008)
+    # Linen mantle follows the shoulders, alternating woven bands at the hem.
+    cloak_start=len(s.faces)
+    cape=[]
+    for j in range(15):
+        v=j/14;row=[]
+        for i in range(64):
+            a=TAU*i/64
+            back=(1+sin(a))/2
+            hem=1.12-.43*back-.05*cos(a)+.025*sin(6*a)
+            z=hem+(1.43-hem)*v
+            pleat=.018*sin(9*a+.65*v)*(1-v)
+            width=.105+.246*(1-v**4)+pleat
+            depth=.091+(.132+.078*back)*(1-v**3)+pleat
+            row.append((width*cos(a),.018+depth*sin(a),z))
+        cape.append(row)
+    s.ring_mesh(cape,'ffffff','Torso')
+    cloak_end=len(s.faces)
+    garment([(1.374,.157,.13,.008),(1.397,.139,.121,.008),
+             (1.433,.114,.103,.008),(1.449,.095,.087,.008)],'456960',folds=.02)
+    s.tube([(-.158,-.11,1.36),(0,-.158,1.19),(.17,-.099,.97),(.17,.109,.96),
+            (0,.211,1.17),(-.16,.141,1.36)],[.023]*6,'79472e',10,'Torso')
+    s.bulb((.17,.08,.935),(.111,.071,.113),'965d3c','Torso',18)
+    s.bulb((.177,.138,.959),(.102,.028,.055),'bc8651','Torso',18)
+    # Rolled maps and a brass compass worn on the hip.
+    for i in range(2):
+        s.tube([(.14+i*.038,.13,.94),(.20+i*.035,.15,1.085)],[.02,.02],'ddbc88',10,'Torso')
+    s.bulb((.173,.16,.934),(.033,.012,.034),'e8bd71','Torso',18)
     for side,suffix in [(-1,'L'),(1,'R')]:
-        arm='Arm'+suffix;leg='Leg'+suffix;shin='Shin'+suffix;x=.142*side
+        arm='Arm'+suffix;leg='Leg'+suffix;shin='Shin'+suffix;x=.126*side
         bones[arm]=((side*.255,0,1.36),(side*.30,0,.94),'Torso')
         bones[leg]=((x,0,.96),(x,0,.56),'Torso');bones[shin]=((x,0,.56),(x,0,.14),leg)
-        s.tube([(x,0,.96),(x,0,.75),(x,0,.53)],[.133,.122,.095],'36485a',10,leg)
+        s.tube([(x,0,.96),(x,0,.75),(x,0,.53)],[.116,.106,.086],'35444c',10,leg)
         s.tube([(x,0,.56),(x,.015,.34),(x,0,.13)],[.093,.114,.09],'704634',10,shin)
         s.bulb((x,-.054,.105),(.125,.187,.104),'583d35',shin)
-        s.tube([(side*.25,0,1.37),(side*.32,0,1.16),(side*.31,-.01,1.00)],[.11,.089,.068],'357574',10,arm)
-        s.bulb((side*.31,-.01,.96),(.077,.076,.101),'ac7152',arm)
+        s.bulb((side*.24,.002,1.313),(.086,.095,.082),'47716b',arm,18)
+        s.tube([(side*.24,0,1.327),(side*.293,.003,1.22),(side*.304,.006,1.126),
+                (side*.30,-.03,1.025)],[.085,.079,.066,.048],'51746c',16,arm)
+        s.tube([(side*.304,.005,1.13),(side*.301,-.031,1.012)],[.069,.052],'6e4c3d',16,arm)
+        for h in range(3):
+            z=1.032+.031*h
+            s.tube([(side*.303,-.02+.007*h,z),(side*.303,-.02+.007*h,z+.007)],
+                   [.056+.005*h,.057+.005*h],'bc9a69',14,arm)
+        s.bulb((side*.31,-.025,.964),(.050,.045,.067),'af7359',arm,16)
+        for j in range(4):
+            s.bulb((side*(.273+j*.021),-.038,.906),(.012,.021,.031),'b87b60',arm)
+        s.tube([(x,.011,.38),(x,0,.41)],[.113,.114],'c5945c',12,shin)
     model=s.object('Cartografa_Iara')
+    uv=model.data.uv_layers.new(name='Cartografia')
+    for material_name,filename in [('Face','rosto.jpg'),('Manto','tecido.jpg')]:
+        mat=bpy.data.materials.new(material_name);mat.use_nodes=True
+        tex=mat.node_tree.nodes.new('ShaderNodeTexImage')
+        tex.image=bpy.data.images.load(str(Path.cwd()/'art/igarape'/filename))
+        mat.node_tree.links.new(tex.outputs['Color'],mat.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
+        mat.node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.85
+        model.data.materials.append(mat)
+    for poly in model.data.polygons:
+        is_face=poly.index<face_end
+        is_cape=cloak_start<=poly.index<cloak_end
+        if not is_face and not is_cape:continue
+        poly.material_index=1 if is_face else 2
+        for li in poly.loop_indices:
+            vi=model.data.loops[li].vertex_index
+            x,y,z=model.data.vertices[vi].co
+            if is_face:
+                uv.data[li].uv=(.5+x/.43,(z-1.473)/.461)
+            else:
+                # Planar repeats on both panels avoid a visible seam across the back.
+                a=math.atan2((y-.018)/.19,x/.31);back=(1+sin(a))/2
+                hem=1.12-.43*back-.05*cos(a)+.025*sin(6*a)
+                uv.data[li].uv=(.5+x/.74,max(0,min(1,(z-hem)/(1.43-hem))))
     armature=bpy.data.armatures.new('Esqueleto'); rig=bpy.data.objects.new('Iara',armature);bpy.context.collection.objects.link(rig)
     bpy.context.view_layer.objects.active=rig;rig.select_set(True);bpy.ops.object.mode_set(mode='EDIT')
     for name,(head,tail,parent) in bones.items():
@@ -226,4 +370,7 @@ def explorer():
         track=rig.animation_data.nla_tracks.new();track.name=clip;track.strips.new(clip,1,action);track.mute=True
     rig.animation_data.action=None;export('explorer')
 
-environment();portal();spirit();explorer()
+builders={'environment':environment,'portal':portal,'spirit':spirit,'explorer':explorer}
+selected=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else builders
+for asset in selected:
+    builders[asset]()

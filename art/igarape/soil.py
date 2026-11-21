@@ -11,7 +11,7 @@ def field(size):
 x=np.linspace(-37,37,N,dtype='float32')[None,:]
 z=np.linspace(-51,27,N,dtype='float32')[:,None]
 fine=field(450); broad=field(37); spots=field(160)
-edge=abs(x+1.4*np.sin(z*.18))+.65*(spots-.5)+.65*(broad-.5)
+edge=abs(x+2.35*np.sin(z*.22)-1.1*np.sin(-z*.34+.8))+.65*(spots-.5)+.65*(broad-.5)
 blend=np.clip((2.6-edge)/.9,0,1)[...,None]
 earth=np.array([153,116,78],dtype='float32')
 grass=np.array([74,98,64],dtype='float32')

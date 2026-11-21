@@ -155,10 +155,10 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     if (pausedRef.current) return;
     destination.current = { x: Math.max(-20, Math.min(20, target.x)), z: Math.max(-28, Math.min(18, target.z)) };
   };
-  return <main className="flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
-    <header className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-white/15 bg-slate-950/90 px-4 py-3 sm:px-6">
-      <div><p className="text-[10px] font-black tracking-[.2em] text-cyan-300">TERRAVOX · EXPERIÊNCIA 3D</p><h1 className="text-base font-black sm:text-xl">Floresta do Brasil · Trilha do Portal</h1></div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
+  return <main className="relative flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 bg-gradient-to-b from-black/65 to-transparent px-5 pb-9 pt-4 sm:px-8">
+      <div><p className="text-[10px] font-black tracking-[.2em] text-cyan-300">TERRAVOX</p><h1 className="font-serif text-xl tracking-wide drop-shadow-md sm:text-2xl">Floresta do Brasil · Trilha do Portal</h1></div>
+      <div className="pointer-events-auto flex shrink-0 flex-wrap items-center gap-2">
         <button type="button" onClick={togglePause} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">{paused ? "Continuar" : "Pausar"}</button>
         <button type="button" onClick={resetExplorer} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">Reiniciar</button>
         <button type="button" onClick={onBack} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">Voltar ao mapa</button>
@@ -169,7 +169,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       {paused && <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Jogo pausado">
         <div className="w-full max-w-sm rounded-2xl border border-white/20 bg-slate-900 p-6 text-center shadow-2xl">
           <h2 className="text-2xl font-black">Exploração pausada</h2>
-          <p className="mt-2 text-sm text-slate-300">Continue explorando a floresta quando estiver pronto.</p>
+          <p className="mt-2 text-sm text-slate-300">WASD ou setas para caminhar, Shift para correr e E para ativar o portal. Clique no chão para escolher um destino.</p>
           <fieldset className="mt-4 grid gap-2 text-left text-sm">
             <legend className="mb-2 font-bold">Desempenho</legend>
             <label><input type="checkbox" checked={low} onChange={e => setLow(e.target.checked)}/> Reduzir resolução 3D para 75%</label>
@@ -179,10 +179,10 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
           <button type="button" onClick={resetExplorer} className="mt-2 w-full rounded-xl border border-white/25 px-5 py-3 font-semibold hover:bg-white/10">Reiniciar exploração</button>
         </div>
       </div>}
-      <div className="pointer-events-none absolute left-3 top-3 w-[min(18rem,calc(100%-1.5rem))] rounded-xl border border-white/15 bg-slate-950/75 px-3 py-3 text-xs leading-relaxed text-white shadow-lg backdrop-blur-md">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-[.15em] text-cyan-200">Exploração da floresta</p>
-        <p className="text-[11px] text-white/85">WASD / Setas para caminhar · Shift para correr · Clique no chão para ir até um ponto</p>
-        <div className="mt-3 flex items-center justify-between gap-2 text-[11px] font-semibold">
+      <div className="pointer-events-none absolute bottom-20 left-5 hidden w-52 rounded-lg bg-black/45 px-3 py-2 text-xs text-white sm:block">
+
+
+        <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
           <span>{portalReached ? 'Portal descoberto' : 'Rumo ao portal'}</span>
           <span className="tabular-nums text-cyan-200">{portalReached ? 'Concluído' : Math.round(portalDistance) + ' m'}</span>
         </div>
@@ -200,7 +200,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
         <button type="button" aria-label="Direita" onPointerDown={() => keys.current.add('d')} onPointerUp={() => keys.current.delete('d')} onPointerCancel={() => keys.current.delete('d')} onPointerLeave={() => keys.current.delete('d')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">→</button>
       </div>
     </section>
-    <footer className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-white/15 bg-slate-950/90 p-3">
+    <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent px-5 pb-2 pt-7">
       <p role="status" className="min-w-0 flex-1 text-xs text-cyan-100 sm:text-sm">{message}</p>
       {showMetrics && <output className="text-xs tabular-nums text-amber-200">{metrics}</output>}
       <span className="shrink-0 rounded-full border border-cyan-300/50 px-3 py-1 text-xs text-cyan-200">{portalReached ? 'Portal encontrado' : sprinting ? 'Correndo' : moving ? 'Caminhando' : 'Exploração livre'}</span>

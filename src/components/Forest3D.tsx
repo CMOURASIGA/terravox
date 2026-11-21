@@ -410,13 +410,13 @@ function FollowCamera({ position }: { position: ForestPosition; moving: boolean 
     // Fixed forward-facing chase camera: the portal is at negative Z.
     // Do not spin the camera when the player strafes or reverses.
     // That previously placed foreground trees between the player and the lens.
-    let distance = 6.4;
+    let distance = 3.5;
     for (let step = .5; step < distance; step += .5) {
       if (!canStand(position.x, position.z + step)) distance = Math.max(1.1, step - .5);
     }
     const altitude = forestHeight(position.x, position.z);
-    const cameraGoal = new Vector3(position.x, altitude + 2.8, position.z + distance);
-    const targetGoal = new Vector3(position.x, altitude + 1.45, position.z - 4.2);
+    const cameraGoal = new Vector3(position.x + .61, altitude + 1.82, position.z + distance);
+    const targetGoal = new Vector3(position.x + .61, altitude + 1.25, position.z - 2.0);
     if (!initialized.current) {
       camera.position.copy(cameraGoal);
       lookAt.current.copy(targetGoal);
@@ -802,9 +802,9 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: 
 function CinematicForest(props: Props) {
   return <>
     <color attach="background" args={['#b5d4cf']}/>
-    <fog attach="fog" args={['#a8c9b9', 16, 70]}/>
-    <hemisphereLight args={['#ffedcc', '#729b89', 1.7]}/>
-    <directionalLight position={[-12, 18, -9]} color="#ffdaa1" intensity={2.4}/>
+    <fog attach="fog" args={['#95ad95', 11, 74]}/>
+    <hemisphereLight args={['#e5eddb', '#8c785c', 1.55]}/>
+    <directionalLight position={[9, 13, 8]} color="#ffe4b8" intensity={2.15}/>
     <ForestCinematicAssets {...props} active={Boolean(props.active)}/>
     <ExplorerContactShadow position={props.position}/>
     <FollowCamera position={props.position} moving={props.moving}/>

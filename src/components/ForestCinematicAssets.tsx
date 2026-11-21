@@ -1,7 +1,7 @@
 import { useAnimations, useGLTF, useTexture } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { LoopOnce, Box3, Group, Mesh, MathUtils, Vector3 } from 'three';
+import { SRGBColorSpace, LoopOnce, Box3, Group, Mesh, MathUtils, Vector3 } from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { PortalLight } from './PortalLight';
 import { paintForest } from '../lib/forestMaterials';
@@ -187,7 +187,7 @@ export function AnimatedExplorer({ position, moving, sprinting, interacting }: A
     root.current.position.lerp(next, Math.min(1, delta * 12));
     last.current.copy(next);
   });
-  return <group ref={root} rotation={[0, Math.PI, 0]}><primitive object={model}/></group>;
+  return <group ref={root} position={[position.x, forestHeight(position.x, position.z), position.z]} rotation={[0, .48, 0]}><primitive object={model}/></group>;
 }
 
 function Companion({ position, active }: { position: ForestPosition; active: boolean }) {
@@ -205,7 +205,7 @@ function Companion({ position, active }: { position: ForestPosition; active: boo
     if (!root.current) return;
     const t = clock.elapsedTime;
     root.current.position.lerp(new Vector3(position.x + 1.15 + Math.sin(t) * .25, forestHeight(position.x, position.z) + 1.55 + Math.sin(t * 2) * 0.2, active ? -24 : position.z - .65), Math.min(1, delta * 3));
-    root.current.rotation.y = MathUtils.damp(root.current.rotation.y, (active ? 0 : Math.PI) + Math.sin(t * 0.8) * 0.35, 3, delta);
+    root.current.rotation.y = MathUtils.damp(root.current.rotation.y, (active ? 0 : -1.1) + Math.sin(t * 0.8) * 0.35, 3, delta);
   });
   return <group ref={root}><primitive object={model}/></group>;
 }
@@ -216,10 +216,16 @@ type RegionProps = ActorProps & { active: boolean; onNavigate: (p: ForestPositio
 export function ForestCinematicAssets({ active, onNavigate, ...actor }: RegionProps) {
   const environment = useGLTF(FOREST_V2_ASSETS.environment);
   const soil = useTexture('/assets/forest-v2/solo.webp');
-  const terrain = useMemo(() => paintForest(environment.scene.clone(true), soil), [environment.scene, soil]);
+  const atlas = useTexture('/assets/forest-v2/materiais.webp');
+  const distance = useTexture('/assets/forest-v2/mata-distante.webp');
+  distance.colorSpace = SRGBColorSpace;
+  const terrain = useMemo(() => paintForest(environment.scene.clone(true), soil, atlas), [environment.scene, soil, atlas]);
   useEffect(() => () => terrain.traverse(node => { if (node instanceof Mesh) node.material.dispose(); }), [terrain]);
   const portal = useGLTF(FOREST_V2_ASSETS.portal);
   return <>
+    <mesh position={[0, 12, -61]}>
+      <planeGeometry args={[164, 53]}/><meshBasicMaterial map={distance} fog={false} toneMapped={false}/>
+    </mesh>
     <primitive object={terrain} onPointerDown={(event: import('@react-three/fiber').ThreeEvent<PointerEvent>) => {
       if (event.object.name === 'Terra_e_trilha') {
         event.stopPropagation();
