@@ -15,9 +15,11 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   const positionRef = useRef(INITIAL);
   const destination = useRef<ForestPosition | null>(null);
   const portalRef = useRef(false);
+  const visibilityRef = useRef(false);
   const pausedRef = useRef(false);
   const togglePause = () => {
     pausedRef.current = !pausedRef.current;
+    visibilityRef.current = false;
     setPaused(pausedRef.current);
     keys.current.clear();
     destination.current = null;
@@ -51,10 +53,21 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       }
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
-    const blur = () => { keys.current.clear(); destination.current = null; setMoving(false); setSprinting(false); };
+    const blur = () => { keys.current.clear(); setMoving(false); setSprinting(false); };
+    const visibility = () => {
+      if (document.hidden && !pausedRef.current) {
+        pausedRef.current = true;
+        visibilityRef.current = true;
+        setPaused(true);
+        keys.current.clear();
+        setMoving(false);
+        setSprinting(false);
+      }
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     window.addEventListener('blur', blur);
+    document.addEventListener('visibilitychange', visibility);
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
@@ -89,12 +102,13 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); keys.current.clear(); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
+    return () => { cancelAnimationFrame(raf); keys.current.clear(); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); document.removeEventListener('visibilitychange', visibility); };
   }, [move]);
   const resetExplorer = () => {
     keys.current.clear();
     destination.current = null;
     pausedRef.current = false;
+    visibilityRef.current = false;
     setPaused(false);
     positionRef.current = INITIAL;
     setPosition(INITIAL);
