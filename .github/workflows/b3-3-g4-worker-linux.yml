@@ -1,0 +1,71 @@
+name: B3.4 G4 isolated Linux Worker and artifacts
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  worker-artifacts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SUPABASE_TELEMETRY_DISABLED: '1'
+      B3_E2E_SCOPE: worker-artifacts
+      BLENDER_PATH: /usr/bin/blender
+      B3_E2E_BLEND_PATH: assets/blender/cube.blend
+    defaults:
+      run:
+        working-directory: blender-mcp
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 144167b20b18d2e14ae9c3a0f2f3f25982e0441a
+          persist-credentials: false
+      - name: Confirm immutable source
+        run: test "$(git rev-parse HEAD)" = "144167b20b18d2e14ae9c3a0f2f3f25982e0441a"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.12.0'
+          cache: npm
+          cache-dependency-path: blender-mcp/package-lock.json
+      - name: Install Blender and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes blender python3-numpy
+          npm ci
+          npm run build
+          blender --version
+          npm run asset:cube
+          test -s assets/blender/cube.blend
+      - name: Reconstruct disposable Supabase
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 start
+          npx --yes supabase@2.121.0 db reset --local
+      - name: Validate local-only target and run G4
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 status -o env > /tmp/terravox-g4-supabase.env
+          set -a
+          source /tmp/terravox-g4-supabase.env
+          set +a
+          export SUPABASE_URL="${API_URL:-}"
+          export SUPABASE_ANON_KEY="${ANON_KEY:-}"
+          export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
+          test "$SUPABASE_URL" = "http://127.0.0.1:54321" || { echo "Refusing nonlocal Supabase URL"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node dist/scripts/e2e-b3-3-b3-4-local.js | tee /tmp/terravox-g4-result.log
+          grep -q '"scope":"worker-artifacts"' /tmp/terravox-g4-result.log
+          grep -q '"queueWorker":"PASS"' /tmp/terravox-g4-result.log
+          grep -q '"blender":"PASS"' /tmp/terravox-g4-result.log
+      - name: Stop disposable Supabase
+        if: always()
+        run: npx --yes supabase@2.121.0 stop --no-backup
+      - name: Publish G4 sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terravox-g4-auth-storage
+          retention-days: 7
+          if-no-files-found: warn
+          path: /tmp/terravox-g4-result.log
