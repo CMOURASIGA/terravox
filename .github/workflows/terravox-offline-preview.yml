@@ -34,9 +34,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Typecheck
-        run: npm run lint
+        run: |
+          mkdir -p ci-diagnostics
+          set -o pipefail
+          npm run lint 2>&1 | tee ci-diagnostics/typecheck.log
       - name: Compile playable game
-        run: npm run build
+        run: |
+          mkdir -p ci-diagnostics
+          set -o pipefail
+          npm run build 2>&1 | tee ci-diagnostics/build.log
       - name: Smoke-test local server, GLBs and game APIs
         run: node scripts/smoke-local-build.mjs
       - name: Check cinematic asset completeness (does not block playable preview)
@@ -132,6 +138,31 @@ jobs:
           name: terravox-develop-playable-preview
           path: offline-preview/
           retention-days: 14
+      - name: Upload build diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terravox-build-diagnostics
+          path: ci-diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Summarize failing build stage
+        if: failure()
+        run: |
+          echo '### Build failed - diagnostics' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Open the first red step to see its error. Download terravox-build-diagnostics for TypeScript/build logs.' >> "$GITHUB_STEP_SUMMARY"
+          if test -s ci-diagnostics/typecheck.log; then
+            echo '#### Last TypeScript lines' >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 30 ci-diagnostics/typecheck.log >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test -s ci-diagnostics/build.log; then
+            echo '#### Last build lines' >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 30 ci-diagnostics/build.log >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Report verification scope
         run: |
           echo 'Cinematic asset check outcome: ${{ steps.cinematic.outcome }}' >> "$GITHUB_STEP_SUMMARY"
