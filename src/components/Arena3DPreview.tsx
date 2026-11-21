@@ -105,7 +105,6 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     keys.current.clear();
     destination.current = null;
     pausedRef.current = false;
-    visibilityRef.current = false;
     setPaused(false);
     positionRef.current = INITIAL;
     setPosition(INITIAL);
