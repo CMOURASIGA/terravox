@@ -1,0 +1,39 @@
+name: TerraVox forest-v2 licensed asset staging
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage-cc0-forest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download CC0 forest source models with dependency manifest
+        run: python scripts/stage-forest-v2-assets.py --output artifacts/forest-v2-source
+      - name: Verify manifest and downloaded model files
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          root = pathlib.Path('artifacts/forest-v2-source')
+          data = json.loads((root/'manifest.json').read_text())
+          assert len(data['assets']) == 4
+          for asset in data['assets']:
+              path = root / asset['model']
+              assert path.is_file() and path.stat().st_size > 1000, path
+              print(asset['id'], path.stat().st_size, 'bytes')
+          print('SOURCE_ASSET_GATE_PASS')
+          PY
+      - name: Publish source models as isolated workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terravox-forest-v2-cc0-source
+          path: artifacts/forest-v2-source/
+          retention-days: 7
