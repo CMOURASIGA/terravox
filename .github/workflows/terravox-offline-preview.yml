@@ -7,6 +7,7 @@ on:
       - 'public/**'
       - 'app/**'
       - 'scripts/smoke-local-build.mjs'
+      - 'scripts/smoke-offline-package.mjs'
       - 'package.json'
       - 'package-lock.json'
       - 'server.ts'
@@ -123,6 +124,8 @@ jobs:
             test -s "offline-preview/dist/assets/forest-v2/stylized/${asset}.glb"
           done
           echo "Windows bundle files and commit identity verified."
+      - name: Boot packaged game and smoke-test offline assets on Windows
+        run: node scripts/smoke-offline-package.mjs offline-preview
       - name: Publish playable development preview ZIP
         uses: actions/upload-artifact@v4
         with:
@@ -133,6 +136,6 @@ jobs:
         run: |
           echo 'Cinematic asset check outcome: ${{ steps.cinematic.outcome }}' >> "$GITHUB_STEP_SUMMARY"
           echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Typecheck, production build and HTTP smoke executed. Cinematic GLB completeness is checked separately and does not block the playable preview. No quiz API is required.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Typecheck, production build, source HTTP smoke and packaged Windows offline boot smoke executed. Cinematic GLB completeness is checked separately and does not block the playable preview. No quiz API is required.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Download and extract the terravox-develop-playable-preview artifact. Double-click INICIAR_TERRAVOX.cmd (Node.js 22 required), then open http://localhost:3000. Runtime dependencies are included.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Missing cinematic assets do not block testing the existing playable scene. Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
