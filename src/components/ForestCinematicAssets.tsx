@@ -12,6 +12,43 @@ export const FOREST_V2_ASSETS = {
   spirit: '/assets/forest-v2/spirit.glb',
 } as const;
 
+/** Reviewed CC0 nature assets from Poly Haven. Reuse loaded geometry through cloned scene graphs. */
+const NATURE = {
+  fern: '/assets/forest-v2/nature/fern_02.glb',
+  boulder: '/assets/forest-v2/nature/boulder_01.glb',
+  moss: '/assets/forest-v2/nature/moss_01.glb',
+  roots: '/assets/forest-v2/nature/pine_roots.glb',
+} as const;
+
+function ForestNature() {
+  const fern = useGLTF(NATURE.fern);
+  const boulder = useGLTF(NATURE.boulder);
+  const moss = useGLTF(NATURE.moss);
+  const roots = useGLTF(NATURE.roots);
+  const items = useMemo(() => {
+    const source = [fern.scene, boulder.scene, moss.scene, roots.scene];
+    return Array.from({ length: 68 }, (_, i) => {
+      const type = i % 4;
+      const z = -29 + (i * 7.31) % 41;
+      const side = i % 2 ? 1 : -1;
+      const x = side * (4.5 + (i * 1.93) % 16);
+      const scale = type === 0 ? 1.1 : type === 1 ? 0.75 : type === 2 ? 0.95 : 1.2;
+      const object = source[type].clone(true);
+      object.traverse(child => {
+        if ('isMesh' in child && child.isMesh) {
+          const mesh = child as import('three').Mesh;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+        }
+      });
+      return { id: i, object, position: [x, 0, z] as [number, number, number], rotation: (i * 2.399963) % (Math.PI * 2), scale };
+    });
+  }, [fern.scene, boulder.scene, moss.scene, roots.scene]);
+  return <group>{items.map(item =>
+    <primitive key={item.id} object={item.object} position={item.position} rotation={[0, item.rotation, 0]} scale={item.scale}/>
+  )}</group>;
+}
+
 function AnimatedExplorer({ position, moving }: { position: ForestPosition; moving: boolean }) {
   const root = useRef<Group>(null);
   const last = useRef(new Vector3(position.x, 0, position.z));
@@ -70,6 +107,7 @@ function World({ portalReached }: { portalReached: boolean }) {
 export function ForestCinematicAssets({ position, moving, portalReached }: { position: ForestPosition; moving: boolean; portalReached: boolean }) {
   return <>
     <World portalReached={portalReached}/>
+    <ForestNature/>
     <AnimatedExplorer position={position} moving={moving}/>
     <Companion position={position}/>
   </>;
