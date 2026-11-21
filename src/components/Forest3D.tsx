@@ -195,23 +195,82 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
 }
 
 function Portal({ active }: { active: boolean }) {
-  const ring = useRef<Group>(null);
-  useFrame((state) => { if (ring.current) ring.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.7) * 0.012; });
-  return <group position={[0, 0, -24]}>
-    {[0,1,2].map(i=><mesh key={i} receiveShadow position={[0, 0.2+i*0.19, 0.6+i*0.25]}><cylinderGeometry args={[4.6-i*0.45, 4.9-i*0.45, 0.32, 10]}/><meshStandardMaterial color={i%2 ? '#555e55' : '#788075'} roughness={1}/></mesh>)}
-    <group ref={ring} position={[0, 4.7, -0.3]}>
-      <mesh castShadow><torusGeometry args={[3.15, 0.68, 9, 12]}/><meshStandardMaterial color="#586c61" roughness={0.95}/></mesh>
-      <mesh><torusGeometry args={[2.95, 0.12, 8, 32]}/><meshStandardMaterial color="#62f3dd" emissive="#1ab6b0" emissiveIntensity={1.6}/></mesh>
-      <mesh><circleGeometry args={[2.55, 40]}/><meshBasicMaterial color={active ? '#f7d97e' : '#11bcb8'} transparent opacity={0.68} depthWrite={false}/></mesh>
-      <pointLight color="#1df5e2" intensity={22} distance={19}/>
+  const energy = useRef<Group>(null);
+  const motes = useRef<Group>(null);
+  useFrame(({ clock }, delta) => {
+    const t = clock.elapsedTime;
+    if (energy.current) {
+      energy.current.rotation.z = t * 0.07;
+      const pulse = 1 + Math.sin(t * 1.8) * 0.035;
+      energy.current.scale.set(pulse, pulse, 1);
+    }
+    if (motes.current) motes.current.rotation.z += delta * 0.025;
+  });
+  return <group position={[0,0,-24]}>
+    {[0,1,2,3].map(i=><mesh key={'step'+i} receiveShadow position={[0,0.12+i*0.18,0.8+i*0.33]}>
+      <cylinderGeometry args={[4.4-i*0.28,4.55-i*0.28,0.25,16]}/>
+      <meshStandardMaterial color={i%2?'#536457':'#7d8973'} roughness={1}/>
+    </mesh>)}
+    <group position={[0,4.55,-0.3]}>
+      <mesh castShadow receiveShadow>
+        <torusGeometry args={[3.15,0.57,16,48]}/>
+        <meshStandardMaterial color="#626f61" roughness={0.95} metalness={0.04}/>
+      </mesh>
+      {Array.from({length:24},(_,i)=>{
+        const angle = i*Math.PI*2/24;
+        return <mesh key={'rune'+i} position={[Math.sin(angle)*3.15,Math.cos(angle)*3.15,0.54]} rotation={[0,0,-angle]} scale={[0.12,0.27,0.065]}>
+          <octahedronGeometry args={[1,0]}/>
+          <meshStandardMaterial color={i%3===0?'#c3f8dc':'#8ec5b2'} emissive="#2bbfa8" emissiveIntensity={active?2.5:0.7}/>
+        </mesh>;
+      })}
+      <group ref={energy}>
+        <mesh><circleGeometry args={[2.58,64]}/>
+          <meshBasicMaterial color={active?'#f8cf93':'#1b928c'} transparent opacity={0.45} depthWrite={false} side={2}/>
+        </mesh>
+        <mesh position={[0,0,0.04]}>
+          <torusGeometry args={[2.38,0.045,8,72]}/>
+          <meshBasicMaterial color="#9ffff0" transparent opacity={0.85}/>
+        </mesh>
+        <mesh position={[0,0,0.03]} rotation={[0,0,Math.PI*0.31]}>
+          <torusGeometry args={[1.98,0.035,8,72]}/>
+          <meshBasicMaterial color="#8fe7d2" transparent opacity={0.65}/>
+        </mesh>
+      </group>
+      <group ref={motes}>
+        {Array.from({length:28},(_,i)=>{
+          const angle = i*2.399963;
+          const radius = 1.05+(i%7)*0.19;
+          return <mesh key={'mote'+i} position={[Math.sin(angle)*radius,Math.cos(angle)*radius,0.12+(i%3)*0.06]}>
+            <sphereGeometry args={[0.028+(i%3)*0.018,6,6]}/>
+            <meshBasicMaterial color={i%4===0?'#ffe8b1':'#adfff1'}/>
+          </mesh>;
+        })}
+      </group>
+      <pointLight color={active?'#ffd49c':'#51ebdb'} intensity={active?29:17} distance={17}/>
     </group>
-    {[-3.4, 3.4].map(x=><group key={x} position={[x,0,-0.3]}>
-      <mesh castShadow position={[0,2.2,0]}><boxGeometry args={[1.5,4.4,1.4]}/><meshStandardMaterial color="#59665d" roughness={1}/></mesh>
-      {[0.65,1.55,2.45,3.35].map(y=><mesh key={y} position={[0, y, 0.73]}><boxGeometry args={[1.35,0.09,0.08]}/><meshStandardMaterial color="#91a392"/></mesh>)}
-      <mesh castShadow position={[0,4.6,0]}><boxGeometry args={[1.9,0.6,1.8]}/><meshStandardMaterial color="#6e7d6c"/></mesh>
-      <mesh position={[x>0 ? -0.45 : 0.45,4.8,0.75]}><sphereGeometry args={[0.2,8,8]}/><meshStandardMaterial color="#65f5d6" emissive="#10c5bd" emissiveIntensity={2}/></mesh>
+    {[-3.4,3.4].map((x,i)=><group key={x} position={[x,0,-0.3]}>
+      <mesh castShadow receiveShadow position={[0,2.15,0]}>
+        <cylinderGeometry args={[0.79,1.06,4.3,8]}/>
+        <meshStandardMaterial color="#58695b" roughness={1}/>
+      </mesh>
+      {[0.65,1.5,2.35,3.2].map(y=><mesh key={y} position={[0,y,0.75]} rotation={[0,0,i===0?-0.04:0.04]}>
+        <boxGeometry args={[1.25,0.085,0.1]}/>
+        <meshStandardMaterial color="#8da18d"/>
+      </mesh>)}
+      <mesh castShadow position={[0,4.43,0]}>
+        <cylinderGeometry args={[0.98,0.81,0.55,8]}/>
+        <meshStandardMaterial color="#697b69"/>
+      </mesh>
+      <mesh position={[0,4.87,0]}><octahedronGeometry args={[0.27,1]}/>
+        <meshStandardMaterial color="#a2ffde" emissive="#3ff5c4" emissiveIntensity={2.5}/>
+      </mesh>
     </group>)}
-    {Array.from({length:14},(_,i)=><mesh key={i} position={[(i%7-3)*1.1, 0.2+(i%3)*0.12, 1.2+Math.floor(i/7)*0.9]} rotation={[i*0.2,i*0.8,i*0.12]} castShadow><dodecahedronGeometry args={[0.2+(i%3)*0.09,0]}/><meshStandardMaterial color={i%2 ? '#6c796b':'#536b61'} roughness={1}/></mesh>)}
+    {Array.from({length:20},(_,i)=><mesh key={'debris'+i} castShadow receiveShadow
+      position={[(i%10-4.5)*0.84,0.2+(i%3)*0.08,1.5+Math.floor(i/10)*0.88]}
+      rotation={[i*0.28,i*0.81,i*0.17]}>
+      <dodecahedronGeometry args={[0.19+(i%4)*0.065,1]}/>
+      <meshStandardMaterial color={i%2?'#677b6a':'#7f8b78'} roughness={1}/>
+    </mesh>)}
   </group>;
 }
 
