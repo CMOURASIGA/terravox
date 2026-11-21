@@ -8,12 +8,22 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   const [position, setPosition] = useState<ForestPosition>(INITIAL);
   const [moving, setMoving] = useState(false);
   const [sprinting, setSprinting] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [portalReached, setPortalReached] = useState(false);
   const [message, setMessage] = useState('Use WASD ou as setas para caminhar. Também é possível clicar no terreno.');
   const keys = useRef(new Set<string>());
   const positionRef = useRef(INITIAL);
   const destination = useRef<ForestPosition | null>(null);
   const portalRef = useRef(false);
+  const pausedRef = useRef(false);
+  const togglePause = () => {
+    pausedRef.current = !pausedRef.current;
+    setPaused(pausedRef.current);
+    keys.current.clear();
+    destination.current = null;
+    setMoving(false);
+    setSprinting(false);
+  };
   const move = useCallback((next: ForestPosition) => {
     const x = Math.max(-20, Math.min(20, next.x));
     const z = Math.max(-28, Math.min(18, next.z));
@@ -27,6 +37,11 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   }, []);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'escape') {
+        e.preventDefault();
+        togglePause();
+        return;
+      }
       if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift'].includes(e.key.toLowerCase())) {
         e.preventDefault();
         const key = e.key.toLowerCase();
@@ -45,6 +60,10 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     const tick = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+      if (pausedRef.current) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const pressed = keys.current;
       const dx = Number(pressed.has('d') || pressed.has('arrowright')) - Number(pressed.has('a') || pressed.has('arrowleft'));
       const dz = Number(pressed.has('s') || pressed.has('arrowdown')) - Number(pressed.has('w') || pressed.has('arrowup'));
@@ -75,6 +94,8 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   const resetExplorer = () => {
     keys.current.clear();
     destination.current = null;
+    pausedRef.current = false;
+    setPaused(false);
     positionRef.current = INITIAL;
     setPosition(INITIAL);
     setMoving(false);
@@ -94,12 +115,21 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     <header className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-white/15 bg-slate-950/90 px-4 py-3 sm:px-6">
       <div><p className="text-[10px] font-black tracking-[.2em] text-cyan-300">TERRAVOX · EXPERIÊNCIA 3D</p><h1 className="text-base font-black sm:text-xl">Floresta do Brasil · Trilha do Portal</h1></div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <button type="button" onClick={togglePause} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">{paused ? "Continuar" : "Pausar"}</button>
         <button type="button" onClick={resetExplorer} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">Reiniciar</button>
         <button type="button" onClick={onBack} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">Voltar ao mapa</button>
       </div>
     </header>
     <section className="relative min-h-0 flex-1" aria-label="Floresta 3D explorável">
       <Forest3D position={position} moving={moving} onNavigate={navigate} onPortal={() => {}} portalReached={portalReached}/>
+      {paused && <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Jogo pausado">
+        <div className="w-full max-w-sm rounded-2xl border border-white/20 bg-slate-900 p-6 text-center shadow-2xl">
+          <h2 className="text-2xl font-black">Exploração pausada</h2>
+          <p className="mt-2 text-sm text-slate-300">Continue explorando a floresta quando estiver pronto.</p>
+          <button type="button" onClick={togglePause} autoFocus className="mt-5 w-full rounded-xl bg-cyan-300 px-5 py-3 font-bold text-slate-950 hover:bg-cyan-200">Continuar exploração</button>
+          <button type="button" onClick={resetExplorer} className="mt-2 w-full rounded-xl border border-white/25 px-5 py-3 font-semibold hover:bg-white/10">Reiniciar exploração</button>
+        </div>
+      </div>
       <div className="pointer-events-none absolute left-3 top-3 w-[min(18rem,calc(100%-1.5rem))] rounded-xl border border-white/15 bg-slate-950/75 px-3 py-3 text-xs leading-relaxed text-white shadow-lg backdrop-blur-md">
         <p className="mb-1 text-[10px] font-bold uppercase tracking-[.15em] text-cyan-200">Exploração da floresta</p>
         <p className="text-[11px] text-white/85">WASD / Setas para caminhar · Shift para correr · Clique no chão para ir até um ponto</p>
