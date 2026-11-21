@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 30
     env:
       SUPABASE_TELEMETRY_DISABLED: '1'
+      NODE_ENV: test
       B3_E2E_SCOPE: worker-artifacts
       BLENDER_PATH: /usr/bin/blender
       B3_E2E_BLEND_PATH: assets/blender/cube.blend
