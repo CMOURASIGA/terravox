@@ -101,7 +101,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
         </div>
         {!portalReached && <p className="mt-1.5 text-[10px] text-white/65">Direção aproximada: {directionLabel}</p>}
       </div>
-      {portalReached && <div role="status" className="pointer-events-none absolute bottom-4 right-4 z-10 max-w-[min(19rem,calc(100%-2rem))] rounded-xl border border-cyan-200/40 bg-slate-950/75 px-4 py-2 text-right text-xs font-semibold text-cyan-100 shadow-xl sm:text-sm">Portal descoberto · Exploração livre</div>}
+      {portalReached && <div role="status" className="pointer-events-none absolute bottom-24 right-3 z-10 max-w-[min(19rem,calc(100%-2rem))] sm:bottom-4 sm:right-4 rounded-xl border border-cyan-200/40 bg-slate-950/75 px-4 py-2 text-right text-xs font-semibold text-cyan-100 shadow-xl sm:text-sm">Portal descoberto · Exploração livre</div>}
       <div className="absolute bottom-3 left-3 grid touch-none select-none grid-cols-3 gap-1 rounded-xl border border-white/20 bg-slate-950/75 p-2 shadow-lg sm:hidden">
         <span/><button type="button" aria-label="Avançar" onPointerDown={() => keys.current.add('w')} onPointerUp={() => keys.current.delete('w')} onPointerCancel={() => keys.current.delete('w')} onPointerLeave={() => keys.current.delete('w')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↑</button><span/>
         <button type="button" aria-label="Esquerda" onPointerDown={() => keys.current.add('a')} onPointerUp={() => keys.current.delete('a')} onPointerCancel={() => keys.current.delete('a')} onPointerLeave={() => keys.current.delete('a')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">←</button>
