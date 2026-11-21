@@ -667,9 +667,9 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
     <color attach="background" args={['#739da4']}/>
     <ScenicBackdrop/>
     <fog attach="fog" args={['#739da4', 40, 110]}/>
-    <ambientLight intensity={0.24}/>
-    <hemisphereLight args={['#d7f5ed', '#1a3429', 0.95]}/>
-    <directionalLight castShadow position={[-18, 25, 12]} intensity={2.3} shadow-mapSize={[2048, 2048]} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
+    <ambientLight intensity={0.52}/>
+    <hemisphereLight args={['#e4f4e4', '#46664c', 1.35]}/>
+    <directionalLight castShadow position={[-18, 25, 12]} intensity={1.9} shadow-mapSize={[2048, 2048]} shadow-bias={-0.00015} shadow-normalBias={0.035} shadow-radius={3} shadow-camera-left={-30} shadow-camera-right={30} shadow-camera-top={30} shadow-camera-bottom={-30}/>
     <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x, -20, 20), z: MathUtils.clamp(e.point.z, -28, 9) }); }}>
       <planeGeometry args={[90, 90]}/><meshStandardMaterial color={groundColor} roughness={1}/>
     </mesh>
@@ -698,8 +698,8 @@ function CinematicForest({ position, moving, onNavigate, portalReached }: Props)
   return <>
     <color attach="background" args={['#8faea4']}/>
     <fog attach="fog" args={['#8faea4', 35, 125]}/>
-    <ambientLight intensity={0.28}/>
-    <hemisphereLight args={['#d9f2df', '#253d32', 1.05]}/>
+    <ambientLight intensity={0.52}/>
+    <hemisphereLight args={['#e3f2e0', '#49664d', 1.35]}/>
     <directionalLight castShadow position={[-14, 25, 11]} intensity={2.6} shadow-mapSize={[2048,2048]} shadow-camera-left={-32} shadow-camera-right={32} shadow-camera-top={32} shadow-camera-bottom={-32}/>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-0.035,0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x,-20,20), z: MathUtils.clamp(e.point.z,-28,9) }); }}>
       <planeGeometry args={[90,90]}/><meshStandardMaterial color="#385b43" roughness={1}/>
