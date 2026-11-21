@@ -478,14 +478,41 @@ function InstancedForestFlowers() {
   </group>;
 }
 
+/** Stones follow the actual winding trail outline, rather than straight rails. */
+function TrailEdgeStones() {
+  const stones = useRef<InstancedMesh>(null);
+  useEffect(() => {
+    if (!stones.current) return;
+    const dummy = new Object3D();
+    const colors = ['#78867a', '#667b6c', '#9a9a82'].map(hex => new Color(hex));
+    for (let i = 0; i < 60; i++) {
+      const side = i < 30 ? -1 : 1;
+      const index = i % 30;
+      const z = -29 + index * 1.42;
+      const center = Math.sin(z * 0.16) * 0.32 + Math.sin(z * 0.43) * 0.13;
+      const width = 2.35 + Math.sin(z * 0.31) * 0.20 + Math.sin(z * 0.91) * 0.13;
+      const irregularity = Math.sin(z * 2.15) * 0.11 + Math.sin(z * 3.37) * 0.055;
+      const edge = center + side * width + irregularity * (side < 0 ? 1 : 0.75);
+      dummy.position.set(edge + side * (0.25 + (index % 3) * 0.09), 0.12, z);
+      dummy.rotation.set(0, i * 2.19, 0);
+      dummy.scale.set(0.35 + (index % 3) * 0.10, 0.15 + (index % 4) * 0.025, 0.24 + (index % 4) * 0.07);
+      dummy.updateMatrix();
+      stones.current.setMatrixAt(i, dummy.matrix);
+      stones.current.setColorAt(i, colors[i % colors.length]);
+    }
+    stones.current.instanceMatrix.needsUpdate = true;
+    if (stones.current.instanceColor) stones.current.instanceColor.needsUpdate = true;
+  }, []);
+  return <instancedMesh ref={stones} args={[undefined, undefined, 60]} castShadow receiveShadow>
+    <dodecahedronGeometry args={[1, 0]}/>
+    <meshStandardMaterial roughness={1}/>
+  </instancedMesh>;
+}
+
 function TrailDetails() {
   return <group>
     <InstancedForestFlowers/>
-    {[-2.65,2.65].map(side=><group key={side}>
-      {Array.from({length:30},(_,i)=><mesh key={i} castShadow position={[side,0.12,-29+i*1.42]} rotation={[0,i*2.19,0]} scale={[0.5+(i%3)*0.14,0.22,0.3+(i%4)*0.1]}>
-        <dodecahedronGeometry args={[1,0]}/><meshStandardMaterial color={i%3===0?'#78867a':i%3===1?'#667b6c':'#9a9a82'} roughness={1}/>
-      </mesh>)}
-    </group>)}
+    <TrailEdgeStones/>
     {[-19,-12,-5].map(z=>[-3.2,3.2].map(x=><group key={z+'-'+x} position={[x,0,z]}>
       <mesh castShadow position={[0,0.55,0]}><cylinderGeometry args={[0.36,0.5,1.1,8]}/><meshStandardMaterial color="#5d675f"/></mesh>
       <mesh position={[0,1.16,0]}><cylinderGeometry args={[0.31,0.38,0.13,8]}/><meshStandardMaterial color="#8a8c78"/></mesh>
