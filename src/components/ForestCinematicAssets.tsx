@@ -101,8 +101,12 @@ export function StylizedForestTrees() {
       const height = Math.max(dimensions.y, 0.001);
       const scale = (index === 3 ? 1.5 : 9.5) / height;
       const center = box.getCenter(new Vector3());
+      // The GLB origin may be far from its visible geometry. Offset in
+      // source coordinates; scaling the parent applies to the offset too.
+      const anchor = new Group();
       object.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
       object.scale.setScalar(scale);
+      anchor.add(object);
       object.traverse(child => {
         if ('isMesh' in child && child.isMesh) {
           const mesh = child as import('three').Mesh;
@@ -110,7 +114,7 @@ export function StylizedForestTrees() {
           mesh.receiveShadow = true;
         }
       });
-      return object;
+      return anchor;
     });
     return Array.from({ length: 74 }, (_, i) => {
       const isBush = i % 5 === 0;
