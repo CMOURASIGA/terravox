@@ -139,7 +139,28 @@ export function AnimatedExplorer({ position, moving }: { position: ForestPositio
   const root = useRef<Group>(null);
   const last = useRef(new Vector3(position.x, 0, position.z));
   const { scene, animations } = useGLTF(FOREST_V2_ASSETS.explorer);
-  const model = useMemo(() => cloneSkeleton(scene), [scene]);
+  const model = useMemo(() => {
+    const rig = cloneSkeleton(scene);
+    rig.updateMatrixWorld(true);
+    const bounds = new Box3().setFromObject(rig);
+    const size = bounds.getSize(new Vector3());
+    const center = bounds.getCenter(new Vector3());
+    const height = Math.max(size.y, 0.001);
+    const scale = 2.8 / height;
+    // Preserve rig and animation node paths: normalize only its outer group.
+    const normalized = new Group();
+    rig.position.set(-center.x, -bounds.min.y, -center.z);
+    normalized.scale.setScalar(scale);
+    normalized.add(rig);
+    rig.traverse(child => {
+      if ('isMesh' in child && child.isMesh) {
+        const mesh = child as import('three').Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+      }
+    });
+    return normalized;
+  }, [scene]);
   const { actions } = useAnimations(animations, model);
   useEffect(() => {
     const selected = moving ? (actions.Walking ?? actions.Run ?? actions.walk) : (actions.Idle ?? actions.idle);
