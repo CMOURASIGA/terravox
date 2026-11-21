@@ -116,6 +116,12 @@ try {
     throw new Error('Click-to-move sprint or target overshoot regression');
   }
   checks.push('sprint preserves click destination and arrival clamps step');
+  if (!arenaSource.includes('role="dialog" aria-modal="true" aria-label="Jogo pausado"') ||
+      !arenaSource.includes('if (pausedRef.current)') ||
+      !arenaSource.includes("e.key.toLowerCase() === 'escape'")) {
+    throw new Error('Pause overlay, Escape shortcut or frame suspension missing');
+  }
+  checks.push('pause overlay and frame suspension present');
   checks.push('exploration UI contains no mandatory guardian challenge');
   // This distribution is exploration-only: it must start without requiring a
   // questions provider or network access beyond localhost. External quiz APIs
