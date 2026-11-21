@@ -677,7 +677,7 @@ function ForestGround({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
   return <mesh receiveShadow geometry={geometry} rotation={[-Math.PI / 2, 0, 0]}
     onPointerDown={event => {
       event.stopPropagation();
-      onNavigate({ x: MathUtils.clamp(event.point.x, -2.1, 2.1), z: MathUtils.clamp(event.point.z, -27, 9) });
+      onNavigate({ x: MathUtils.clamp(event.point.x, -20, 20), z: MathUtils.clamp(event.point.z, -28, 18) });
     }}>
     <meshStandardMaterial vertexColors roughness={1}/>
   </mesh>;
