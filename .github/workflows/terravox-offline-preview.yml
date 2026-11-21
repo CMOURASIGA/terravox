@@ -44,16 +44,48 @@ jobs:
           mkdir -p offline-preview
           cp -R dist offline-preview/dist
           cp package.json package-lock.json offline-preview/
+          cat > offline-preview/INICIAR_TERRAVOX.cmd <<'EOF'
+          @echo off
+          setlocal
+          cd /d "%~dp0"
+          where node >nul 2>nul
+          if errorlevel 1 (
+            echo Node.js nao encontrado. Instale Node.js 22 ou superior.
+            pause
+            exit /b 1
+          )
+          if not exist "node_modules" (
+            echo Instalando dependencias na primeira execucao...
+            call npm ci --no-audit --no-fund
+            if errorlevel 1 (
+              echo Falha ao instalar dependencias. Confira a conexao com a internet.
+              pause
+              exit /b 1
+            )
+          )
+          echo.
+          echo TerraVox: http://localhost:3000
+          echo Mantenha esta janela aberta enquanto estiver jogando.
+          echo Para encerrar, pressione Ctrl+C.
+          start "" "http://localhost:3000"
+          call npm start
+          if errorlevel 1 pause
+          EOF
           cat > offline-preview/README.txt <<'EOF'
           TerraVox - local playable preview (develop)
 
           Requirements: Node.js 22 or newer, internet for first npm install.
 
+          WINDOWS (recommended):
           1. Extract the ZIP into a folder.
-          2. Open PowerShell or terminal in that folder.
-          3. Run: npm ci
-          4. Run: npm start
-          5. Open: http://localhost:3000
+          2. Double-click INICIAR_TERRAVOX.cmd.
+          3. Wait for the first dependency install and use http://localhost:3000.
+          4. Keep the terminal window open while playing.
+
+          MANUAL (Windows/macOS/Linux):
+          1. Open a terminal inside the extracted folder.
+          2. Run npm ci, then npm start.
+          3. Open http://localhost:3000.
 
           Stop with Ctrl+C.
 
