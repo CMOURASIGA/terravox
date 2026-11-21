@@ -82,6 +82,55 @@ export function ForestNature() {
   )}</group>;
 }
 
+/** Licensed stylized tree models replace procedural trees once the staging workflow
+ * has committed all four GLBs. Geometry is centered and scaled to world units.
+ */
+export function StylizedForestTrees() {
+  const trees = [
+    useGLTF('/assets/forest-v2/stylized/tree1.glb'),
+    useGLTF('/assets/forest-v2/stylized/tree2.glb'),
+    useGLTF('/assets/forest-v2/stylized/tree3.glb'),
+    useGLTF('/assets/forest-v2/stylized/bush.glb'),
+  ];
+  const instances = useMemo(() => {
+    const prepared = trees.map((asset, index) => {
+      const object = asset.scene.clone(true);
+      object.updateMatrixWorld(true);
+      const box = new Box3().setFromObject(object);
+      const dimensions = box.getSize(new Vector3());
+      const height = Math.max(dimensions.y, 0.001);
+      const scale = (index === 3 ? 1.5 : 9.5) / height;
+      const center = box.getCenter(new Vector3());
+      object.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+      object.scale.setScalar(scale);
+      object.traverse(child => {
+        if ('isMesh' in child && child.isMesh) {
+          const mesh = child as import('three').Mesh;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+        }
+      });
+      return object;
+    });
+    return Array.from({ length: 74 }, (_, i) => {
+      const isBush = i % 5 === 0;
+      const index = isBush ? 3 : i % 3;
+      const side = i % 2 === 0 ? -1 : 1;
+      const z = -32 + (i * 7.113) % 47;
+      const x = side * (isBush ? 6.6 + (i * 2.3) % 12 : 9.2 + (i * 1.71) % 18);
+      return {
+        object: prepared[index].clone(true),
+        position: [x, 0, z] as [number, number, number],
+        rotation: (i * 2.399963) % (Math.PI * 2),
+        scale: 0.78 + (i % 6) * 0.09,
+      };
+    });
+  }, [trees[0].scene, trees[1].scene, trees[2].scene, trees[3].scene]);
+  return <group>{instances.map((item, i) =>
+    <primitive key={i} object={item.object} position={item.position} rotation={[0, item.rotation, 0]} scale={item.scale}/>
+  )}</group>;
+}
+
 function AnimatedExplorer({ position, moving }: { position: ForestPosition; moving: boolean }) {
   const root = useRef<Group>(null);
   const last = useRef(new Vector3(position.x, 0, position.z));
