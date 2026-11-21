@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright
 
 def exercise_brazil_mission(page, url, output, errors):
-    questions=[dict(id=str(i),category='Geografia',prompt='Qual a resposta para o marco '+str(i)+'?',options=['Certa','B','C','D']) for i in range(4)]
+    questions=[dict(id=str(i),category='Geografia',prompt='Qual a resposta para o marco '+str(i)+'?',options=['Certa','B','C','D']) for i in range(10)]
     page.route('**/api/game/questions?**',lambda route:route.fulfill(json={'questions':questions}))
     page.route('**/api/generate-questions',lambda route:route.fulfill(json={'questions':[]}))
     page.route('**/api/game/questions/*/answer',lambda route:route.fulfill(json={'correct':route.request.post_data_json['answer']=='Certa'}))
@@ -27,7 +27,7 @@ def exercise_brazil_mission(page, url, output, errors):
     page.get_by_role('heading',name='Ruínas do Brasil').wait_for()
     page.wait_for_function('window.frames3D.length>=3',timeout=120000)
     page.screenshot(path=output/'missao.jpg')
-    for step in range(8):
+    for step in range(14):
         interact=page.get_by_role('button',name=re.compile('Responder desafio|Enfrentar o Guardião'))
         for _ in range(95):
             if interact.is_visible():break
@@ -37,20 +37,20 @@ def exercise_brazil_mission(page, url, output, errors):
         if step==0:
             dialog.get_by_role('button',name='B',exact=True).click()
             page.get_by_text(re.compile('Energia 80/100')).wait_for()
-        if step==2:
+        if step in (2, 6):
             for word in ['OBSERVAR','PENSAR','PROTEGER']:dialog.get_by_role('button',name=word,exact=True).click()
         dialog.get_by_role('button',name='Certa',exact=True).click()
         dialog.wait_for(state='detached')
         if step==0:
             page.get_by_role('button',name='Voltar ao mapa').click()
             entry.click()
-            page.get_by_text(re.compile('Trilha: 1/4')).wait_for()
+            page.get_by_text(re.compile('Trilha: 1/10')).wait_for()
     page.get_by_role('button',name=re.compile('COLETAR')).click()
     entry.wait_for()
     profile=page.evaluate("JSON.parse(localStorage.getItem('terravox.last-player'))")
     assert profile['xp']==150 and profile['coins']==50 and 'brasil' in profile['completedMissions'], profile
     assert not errors,errors
-    print('PASS: mapa -> Brasil 3D -> erro e energia -> retomada -> quatro marcos -> quatro ataques -> coleta e mapa',flush=True)
+    print('PASS: mapa -> Brasil 3D -> erro e energia -> retomada -> dez marcos -> quatro ataques -> coleta e mapa',flush=True)
 
 
 parser = argparse.ArgumentParser()

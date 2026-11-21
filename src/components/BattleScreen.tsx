@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, CircleHelp, Footprints, Heart, Loader2, Lock, MapPin, Shield, Sparkles, Swords, X } from 'lucide-react';
 import { PlayerProfile } from '../types';
 import { checkAnswer, fetchTerritoryQuestions, SourcedQuestion } from '../lib/questionSource';
+import { brazilTrailQuestions } from '../lib/brazilTrailQuestions';
 import { Arena3DPreview } from './Arena3DPreview';
 
 interface BattleScreenProps { territoryId: string; profile: PlayerProfile; onWin: (territory: string, xp: number, coins: number) => void; onLeave: () => void; }
@@ -334,7 +335,10 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
           difficulty: 3,
           count: marcoLabels.length,
         });
-        if (!cancelled) setQuestions(loaded);
+        if (!cancelled) {
+          const reserve = territoryId === 'brasil' ? brazilTrailQuestions() : [];
+          setQuestions([...loaded, ...reserve].slice(0, marcoLabels.length));
+        }
       } finally {
         if (!cancelled) setLoadingQuestions(false);
       }

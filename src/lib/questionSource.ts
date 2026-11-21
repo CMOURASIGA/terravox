@@ -80,7 +80,7 @@ function shuffle<T>(items: T[]): T[] {
 // acontece em /api/game/questions/:id/answer. Perguntas geradas por IA já
 // chegam com correct_answer/explanation embutidos.
 export type SourcedQuestion = Omit<Question, 'correct_answer' | 'explanation'> &
-  Partial<Pick<Question, 'correct_answer' | 'explanation'>> & { source: 'bank' | 'ai' };
+  Partial<Pick<Question, 'correct_answer' | 'explanation'>> & { source: 'bank' | 'ai' | 'local' };
 
 type BankQuestion = { id: string; category: string; prompt: string; options: string[] };
 
@@ -102,7 +102,7 @@ function difficultyLabel(difficulty: number): 'easy' | 'medium' | 'hard' {
 async function fetchBankQuestions(categories: string[], amount: number, difficulty: number): Promise<BankQuestion[]> {
   try {
     const params = new URLSearchParams({ category: categories.join(','), amount: String(amount), difficulty: difficultyLabel(difficulty) });
-    const res = await fetch(`/api/game/questions?${params.toString()}`);
+    const res = await fetch(`/api/game/questions?${params.toString()}`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.questions) ? data.questions.filter((question: BankQuestion) => validQuestion({ ...question, source: 'bank' })) : [];
@@ -117,6 +117,7 @@ async function fetchAIQuestions(territoryId: string, theme: string, difficulty: 
   try {
     const res = await fetch('/api/generate-questions', {
       method: 'POST',
+      signal: AbortSignal.timeout(12000),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ territory: territoryId, theme, difficulty, count }),
     });
