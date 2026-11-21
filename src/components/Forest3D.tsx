@@ -612,6 +612,26 @@ function ForestTrail({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
   </mesh>;
 }
 
+/** Soft ground contact keeps the explorer visually anchored under the chase camera. */
+function ExplorerContactShadow({ position }: { position: ForestPosition }) {
+  const shadow = useRef<Group>(null);
+  useFrame((_, delta) => {
+    if (!shadow.current) return;
+    shadow.current.position.x = MathUtils.damp(shadow.current.position.x, position.x, 14, delta);
+    shadow.current.position.z = MathUtils.damp(shadow.current.position.z, position.z, 14, delta);
+  });
+  return <group ref={shadow} position={[position.x, 0.048, position.z]}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[0.72, 0.49, 1]} renderOrder={2}>
+      <circleGeometry args={[1, 32]}/>
+      <meshBasicMaterial color="#091a12" transparent opacity={0.22} depthWrite={false}/>
+    </mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} scale={[1.1, 0.76, 1]} renderOrder={1}>
+      <circleGeometry args={[1, 32]}/>
+      <meshBasicMaterial color="#0b1d15" transparent opacity={0.09} depthWrite={false}/>
+    </mesh>
+  </group>;
+}
+
 function Forest({ position, moving, onNavigate, portalReached, stylizedReady, explorerReady }: Props & { stylizedReady: boolean; explorerReady: boolean }) {
   const groundColor = useMemo(() => new Color('#284f38'), []);
   return <>
@@ -636,6 +656,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
     <ForestCanopyLight/>
     <ForestSpirit position={position} moving={moving}/>
     <SpiritTrail position={position}/>
+    <ExplorerContactShadow position={position}/>
     <Portal active={portalReached}/>
     {explorerReady ? <Suspense fallback={null}><AnimatedExplorer position={position} moving={moving}/></Suspense> : <Explorer position={position} moving={moving}/>}
     <FollowCamera position={position} moving={moving}/>
