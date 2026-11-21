@@ -39,11 +39,15 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     const down = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'escape') {
         e.preventDefault();
-        togglePause();
+        if (!e.repeat) togglePause();
         return;
       }
       if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift'].includes(e.key.toLowerCase())) {
+        // Do not steal typing shortcuts from text fields or dialog controls.
+        const target = e.target;
+        if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
         e.preventDefault();
+        if (pausedRef.current) return;
         const key = e.key.toLowerCase();
         keys.current.add(key);
         // Sprint must not cancel an active click-to-move destination.
@@ -120,7 +124,10 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   const directionLabel = position.z < -24
     ? 'Atrás de você'
     : Math.abs(lateralOffset) < 2.5 ? 'À frente' : lateralOffset < 0 ? 'À esquerda' : 'À direita';
-  const navigate = (target: ForestPosition) => { destination.current = { x: Math.max(-20, Math.min(20, target.x)), z: Math.max(-28, Math.min(18, target.z)) }; };
+  const navigate = (target: ForestPosition) => {
+    if (pausedRef.current) return;
+    destination.current = { x: Math.max(-20, Math.min(20, target.x)), z: Math.max(-28, Math.min(18, target.z)) };
+  };
   return <main className="flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
     <header className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-white/15 bg-slate-950/90 px-4 py-3 sm:px-6">
       <div><p className="text-[10px] font-black tracking-[.2em] text-cyan-300">TERRAVOX · EXPERIÊNCIA 3D</p><h1 className="text-base font-black sm:text-xl">Floresta do Brasil · Trilha do Portal</h1></div>
