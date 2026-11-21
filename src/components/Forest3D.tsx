@@ -1,12 +1,14 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, Suspense, useEffect, useMemo, useRef } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
-import { ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
+import { ForestCinematicAssets, ForestNature, StylizedForestTrees } from './ForestCinematicAssets';
 import { Color, Float32BufferAttribute, MathUtils, Object3D, PlaneGeometry, Shape, ShapeGeometry, Vector3 } from 'three';
 import type { Group, InstancedMesh } from 'three';
 
+import { forestHeight, canStand } from '../lib/forestNavigation';
+
 export type ForestPosition = { x: number; z: number };
-type Props = { position: ForestPosition; moving: boolean; onNavigate: (position: ForestPosition) => void; onPortal: () => void; portalReached: boolean };
+type Props = { position: ForestPosition; moving: boolean; onNavigate: (position: ForestPosition) => void; sprinting?: boolean; active?: boolean; interacting?: boolean; paused?: boolean; portalReached: boolean };
 
 const treeLocations: [number, number, number][] = Array.from({ length: 85 }, (_, i) => {
   const angle = i * 2.399963229728653;
@@ -407,8 +409,13 @@ function FollowCamera({ position }: { position: ForestPosition; moving: boolean 
     // Fixed forward-facing chase camera: the portal is at negative Z.
     // Do not spin the camera when the player strafes or reverses.
     // That previously placed foreground trees between the player and the lens.
-    const cameraGoal = new Vector3(position.x, 3.65, position.z + 6.4);
-    const targetGoal = new Vector3(position.x, 1.7, position.z - 4.2);
+    let distance = 6.4;
+    for (let step = .5; step < distance; step += .5) {
+      if (!canStand(position.x, position.z + step)) distance = Math.max(1.1, step - .5);
+    }
+    const altitude = forestHeight(position.x, position.z);
+    const cameraGoal = new Vector3(position.x, altitude + 2.8, position.z + distance);
+    const targetGoal = new Vector3(position.x, altitude + 1.45, position.z - 4.2);
     if (!initialized.current) {
       camera.position.copy(cameraGoal);
       lookAt.current.copy(targetGoal);
@@ -711,6 +718,7 @@ function ExplorerContactShadow({ position }: { position: ForestPosition }) {
   const shadow = useRef<Group>(null);
   useFrame((_, delta) => {
     if (!shadow.current) return;
+    shadow.current.position.y = forestHeight(position.x, position.z) + .048;
     shadow.current.position.x = MathUtils.damp(shadow.current.position.x, position.x, 14, delta);
     shadow.current.position.z = MathUtils.damp(shadow.current.position.z, position.z, 14, delta);
   });
@@ -790,19 +798,15 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady }: 
 }
 
 /** The cinematic scene is opt-in and is only mounted after all licensed GLB assets exist. */
-function CinematicForest({ position, moving, onNavigate, portalReached }: Props) {
+function CinematicForest(props: Props) {
   return <>
-    <color attach="background" args={['#8faea4']}/>
-    <fog attach="fog" args={['#8faea4', 35, 125]}/>
-    <ambientLight intensity={0.52}/>
-    <hemisphereLight args={['#e3f2e0', '#49664d', 1.35]}/>
-    <directionalLight castShadow position={[-14, 25, 11]} intensity={2.6} shadow-mapSize={[2048,2048]} shadow-camera-left={-32} shadow-camera-right={32} shadow-camera-top={32} shadow-camera-bottom={-32}/>
-    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-0.035,0]} onPointerDown={(e) => { e.stopPropagation(); onNavigate({ x: MathUtils.clamp(e.point.x,-20,20), z: MathUtils.clamp(e.point.z,-28,9) }); }}>
-      <planeGeometry args={[90,90]}/><meshStandardMaterial color="#385b43" roughness={1}/>
-    </mesh>
-    <Suspense fallback={null}><StylizedForestTrees/></Suspense>
-    <ForestCinematicAssets position={position} moving={moving} portalReached={portalReached}/>
-    <FollowCamera position={position} moving={moving}/>
+    <color attach="background" args={['#b5d4cf']}/>
+    <fog attach="fog" args={['#a8c9b9', 16, 70]}/>
+    <hemisphereLight args={['#ffedcc', '#729b89', 1.7]}/>
+    <directionalLight position={[-12, 18, -9]} color="#ffdaa1" intensity={2.4}/>
+    <ForestCinematicAssets {...props} active={Boolean(props.active)}/>
+    <ExplorerContactShadow position={props.position}/>
+    <FollowCamera position={props.position} moving={props.moving}/>
   </>;
 }
 
@@ -825,47 +829,10 @@ class ForestRenderBoundary extends Component<{ children: ReactNode }, { failed: 
 }
 
 export function Forest3D(props: Props) {
-  const [cinematicReady, setCinematicReady] = useState(false);
-  const [stylizedReady, setStylizedReady] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    const controller = new AbortController();
-    const verify = async () => {
-      try {
-        // Do not render an incomplete scene or present the old scene as the new version.
-        const results = await Promise.all(Object.values(FOREST_V2_ASSETS).map(async (url) => {
-          const response = await fetch(url, { headers: { Range: 'bytes=0-19' }, signal: controller.signal });
-          if (!response.ok) return false;
-          const bytes = new Uint8Array(await response.arrayBuffer());
-          if (bytes.length < 20) return false;
-          const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-          return String.fromCharCode(...bytes.slice(0, 4)) === 'glTF'
-            && view.getUint32(4, true) === 2
-            && view.getUint32(8, true) >= 20
-            && view.getUint32(16, true) === 0x4e4f534a;
-        }));
-        if (mounted) setCinematicReady(results.every(Boolean));
-      } catch { if (mounted) setCinematicReady(false); }
-    };
-    const verifyStylized = async () => {
-      try {
-        const names = ['tree1', 'tree2', 'tree3', 'bush'];
-        const checks = await Promise.all(names.map(async name => {
-          const response = await fetch('/assets/forest-v2/stylized/' + name + '.glb', { headers: { Range: 'bytes=0-19' }, signal: controller.signal });
-          if (!response.ok) return false;
-          const header = new Uint8Array(await response.arrayBuffer());
-          return header.length >= 20 && String.fromCharCode(...header.slice(0, 4)) === 'glTF' && new DataView(header.buffer, header.byteOffset, header.byteLength).getUint32(4, true) === 2;
-        }));
-        if (mounted) setStylizedReady(checks.every(Boolean));
-      } catch { if (mounted) setStylizedReady(false); }
-    };
-    void verify();
-    void verifyStylized();
-    return () => { mounted = false; controller.abort(); };
-  }, []);
+  const classic = new URLSearchParams(window.location.search).get('floresta') === 'classica';
   return <ForestRenderBoundary>
-    <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 5.3, 13], fov: 65, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-      {cinematicReady ? <Suspense fallback={null}><CinematicForest {...props}/></Suspense> : <Forest {...props} stylizedReady={stylizedReady}/>}
+    <Canvas shadows={classic} frameloop={props.paused ? 'demand' : 'always'} dpr={[1, 1.25]} camera={{ position: [0, 3, 13], fov: 57, near: 0.1, far: 110 }} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
+      {classic ? <Forest {...props} stylizedReady/> : <Suspense fallback={null}><CinematicForest {...props}/></Suspense>}
     </Canvas>
   </ForestRenderBoundary>;
 }

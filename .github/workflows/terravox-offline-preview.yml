@@ -13,6 +13,9 @@ on:
       - 'server.ts'
       - 'vite.config.ts'
       - '.github/workflows/terravox-offline-preview.yml'
+  pull_request:
+    branches: [develop]
+    paths: ['src/**', 'public/assets/forest-v2/**', 'scripts/test-forest-browser.py', '.github/workflows/terravox-offline-preview.yml']
   workflow_dispatch:
 
 permissions:
@@ -45,9 +48,8 @@ jobs:
           npm run build 2>&1 | tee ci-diagnostics/build.log
       - name: Smoke-test local server, GLBs and game APIs
         run: node scripts/smoke-local-build.mjs
-      - name: Check cinematic asset completeness (does not block playable preview)
+      - name: Validate cinematic GLBs and animation clips
         id: cinematic
-        continue-on-error: true
         run: node scripts/validate-forest-v2-assets.mjs
       - name: Package standalone local testing bundle
         run: |
@@ -132,6 +134,14 @@ jobs:
           echo "Windows bundle files and commit identity verified."
       - name: Boot packaged game and smoke-test offline assets on Windows
         run: node scripts/smoke-offline-package.mjs offline-preview
+      - name: Exercise packaged forest with external browser traffic blocked
+        env:
+          TVX_VIDEO: '1'
+          TVX_CHROME_ARGS: --enable-unsafe-swiftshader
+        run: |
+          python -m pip install playwright==1.59.0
+          python -m playwright install chromium
+          python scripts/test-forest-browser.py offline-preview/dist ci-diagnostics/browser
       - name: Publish playable development preview ZIP
         uses: actions/upload-artifact@v4
         with:
@@ -167,6 +177,4 @@ jobs:
         run: |
           echo 'Cinematic asset check outcome: ${{ steps.cinematic.outcome }}' >> "$GITHUB_STEP_SUMMARY"
           echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Typecheck, production build, source HTTP smoke and packaged Windows offline boot smoke executed. Cinematic GLB completeness is checked separately and does not block the playable preview. No quiz API is required.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download and extract the terravox-develop-playable-preview artifact. Double-click INICIAR_TERRAVOX.cmd (Node.js 22 required), then open http://localhost:3000. Runtime dependencies are included.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Missing cinematic assets do not block testing the existing playable scene. Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Typecheck, build, GLB validation, Windows server boot and packaged browser gameplay checked. See diagnostics for the recording and measured renderer.' >> "$GITHUB_STEP_SUMMARY"

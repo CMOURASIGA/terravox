@@ -1,8 +1,11 @@
 import { useAnimations, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { Box3, Group, MathUtils, Vector3 } from 'three';
+import { LoopOnce, Box3, Group, Mesh, MathUtils, Vector3 } from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
+import { PortalLight } from './PortalLight';
+import { paintForest } from '../lib/forestMaterials';
+import { forestHeight } from '../lib/forestNavigation';
 import type { ForestPosition } from './Forest3D';
 
 /** Asset-driven scene. Requires licensed GLB files at the paths below. */
@@ -136,7 +139,7 @@ export function StylizedForestTrees() {
   )}</group>;
 }
 
-export function AnimatedExplorer({ position, moving }: { position: ForestPosition; moving: boolean }) {
+export function AnimatedExplorer({ position, moving, sprinting, interacting }: ActorProps) {
   const root = useRef<Group>(null);
   const last = useRef(new Vector3(position.x, 0, position.z));
   const { scene, animations } = useGLTF(FOREST_V2_ASSETS.explorer);
@@ -147,7 +150,7 @@ export function AnimatedExplorer({ position, moving }: { position: ForestPositio
     const size = bounds.getSize(new Vector3());
     const center = bounds.getCenter(new Vector3());
     const height = Math.max(size.y, 0.001);
-    const scale = 2.8 / height;
+    const scale = 2.2 / height;
     // Preserve rig and animation node paths: normalize only its outer group.
     const normalized = new Group();
     rig.position.set(-center.x, -bounds.min.y, -center.z);
@@ -164,16 +167,18 @@ export function AnimatedExplorer({ position, moving }: { position: ForestPositio
   }, [scene]);
   const { actions } = useAnimations(animations, model);
   useEffect(() => {
-    const selected = moving ? (actions.Walking ?? actions.Run ?? actions.walk) : (actions.Idle ?? actions.idle);
+    const selected = interacting ? actions.Interact : sprinting ? actions.Run : moving ? actions.Walking : actions.Idle;
     if (!selected) return;
     selected.enabled = true;
+    if (interacting) { selected.setLoop(LoopOnce, 1); selected.clampWhenFinished = true; }
     selected.reset().fadeIn(0.25).play();
     return () => { selected.fadeOut(0.25); };
-  }, [actions, moving]);
+  }, [actions, moving, sprinting, interacting]);
   useFrame((_, delta) => {
     if (!root.current) return;
-    const next = new Vector3(position.x, 0, position.z);
+    const next = new Vector3(position.x, forestHeight(position.x, position.z), position.z);
     const direction = next.clone().sub(last.current);
+    direction.y = 0;
     if (direction.lengthSq() > 0.00001) {
       const heading = Math.atan2(direction.x, direction.z);
       const diff = Math.atan2(Math.sin(heading - root.current.rotation.y), Math.cos(heading - root.current.rotation.y));
@@ -182,10 +187,10 @@ export function AnimatedExplorer({ position, moving }: { position: ForestPositio
     root.current.position.lerp(next, Math.min(1, delta * 12));
     last.current.copy(next);
   });
-  return <group ref={root} position={[position.x, 0, position.z]}><primitive object={model}/></group>;
+  return <group ref={root} rotation={[0, Math.PI, 0]}><primitive object={model}/></group>;
 }
 
-function Companion({ position }: { position: ForestPosition }) {
+function Companion({ position, active }: { position: ForestPosition; active: boolean }) {
   const { scene, animations } = useGLTF(FOREST_V2_ASSETS.spirit);
   const root = useRef<Group>(null);
   const model = useMemo(() => scene.clone(true), [scene]);
@@ -199,30 +204,32 @@ function Companion({ position }: { position: ForestPosition }) {
   useFrame(({ clock }, delta) => {
     if (!root.current) return;
     const t = clock.elapsedTime;
-    root.current.position.lerp(new Vector3(position.x + 1.5, 1.7 + Math.sin(t * 2) * 0.2, position.z + 1), Math.min(1, delta * 3));
-    root.current.rotation.y = MathUtils.damp(root.current.rotation.y, Math.sin(t * 0.8) * 0.35, 3, delta);
+    root.current.position.lerp(new Vector3(position.x + 1.15 + Math.sin(t) * .25, forestHeight(position.x, position.z) + 1.55 + Math.sin(t * 2) * 0.2, active ? -24 : position.z - .65), Math.min(1, delta * 3));
+    root.current.rotation.y = MathUtils.damp(root.current.rotation.y, (active ? 0 : Math.PI) + Math.sin(t * 0.8) * 0.35, 3, delta);
   });
   return <group ref={root}><primitive object={model}/></group>;
 }
 
-function World({ portalReached }: { portalReached: boolean }) {
-  const environment = useGLTF(FOREST_V2_ASSETS.environment);
-  const portal = useGLTF(FOREST_V2_ASSETS.portal);
-  const portalRoot = useRef<Group>(null);
-  useFrame(({ clock }, delta) => {
-    if (portalRoot.current) portalRoot.current.scale.setScalar(MathUtils.damp(portalRoot.current.scale.x, portalReached ? 1.06 : 1, 2, delta));
-  });
-  return <>
-    <primitive object={environment.scene} />
-    <group ref={portalRoot} position={[0, 0, -24]}><primitive object={portal.scene}/></group>
-  </>;
-}
+type ActorProps = { position: ForestPosition; moving: boolean; sprinting?: boolean; interacting?: boolean };
+type RegionProps = ActorProps & { active: boolean; onNavigate: (p: ForestPosition) => void };
 
-export function ForestCinematicAssets({ position, moving, portalReached }: { position: ForestPosition; moving: boolean; portalReached: boolean }) {
+export function ForestCinematicAssets({ active, onNavigate, ...actor }: RegionProps) {
+  const environment = useGLTF(FOREST_V2_ASSETS.environment);
+  const terrain = useMemo(() => paintForest(environment.scene.clone(true)), [environment.scene]);
+  useEffect(() => () => terrain.traverse(node => { if (node instanceof Mesh) node.material.dispose(); }), [terrain]);
+  const portal = useGLTF(FOREST_V2_ASSETS.portal);
   return <>
-    <World portalReached={portalReached}/>
-    <ForestNature/>
-    <AnimatedExplorer position={position} moving={moving}/>
-    <Companion position={position}/>
+    <primitive object={terrain} onPointerDown={(event: import('@react-three/fiber').ThreeEvent<PointerEvent>) => {
+      if (event.object.name === 'Terra_e_trilha') {
+        event.stopPropagation();
+        onNavigate({ x: event.point.x, z: event.point.z });
+      }
+    }}/>
+    <group position={[0, 0, -24]}>
+      <primitive object={portal.scene}/>
+      <PortalLight active={active}/>
+    </group>
+    <AnimatedExplorer {...actor}/>
+    <Companion position={actor.position} active={active}/>
   </>;
 }
