@@ -20,7 +20,7 @@ const NATURE = {
   roots: '/assets/forest-v2/nature/pine_roots.glb',
 } as const;
 
-function ForestNature() {
+export function ForestNature() {
   const fern = useGLTF(NATURE.fern);
   const boulder = useGLTF(NATURE.boulder);
   const moss = useGLTF(NATURE.moss);
