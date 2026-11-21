@@ -411,18 +411,24 @@ function ScenicBackdrop() {
       <planeGeometry args={[260, 115]}/>
       <shaderMaterial depthWrite={false} vertexShader={`varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`} fragmentShader={`varying vec2 vUv; void main(){vec3 horizon=vec3(.68,.79,.75);vec3 mid=vec3(.40,.64,.69);vec3 zenith=vec3(.12,.31,.43);float h=clamp(vUv.y,0.,1.);vec3 c=mix(horizon,mid,smoothstep(.05,.58,h));c=mix(c,zenith,smoothstep(.55,1.,h));float sun=exp(-length((vUv-vec2(.27,.50))*vec2(1.5,1.0))*17.);c+=vec3(.40,.29,.13)*sun;gl_FragColor=vec4(c,1.);}`}/>
     </mesh>
-    {Array.from({length:23},(_,i)=>{
-      const x=(i-11)*9.5;
-      const height=9+(Math.sin(i*2.47)+1)*5;
-      return <group key={i} position={[x,-0.2,-57+(i%4)*4]}>
-        <mesh rotation={[0,i*0.29,0]} position={[0,height*0.38,0]} scale={[1.6,height/10,1]}>
-          <coneGeometry args={[7,10,5]}/><meshStandardMaterial color={i%3===0?'#526d70':i%3===1?'#607e7b':'#73918b'} roughness={1}/>
-        </mesh>
-        <mesh rotation={[0,i*0.29,0]} position={[0,height*0.80,0]} scale={[1.65,height/10,1.03]}>
-          <coneGeometry args={[2.1,3.2,5]}/><meshStandardMaterial color="#c2d5c9" roughness={1}/>
-        </mesh>
-      </group>;
-    })}
+    {/* Layered Atlantic-forest ridgelines, without the old repeating snow-capped cones. */}
+    {[0,1,2].map(layer => <group key={'ridge'+layer}>
+      {Array.from({length:27},(_,i) => {
+        const x = (i-13)*8.5 + Math.sin(i*2.13+layer)*2.2;
+        const height = 9 + Math.sin(i*1.71+layer*1.8)*3.1 + Math.sin(i*0.57+layer)*2.6;
+        const depth = -76 + layer*12 + (i%3)*1.4;
+        return <group key={i} position={[x,-3,depth]}>
+          <mesh position={[0,height*0.43,0]} scale={[7.8+layer*1.5,height*0.78,5.2]}>
+            <icosahedronGeometry args={[1,2]}/>
+            <meshStandardMaterial color={layer===0?'#718d8b':layer===1?'#466d67':'#2b554a'} roughness={1} flatShading={false}/>
+          </mesh>
+          {layer===2 && i%2===0 && <mesh position={[0,height*0.9,0]} scale={[3.5,2.5,2.6]}>
+            <icosahedronGeometry args={[1,1]}/>
+            <meshStandardMaterial color="#315c4c" roughness={1}/>
+          </mesh>}
+        </group>;
+      })}
+    </group>)}
     <group ref={clouds}>
       {Array.from({length:13},(_,i)=><group key={i} position={[(i-6)*12,19+(i%4)*3,-48-(i%3)*5]}>
         {[0,1,2,3].map(j=><mesh key={j} position={[(j-1.5)*2,Math.sin(j*2+i)*0.5,0]} scale={[2.7+(j%2),0.65+(j%3)*0.15,0.7]}>
