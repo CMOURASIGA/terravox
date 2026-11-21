@@ -20,17 +20,18 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy
           blender --version
       - name: Generate and export real cube asset
         working-directory: blender-mcp
         run: |
           set -euo pipefail
           mkdir -p /tmp/terravox-g2
-          blender --background --factory-startup --disable-autoexec --python tools/blender/make_cube.py -- /tmp/terravox-g2/cube.blend
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python tools/blender/make_cube.py -- /tmp/terravox-g2/cube.blend
           test -s /tmp/terravox-g2/cube.blend
-          blender --background --factory-startup --disable-autoexec /tmp/terravox-g2/cube.blend --python tools/blender/export_glb.py -- --output /tmp/terravox-g2/export.json --glb-output /tmp/terravox-g2/output.glb --correlation-id 00000000-0000-4000-8000-000000000001
-          blender --background --factory-startup --disable-autoexec /tmp/terravox-g2/cube.blend --python tools/blender/validate.py -- --output /tmp/terravox-g2/validation.json --correlation-id 00000000-0000-4000-8000-000000000001
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 /tmp/terravox-g2/cube.blend --python tools/blender/export_glb.py -- --output /tmp/terravox-g2/export.json --glb-output /tmp/terravox-g2/output.glb --correlation-id 00000000-0000-4000-8000-000000000001
+          test -s /tmp/terravox-g2/output.glb
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 /tmp/terravox-g2/cube.blend --python tools/blender/validate.py -- --output /tmp/terravox-g2/validation.json --correlation-id 00000000-0000-4000-8000-000000000001
       - name: Verify GLB binary and validation report
         run: |
           python3 - <<'PY'
