@@ -146,7 +146,7 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
           <button type="button" onClick={togglePause} autoFocus className="mt-5 w-full rounded-xl bg-cyan-300 px-5 py-3 font-bold text-slate-950 hover:bg-cyan-200">Continuar exploração</button>
           <button type="button" onClick={resetExplorer} className="mt-2 w-full rounded-xl border border-white/25 px-5 py-3 font-semibold hover:bg-white/10">Reiniciar exploração</button>
         </div>
-      </div>
+      </div>}
       <div className="pointer-events-none absolute left-3 top-3 w-[min(18rem,calc(100%-1.5rem))] rounded-xl border border-white/15 bg-slate-950/75 px-3 py-3 text-xs leading-relaxed text-white shadow-lg backdrop-blur-md">
         <p className="mb-1 text-[10px] font-bold uppercase tracking-[.15em] text-cyan-200">Exploração da floresta</p>
         <p className="text-[11px] text-white/85">WASD / Setas para caminhar · Shift para correr · Clique no chão para ir até um ponto</p>
