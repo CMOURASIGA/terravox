@@ -1,0 +1,81 @@
+name: B3.4 G5 quality and full MCP E2E
+on:
+  push:
+    branches: [develop]
+    paths: [.github/workflows/b3-3-g5-quality-full-e2e.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  quality-full-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SUPABASE_TELEMETRY_DISABLED: '1'
+      NODE_ENV: test
+      B3_E2E_SCOPE: full
+      BLENDER_PATH: /usr/bin/blender
+      B3_E2E_BLEND_PATH: assets/blender/cube.blend
+    defaults:
+      run:
+        working-directory: blender-mcp
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 144167b20b18d2e14ae9c3a0f2f3f25982e0441a
+          persist-credentials: false
+      - name: Confirm immutable source
+        run: test "$(git rev-parse HEAD)" = "144167b20b18d2e14ae9c3a0f2f3f25982e0441a"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.12.0'
+          cache: npm
+          cache-dependency-path: blender-mcp/package-lock.json
+      - name: Install Blender and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes blender python3-numpy
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test
+          npm run build
+          blender --version
+          npm run asset:cube
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 assets/blender/cube.blend --python-expr "import bpy; bpy.context.scene.unit_settings.system='METRIC'; bpy.context.scene.unit_settings.scale_length=1.0; bpy.data.objects['Cube'].location.z=1.0; bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)"
+          test -s assets/blender/cube.blend
+      - name: Reconstruct disposable Supabase
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 start
+          npx --yes supabase@2.121.0 db reset --local
+      - name: Validate local-only target and run G5 full MCP E2E
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 status -o env > /tmp/terravox-g5-supabase.env
+          set -a
+          source /tmp/terravox-g5-supabase.env
+          set +a
+          export SUPABASE_URL="${API_URL:-}"
+          export SUPABASE_ANON_KEY="${ANON_KEY:-}"
+          export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
+          test "$SUPABASE_URL" = "http://127.0.0.1:54321" || { echo "Refusing nonlocal Supabase URL"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node dist/scripts/e2e-b3-3-b3-4-local.js | tee /tmp/terravox-g5-result.log
+          grep -q '"e2e":"PASS"' /tmp/terravox-g5-result.log
+          grep -q '"authorizedDownload":"PASS"' /tmp/terravox-g5-result.log
+          grep -q '"crossOwner":"DENIED"' /tmp/terravox-g5-result.log
+          grep -q '"crossEnvironment":"DENIED"' /tmp/terravox-g5-result.log
+          grep -q '"unauthenticated":"DENIED"' /tmp/terravox-g5-result.log
+      - name: Stop disposable Supabase
+        if: always()
+        run: npx --yes supabase@2.121.0 stop --no-backup
+      - name: Publish G5 sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terravox-g5-quality-full-e2e
+          retention-days: 7
+          if-no-files-found: warn
+          path: /tmp/terravox-g5-result.log
