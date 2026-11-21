@@ -57,6 +57,10 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); keys.current.clear(); window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
   }, [move]);
+  const portalDistance = Math.hypot(position.x, position.z + 24);
+  const progress = Math.max(0, Math.min(100, Math.round((1 - portalDistance / 32) * 100)));
+  const portalDirection = Math.atan2(-position.x, -24 - position.z) * 180 / Math.PI;
+  const directionLabel = Math.abs(portalDirection) < 22 ? 'Norte' : portalDirection > 0 ? 'Leste' : 'Oeste';
   const navigate = (target: ForestPosition) => { destination.current = { x: Math.max(-20, Math.min(20, target.x)), z: Math.max(-28, Math.min(18, target.z)) }; };
   return <main className="flex h-[100dvh] min-h-[480px] flex-col overflow-hidden bg-[#071528] text-white">
     <header className="z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-white/15 bg-slate-950/90 px-4 py-3 sm:px-6">
@@ -65,7 +69,18 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     </header>
     <section className="relative min-h-0 flex-1" aria-label="Floresta 3D explorável">
       <Forest3D position={position} moving={moving} onNavigate={navigate} onPortal={() => {}} portalReached={portalReached}/>
-      <div className="pointer-events-none absolute left-3 top-3 max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-slate-950/65 px-3 py-2 text-[11px] font-semibold leading-relaxed text-white shadow-lg backdrop-blur-sm sm:text-xs">WASD / Setas · Caminhar<br/>Clique no chão · Ir até o ponto<br/>Explore a floresta · Descubra o portal</div>
+      <div className="pointer-events-none absolute left-3 top-3 w-[min(18rem,calc(100%-1.5rem))] rounded-xl border border-white/15 bg-slate-950/75 px-3 py-3 text-xs leading-relaxed text-white shadow-lg backdrop-blur-md">
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[.15em] text-cyan-200">Exploração da floresta</p>
+        <p className="text-[11px] text-white/85">WASD / Setas para caminhar · Clique no chão para ir até um ponto</p>
+        <div className="mt-3 flex items-center justify-between gap-2 text-[11px] font-semibold">
+          <span>{portalReached ? 'Portal descoberto' : 'Rumo ao portal'}</span>
+          <span className="tabular-nums text-cyan-200">{portalReached ? 'Concluído' : Math.round(portalDistance) + ' m'}</span>
+        </div>
+        <div role="progressbar" aria-label="Proximidade do portal" aria-valuemin={0} aria-valuemax={100} aria-valuenow={portalReached ? 100 : progress} className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/20">
+          <div className="h-full rounded-full bg-cyan-300 transition-[width] duration-150" style={{ width: (portalReached ? 100 : progress) + '%' }}/>
+        </div>
+        {!portalReached && <p className="mt-1.5 text-[10px] text-white/65">Direção aproximada: {directionLabel}</p>}
+      </div>
       {portalReached && <div role="status" className="pointer-events-none absolute bottom-4 right-4 z-10 max-w-[min(19rem,calc(100%-2rem))] rounded-xl border border-cyan-200/40 bg-slate-950/75 px-4 py-2 text-right text-xs font-semibold text-cyan-100 shadow-xl sm:text-sm">Portal descoberto · Exploração livre</div>}
       <div className="absolute bottom-3 left-3 grid touch-none select-none grid-cols-3 gap-1 rounded-xl border border-white/20 bg-slate-950/75 p-2 shadow-lg sm:hidden">
         <span/><button type="button" aria-label="Avançar" onPointerDown={() => keys.current.add('w')} onPointerUp={() => keys.current.delete('w')} onPointerCancel={() => keys.current.delete('w')} onPointerLeave={() => keys.current.delete('w')} className="rounded bg-cyan-400 p-3 font-bold text-slate-950">↑</button><span/>
