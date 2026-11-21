@@ -488,8 +488,9 @@ function ForestTerrainBanks() {
   const mounds = useMemo(() => Array.from({ length: 44 }, (_, i) => {
     const side = i % 2 === 0 ? -1 : 1;
     const z = -33 + (i * 7.37) % 51;
-    const x = side * (6.5 + (i * 3.11) % 21);
     const width = 3.8 + (i % 5) * 1.05;
+    // The mound's entire footprint stays outside the central 6 m corridor.
+    const x = side * (width + 3.5 + (i * 3.11) % 15);
     const height = 0.38 + (i % 6) * 0.16;
     return { x, z, width, height, rotation: i * 1.37 };
   }), []);
