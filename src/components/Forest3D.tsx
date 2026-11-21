@@ -85,6 +85,8 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
   const rightLeg = useRef<Group>(null);
   const leftArm = useRef<Group>(null);
   const rightArm = useRef<Group>(null);
+  const head = useRef<Group>(null);
+  const stridePhase = useRef(0);
   useFrame((state, delta) => {
     if (!root.current) return;
     const next = new Vector3(position.x, 0, position.z);
@@ -92,21 +94,38 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
     if (direction.lengthSq() > 0.0001) root.current.rotation.y = MathUtils.lerp(root.current.rotation.y, Math.atan2(direction.x, direction.z), Math.min(1, delta * 9));
     root.current.position.lerp(next, Math.min(1, delta * 12));
     last.current.copy(next);
-    const stride = moving ? Math.sin(state.clock.elapsedTime * 9) * 0.45 : 0;
+    if (moving) stridePhase.current += delta * 8.5;
+    const stride = moving ? Math.sin(stridePhase.current) * 0.48 : 0;
     if (body.current) body.current.position.y = moving ? Math.abs(Math.sin(state.clock.elapsedTime * 9)) * 0.055 : 0;
     if (leftLeg.current) leftLeg.current.rotation.x = MathUtils.damp(leftLeg.current.rotation.x, stride, 12, delta);
     if (rightLeg.current) rightLeg.current.rotation.x = MathUtils.damp(rightLeg.current.rotation.x, -stride, 12, delta);
     if (leftArm.current) leftArm.current.rotation.x = MathUtils.damp(leftArm.current.rotation.x, -stride * 0.7, 12, delta);
     if (rightArm.current) rightArm.current.rotation.x = MathUtils.damp(rightArm.current.rotation.x, stride * 0.7, 12, delta);
+    if (head.current) head.current.rotation.z = MathUtils.damp(head.current.rotation.z, moving ? Math.sin(stridePhase.current * 0.5) * 0.035 : 0, 6, delta);
   });
   return <group ref={root} position={[position.x, 0, position.z]}>
     <group ref={body}>
       <mesh castShadow position={[0, 1.55, 0]}><capsuleGeometry args={[0.38, 0.65, 6, 12]}/><meshStandardMaterial color="#168e91" roughness={0.85}/></mesh>
-      <mesh castShadow position={[0, 2.55, 0]}><sphereGeometry args={[0.43, 16, 12]}/><meshStandardMaterial color="#e9b68f"/></mesh>
-      <mesh castShadow position={[0, 2.86, -0.1]}><sphereGeometry args={[0.44, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6]}/><meshStandardMaterial color="#30241d"/></mesh>
+      <group ref={head} position={[0,2.55,0]}>
+        <mesh castShadow><sphereGeometry args={[0.43, 20, 16]}/><meshStandardMaterial color="#e9b68f" roughness={0.86}/></mesh>
+        <mesh castShadow position={[0,0.28,-0.09]}><sphereGeometry args={[0.445, 16, 12, 0, Math.PI*2, 0, Math.PI*0.58]}/><meshStandardMaterial color="#30241d" roughness={1}/></mesh>
+        {[-0.17,0.17].map(x=><group key={x} position={[x,0.045,0.385]}>
+          <mesh scale={[1,0.75,0.45]}><sphereGeometry args={[0.105,12,10]}/><meshStandardMaterial color="#f9f4e8"/></mesh>
+          <mesh position={[0,0,0.044]}><sphereGeometry args={[0.047,10,10]}/><meshStandardMaterial color="#254b49"/></mesh>
+          <mesh position={[0,0,0.082]}><sphereGeometry args={[0.022,8,8]}/><meshBasicMaterial color="#101b20"/></mesh>
+        </group>)}
+        <mesh position={[0,-0.11,0.425]}><sphereGeometry args={[0.075,9,8]}/><meshStandardMaterial color="#d79575"/></mesh>
+        <mesh position={[0,-0.245,0.335]} scale={[1,0.35,0.35]}><sphereGeometry args={[0.13,12,8]}/><meshStandardMaterial color="#864b45"/></mesh>
+        <mesh castShadow position={[0,0.42,0]} rotation={[0.08,0,0]}><sphereGeometry args={[0.48,16,8,0,Math.PI*2,0,Math.PI*0.42]}/><meshStandardMaterial color="#345b55"/></mesh>
+        <mesh castShadow position={[0,0.29,0.24]} rotation={[0.2,0,0]}><cylinderGeometry args={[0.36,0.37,0.09,16]}/><meshStandardMaterial color="#27433d"/></mesh>
+      </group>
       <mesh castShadow position={[0, 1.55, -0.38]}><boxGeometry args={[0.68, 0.94, 0.35]}/><meshStandardMaterial color="#ae7144"/></mesh>
-      <mesh castShadow position={[0, 2.95, 0]} rotation={[0.18, 0, 0]}><cylinderGeometry args={[0.37, 0.43, 0.12, 14]}/><meshStandardMaterial color="#3a544b"/></mesh>
+
       <mesh castShadow position={[0, 1.6, 0.37]}><boxGeometry args={[0.55, 0.1, 0.12]}/><meshStandardMaterial color="#d9b26a"/></mesh>
+      <mesh castShadow position={[0,1.5,0.43]}><boxGeometry args={[0.36,0.48,0.14]}/><meshStandardMaterial color="#315d55"/></mesh>
+      {[-0.28,0.28].map(x=><mesh key={x} castShadow position={[x,1.65,-0.18]} rotation={[0,0,x*0.32]}><boxGeometry args={[0.1,1.05,0.14]}/><meshStandardMaterial color="#c48d4f"/></mesh>)}
+      <mesh position={[0,1.16,0.03]}><cylinderGeometry args={[0.39,0.39,0.13,12]}/><meshStandardMaterial color="#694f35"/></mesh>
+      <mesh position={[0,1.16,0.38]}><boxGeometry args={[0.16,0.14,0.07]}/><meshStandardMaterial color="#e8c17a" metalness={0.55} roughness={0.4}/></mesh>
       {[-0.22, 0.22].map((x) => <group key={x} ref={x < 0 ? leftLeg : rightLeg} position={[x, 1.08, 0]}><group position={[0, -1.08, 0]}><mesh castShadow position={[0, 0.65, 0]}><capsuleGeometry args={[0.15, 0.72, 4, 8]}/><meshStandardMaterial color="#293747"/></mesh><mesh castShadow position={[0, 0.18, 0.12]}><boxGeometry args={[0.3, 0.35, 0.55]}/><meshStandardMaterial color="#453124"/></mesh></group></group>)}
       {[-0.52, 0.52].map((x) => <group key={x} ref={x < 0 ? leftArm : rightArm} position={[x, 1.98, 0]}><mesh castShadow position={[0, -0.35, 0]} rotation={[0, 0, x > 0 ? -0.3 : 0.3]}><capsuleGeometry args={[0.14, 0.65, 4, 8]}/><meshStandardMaterial color="#2aa9a4"/></mesh><mesh castShadow position={[0, -0.76, 0]}><sphereGeometry args={[0.14, 10, 8]}/><meshStandardMaterial color="#e9b68f"/></mesh></group>)}
     </group>
