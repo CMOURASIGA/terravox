@@ -202,8 +202,13 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
 function Portal({ active }: { active: boolean }) {
   const energy = useRef<Group>(null);
   const motes = useRef<Group>(null);
+  const portalSurface = useRef<import('three').ShaderMaterial>(null);
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
+    if (portalSurface.current) {
+      portalSurface.current.uniforms.uTime.value = t;
+      portalSurface.current.uniforms.uActive.value = MathUtils.damp(portalSurface.current.uniforms.uActive.value, active ? 1 : 0, 2.5, delta);
+    }
     if (energy.current) {
       energy.current.rotation.z = t * 0.07;
       const pulse = 1 + Math.sin(t * 1.8) * 0.035;
@@ -229,8 +234,35 @@ function Portal({ active }: { active: boolean }) {
         </mesh>;
       })}
       <group ref={energy}>
-        <mesh><circleGeometry args={[2.58,64]}/>
-          <meshBasicMaterial color={active?'#f8cf93':'#1b928c'} transparent opacity={0.45} depthWrite={false} side={2}/>
+        <mesh>
+          <circleGeometry args={[2.58,96]}/>
+          <shaderMaterial
+            ref={portalSurface}
+            transparent
+            depthWrite={false}
+            side={2}
+            uniforms={{
+              uTime: { value: 0 },
+              uActive: { value: active ? 1 : 0 },
+            }}
+            vertexShader={`varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`}
+            fragmentShader={`uniform float uTime; uniform float uActive; varying vec2 vUv;
+              void main() {
+                vec2 p = (vUv - 0.5) * 2.0;
+                float r = length(p);
+                float angle = atan(p.y, p.x);
+                float swirl = sin(angle * 5.0 - r * 11.0 + uTime * 0.8);
+                float veins = sin(p.y * 22.0 + sin(p.x * 10.0 + uTime) * 3.0 - uTime * 1.4);
+                float halo = pow(1.0 - smoothstep(0.62, 1.0, r), 1.3);
+                vec3 teal = vec3(0.09, 0.56, 0.53);
+                vec3 gold = vec3(0.99, 0.70, 0.38);
+                vec3 color = mix(teal, gold, uActive);
+                color += vec3(0.20, 0.44, 0.36) * max(0.0, swirl) * 0.42;
+                color += vec3(0.32, 0.50, 0.42) * max(0.0, veins) * 0.16;
+                float alpha = halo * (0.57 + 0.14 * swirl) * (0.88 + 0.12 * sin(uTime * 1.6));
+                gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.86));
+              }`}
+          />
         </mesh>
         <mesh position={[0,0,0.04]}>
           <torusGeometry args={[2.38,0.045,8,72]}/>
