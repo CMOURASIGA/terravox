@@ -439,20 +439,48 @@ function ScenicBackdrop() {
   </group>;
 }
 
-function TrailDetails() {
-  const flowers = useMemo(()=>Array.from({length:90},(_,i)=>{
-    const z=-29+(i*4.83)%42;
-    const x=(i%2?-1:1)*(3.2+(i*2.37)%16);
-    return {x,z,color:['#f5b94e','#eeb3cb','#c7e8f0','#e6d795'][i%4]};
-  }),[]);
+function InstancedForestFlowers() {
+  const petals = useRef<InstancedMesh>(null);
+  const stems = useRef<InstancedMesh>(null);
+  const centers = useRef<InstancedMesh>(null);
+  useEffect(() => {
+    if (!petals.current || !stems.current || !centers.current) return;
+    const dummy = new Object3D();
+    const colors = ['#f5b94e','#eeb3cb','#c7e8f0','#e6d795'].map(value => new Color(value));
+    for (let i = 0; i < 90; i++) {
+      const z = -29 + (i * 4.83) % 42;
+      const x = (i % 2 ? -1 : 1) * (3.2 + (i * 2.37) % 16);
+      dummy.position.set(x, 0.49, z);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(0.02, 0.4, 0.02);
+      dummy.updateMatrix();
+      stems.current.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(x, 0.72, z);
+      dummy.scale.setScalar(0.05);
+      dummy.updateMatrix();
+      centers.current.setMatrixAt(i, dummy.matrix);
+      for (let j = 0; j < 5; j++) {
+        const n = i * 5 + j;
+        dummy.position.set(x + Math.sin(j * 1.256) * 0.11, 0.71, z + Math.cos(j * 1.256) * 0.11);
+        dummy.scale.setScalar(0.07);
+        dummy.updateMatrix();
+        petals.current.setMatrixAt(n, dummy.matrix);
+        petals.current.setColorAt(n, colors[i % colors.length]);
+      }
+    }
+    for (const mesh of [petals.current, stems.current, centers.current]) mesh.instanceMatrix.needsUpdate = true;
+    if (petals.current.instanceColor) petals.current.instanceColor.needsUpdate = true;
+  }, []);
   return <group>
-    {flowers.map((p,i)=><group key={i} position={[p.x,0.3,p.z]}>
-      <mesh position={[0,0.19,0]}><cylinderGeometry args={[0.016,0.02,0.4,5]}/><meshStandardMaterial color="#477f4b"/></mesh>
-      {[0,1,2,3,4].map(j=><mesh key={j} position={[Math.sin(j*1.256)*0.11,0.41,Math.cos(j*1.256)*0.11]}>
-        <sphereGeometry args={[0.07,6,5]}/><meshStandardMaterial color={p.color} emissive={p.color} emissiveIntensity={0.12}/>
-      </mesh>)}
-      <mesh position={[0,0.42,0]}><sphereGeometry args={[0.05,8,6]}/><meshStandardMaterial color="#e8a834"/></mesh>
-    </group>)}
+    <instancedMesh ref={stems} args={[undefined, undefined, 90]}><cylinderGeometry args={[1, 1, 1, 5]}/><meshStandardMaterial color="#477f4b"/></instancedMesh>
+    <instancedMesh ref={petals} args={[undefined, undefined, 450]}><sphereGeometry args={[1, 6, 5]}/><meshStandardMaterial roughness={0.9} emissive="#55452d" emissiveIntensity={0.08}/></instancedMesh>
+    <instancedMesh ref={centers} args={[undefined, undefined, 90]}><sphereGeometry args={[1, 8, 6]}/><meshStandardMaterial color="#e8a834"/></instancedMesh>
+  </group>;
+}
+
+function TrailDetails() {
+  return <group>
+    <InstancedForestFlowers/>
     {[-2.65,2.65].map(side=><group key={side}>
       {Array.from({length:30},(_,i)=><mesh key={i} castShadow position={[side,0.12,-29+i*1.42]} rotation={[0,i*2.19,0]} scale={[0.5+(i%3)*0.14,0.22,0.3+(i%4)*0.1]}>
         <dodecahedronGeometry args={[1,0]}/><meshStandardMaterial color={i%3===0?'#78867a':i%3===1?'#667b6c':'#9a9a82'} roughness={1}/>
