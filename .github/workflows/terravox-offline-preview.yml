@@ -57,16 +57,15 @@ jobs:
           services for features that depend on authentication or remote data.
           This package is not a Vercel deployment and does not validate GPU visuals.
           EOF
-          cd offline-preview && zip -qr ../terravox-offline-preview.zip .
       - name: Publish playable preview ZIP
         uses: actions/upload-artifact@v4
         with:
           name: terravox-offline-preview
-          path: terravox-offline-preview.zip
+          path: offline-preview/
           retention-days: 14
       - name: Report verification scope
         run: |
           echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
           echo 'Typecheck, production build, HTTP smoke and four GLB assets checked locally. Quiz API may be UNVERIFIED when its provider returns HTTP 503; inspect the smoke log.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download the terravox-offline-preview artifact, extract, npm ci, npm start, open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download and extract the terravox-offline-preview artifact once. From the folder containing package-lock.json, run npm ci, npm start, then open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
