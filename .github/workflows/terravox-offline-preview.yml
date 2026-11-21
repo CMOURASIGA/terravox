@@ -77,27 +77,35 @@ jobs:
           cat > offline-preview/README.txt <<'EOF'
           TerraVox - local playable preview (develop)
 
-          Requirements: Node.js 22 or newer, internet for first npm install.
+          Requirements: Node.js 22 or newer. No internet needed to launch the bundled game.
 
           WINDOWS (recommended):
           1. Extract the ZIP into a folder.
           2. Double-click INICIAR_TERRAVOX.cmd.
-          3. Wait for the first dependency install and server startup.
+          3. Wait for the local server startup. Runtime dependencies are included.
           4. Open http://localhost:3000 in your browser.
           5. Check VERSAO.txt to confirm which commit is installed.
           Keep the terminal window open while playing.
 
           MANUAL (Windows/macOS/Linux):
           1. Open a terminal inside the extracted folder.
-          2. Run npm ci, then npm start.
+          2. Run npm start (dependencies are already included).
           3. Open http://localhost:3000.
 
           Stop with Ctrl+C.
 
-          The built client and server are included. The app may require external
+          The built client, server and runtime dependencies are included. The app may require external
           services for features that depend on authentication or remote data.
           This package is not a Vercel deployment and does not validate GPU visuals.
           EOF
+      - name: Include production dependencies for first-run offline play
+        run: |
+          cd offline-preview
+          npm ci --omit=dev --no-audit --no-fund
+          test -d node_modules/express
+          test -d node_modules/react
+          test -d node_modules/three
+          echo "Runtime dependencies bundled; Windows does not need npm access to launch."
       - name: Verify Windows offline bundle integrity
         run: |
           test -s offline-preview/VERSAO.txt
@@ -105,6 +113,7 @@ jobs:
           test -s offline-preview/README.txt
           test -s offline-preview/dist/server.cjs
           test -s offline-preview/dist/index.html
+          test -d offline-preview/node_modules/express
           test -s offline-preview/package-lock.json
           grep -q "$GITHUB_SHA" offline-preview/VERSAO.txt
           grep -q "npm start" offline-preview/INICIAR_TERRAVOX.cmd
@@ -123,6 +132,6 @@ jobs:
         run: |
           echo 'Cinematic asset check outcome: ${{ steps.cinematic.outcome }}' >> "$GITHUB_STEP_SUMMARY"
           echo '### TerraVox offline preview' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Typecheck, production build and HTTP smoke executed. Cinematic GLB completeness is checked separately and does not block the playable preview. Quiz API may be UNVERIFIED when its provider returns HTTP 503; inspect the smoke log.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download and extract the terravox-develop-playable-preview artifact once. From the folder containing package-lock.json, run npm ci, npm start, then open http://localhost:3000.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Typecheck, production build and HTTP smoke executed. Cinematic GLB completeness is checked separately and does not block the playable preview. No quiz API is required.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download and extract the terravox-develop-playable-preview artifact. Double-click INICIAR_TERRAVOX.cmd (Node.js 22 required), then open http://localhost:3000. Runtime dependencies are included.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Missing cinematic assets do not block testing the existing playable scene. Visual fidelity and browser interaction still require manual testing.' >> "$GITHUB_STEP_SUMMARY"
