@@ -12,7 +12,7 @@ const treeLocations: [number, number, number][] = Array.from({ length: 85 }, (_,
   const radius = 5.5 + Math.sqrt(i / 85) * 27;
   const x = Math.cos(angle) * radius;
   const z = Math.sin(angle) * radius - 8;
-  return [x, 0, z];
+  return [x, 0, z] as [number, number, number];
 }).filter(([x, , z]) => Math.abs(x) > 2.7 || z < -23 || z > 8);
 
 function Tree({ position, index }: { position: [number, number, number]; index: number }) {
