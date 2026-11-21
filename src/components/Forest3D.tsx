@@ -440,23 +440,12 @@ function ScenicBackdrop() {
 }
 
 function TrailDetails() {
-  const grass = useMemo(()=>Array.from({length:340},(_,i)=>{
-    const z=-29+(i*6.17)%43;
-    const side=i%2===0?-1:1;
-    const x=side*(2.6+(i*3.79)%20);
-    return {x,z,scale:0.4+(i%5)*0.16,phase:i*1.71};
-  }),[]);
   const flowers = useMemo(()=>Array.from({length:90},(_,i)=>{
     const z=-29+(i*4.83)%42;
     const x=(i%2?-1:1)*(3.2+(i*2.37)%16);
     return {x,z,color:['#f5b94e','#eeb3cb','#c7e8f0','#e6d795'][i%4]};
   }),[]);
   return <group>
-    {grass.map((p,i)=><group key={i} position={[p.x,0.1,p.z]} rotation={[0,p.phase,0]} scale={p.scale}>
-      {[-0.28,0,0.28].map((a,j)=><mesh key={j} position={[a,0.42,0]} rotation={[0,0,a*1.8]}>
-        <coneGeometry args={[0.13,0.95+(j%2)*0.28,3]}/><meshStandardMaterial color={j===0?'#2d7750':j===1?'#4d9d5b':'#75a964'} side={2}/>
-      </mesh>)}
-    </group>)}
     {flowers.map((p,i)=><group key={i} position={[p.x,0.3,p.z]}>
       <mesh position={[0,0.19,0]}><cylinderGeometry args={[0.016,0.02,0.4,5]}/><meshStandardMaterial color="#477f4b"/></mesh>
       {[0,1,2,3,4].map(j=><mesh key={j} position={[Math.sin(j*1.256)*0.11,0.41,Math.cos(j*1.256)*0.11]}>
@@ -478,13 +467,9 @@ function TrailDetails() {
   </group>;
 }
 
-/** Irregular, gently winding trail. Its edges are part of the actual mesh,
- * rather than a perfectly rectangular ground decal.
+/** Batched ground cover replaces hundreds of independent grass meshes.
+ * This preserves forest density while reducing WebGL draw calls.
  */
-/** Low rolling earth banks break up the flat green plane while leaving
- * the central walkable corridor and click-to-move controls unobstructed.
- */
-/** Batched ground cover adds texture without hundreds of individual draw calls. */
 function ForestGroundCover() {
   const blades = useRef<InstancedMesh>(null);
   const count = 1100;
