@@ -517,7 +517,9 @@ function TrailDetails() {
       <mesh castShadow position={[0,0.55,0]}><cylinderGeometry args={[0.36,0.5,1.1,8]}/><meshStandardMaterial color="#5d675f"/></mesh>
       <mesh position={[0,1.16,0]}><cylinderGeometry args={[0.31,0.38,0.13,8]}/><meshStandardMaterial color="#8a8c78"/></mesh>
       <mesh position={[0,1.46,0]}><octahedronGeometry args={[0.32,0]}/><meshStandardMaterial color="#a7fff0" emissive="#2be4c3" emissiveIntensity={1.8}/></mesh>
-      <pointLight position={[0,1.5,0]} intensity={2.2} distance={5} color="#6affd4"/>
+      {/* Emissive crystal is the visible source; one shared light per pair
+          avoids six dynamic lights competing with the sun and portal. */}
+      {x < 0 && <pointLight position={[3.2,1.6,0]} intensity={1.5} distance={7} decay={2} color="#6affd4"/>}
     </group>))}
   </group>;
 }
