@@ -8,7 +8,7 @@ for (const file of ['dist/server.cjs', 'dist/index.html', 'VERSAO.txt', 'INICIAR
   if (!existsSync(resolve(directory, file))) throw new Error('Missing offline package file: ' + file);
 }
 const version = readFileSync(resolve(directory, 'VERSAO.txt'), 'utf8');
-if (!version.includes('Commit:') || !version.includes('Branch: develop')) {
+if (!version.includes('Commit:') || !/^Branch: .+$/m.test(version)) {
   throw new Error('Invalid package version manifest');
 }
 const server = spawn(process.execPath, ['dist/server.cjs'], {
@@ -32,7 +32,7 @@ try {
     await sleep(250);
   }
   if (!started) throw new Error('Offline server did not serve the SPA: ' + logs);
-  for (const path of ['/assets/forest-v2/stylized/tree1.glb', '/assets/forest-v2/stylized/tree2.glb', '/assets/forest-v2/nature/fern_02.glb']) {
+  for (const path of ['/assets/forest-v2/environment.glb', '/assets/forest-v2/portal.glb', '/assets/forest-v2/explorer.glb', '/assets/forest-v2/spirit.glb', '/assets/forest-v2/stylized/tree1.glb', '/assets/forest-v2/stylized/tree2.glb', '/assets/forest-v2/nature/fern_02.glb']) {
     const response = await fetch('http://127.0.0.1:3000' + path);
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (!response.ok || bytes.length < 1000 || String.fromCharCode(...bytes.slice(0, 4)) !== 'glTF') {

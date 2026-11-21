@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 const root = resolve('public/assets/forest-v2');
 const required = {
-  'explorer.glb': ['Idle', 'Walking', 'Run'],
+  'explorer.glb': ['Idle', 'Walking', 'Run', 'Turn', 'Interact'],
   'environment.glb': [],
   'portal.glb': [],
   'spirit.glb': ['idle'],

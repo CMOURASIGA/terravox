@@ -310,15 +310,16 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   const [playerHp, setPlayerHp] = useState(savedRoute.playerHp ?? 100);
   const [modal, setModal] = useState<'path' | 'boss' | null>(null);
   const [feedback, setFeedback] = useState('Siga a trilha. Cada marco traz uma descoberta, uma ação ou um desafio de conhecimento.');
-  const [won, setWon] = useState(false);
+  const [won, setWon] = useState(savedRoute.bossHp === 0);
   const [showHelp, setShowHelp] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [questions, setQuestions] = useState<SourcedQuestion[]>([]);
-  const [exploringWithoutQuestions, setExploringWithoutQuestions] = useState(false);
+  const [request, setRequest] = useState(0);
 
   useEffect(() => {
+    if (won) { localStorage.removeItem(storageKey); return; }
     localStorage.setItem(storageKey, JSON.stringify({ pathStep, bossHp, playerHp }));
-  }, [bossHp, pathStep, playerHp, storageKey]);
+  }, [bossHp, pathStep, playerHp, storageKey, won]);
 
   useEffect(() => {
     let cancelled = false;
@@ -343,7 +344,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     // marcoLabels tem o mesmo tamanho para todo territoryId, então não
     // precisa entrar nas deps além do próprio território.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [territoryId]);
+  }, [territoryId, request]);
 
   const adventure = {
     title: labels.title,
@@ -351,7 +352,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     challenges: marcoLabels.slice(0, questions.length).map((label, index): Marco => ({ ...label, question: questions[index] })),
   };
 
-  if (loadingQuestions) {
+  if (loadingQuestions && territoryId !== 'brasil') {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
         <Loader2 className="w-12 h-12 animate-spin text-rose-500 mb-4" />
@@ -360,17 +361,11 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     );
   }
 
-  // Exploration is a visual preview only. It cannot award XP or unlock missions.
-  if (exploringWithoutQuestions && territoryId === 'brasil') {
-    return <Arena3DPreview onBack={() => setExploringWithoutQuestions(false)} />;
-  }
-
-  if (adventure.challenges.length < MIN_MARCOS) {
+  if (territoryId !== 'brasil' && adventure.challenges.length < MIN_MARCOS) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white gap-4 p-6 text-center">
         <p className="text-lg font-bold text-rose-300">Não foi possível carregar os desafios deste território agora.</p>
         <p className="max-w-lg text-sm text-slate-300">O serviço de perguntas está indisponível. A exploração visual pode continuar sem alterar XP, moedas ou progresso da missão.</p>
-        {territoryId === 'brasil' && <button type="button" onClick={() => setExploringWithoutQuestions(true)} className="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-400">Explorar a Floresta 3D sem desafios</button>}
         <button onClick={onLeave} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold">Voltar ao Mapa</button>
       </div>
     );
@@ -415,6 +410,27 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   const isBoss = pathStep >= adventure.challenges.length;
   const progressLabel = isBoss ? `Guardião: ${4 - bossHp / 25}/4 ataques de conhecimento` : `Trilha: ${pathStep}/${adventure.challenges.length} marcos`;
 
+  const dialogs = <>
+    {modal === 'path' && <MissionChallengeModal mode={pathStep % 4} eyebrow={adventure.challenges[pathStep].topic} title={adventure.challenges[pathStep].name} prompt={adventure.challenges[pathStep].question.prompt} options={adventure.challenges[pathStep].question.options} onAnswer={answerPath} />}
+    {modal === 'boss' && <MissionChallengeModal mode={0} eyebrow="ATAQUE DE CONHECIMENTO" title="Enfrente o Guardião" prompt={adventure.challenges[(100 - bossHp) / 25].question.prompt} options={adventure.challenges[(100 - bossHp) / 25].question.options} onAnswer={answerBoss} />}
+    {won && <div className="absolute inset-0 z-50 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você explorou a trilha, conquistou pistas e usou o conhecimento do território para vencer o Guardião.</p><button onClick={() => onWin(territoryId, 150, 40)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +150 XP</button></section></div>}
+  </>;
+  if (territoryId === 'brasil') {
+    const ready = adventure.challenges.length >= MIN_MARCOS;
+    const z = isBoss ? -24 : 5 - pathStep * 28 / Math.max(1, adventure.challenges.length);
+    return <div className="relative">
+      <Arena3DPreview onBack={onLeave} mission={{
+        title: adventure.title, target: { x: 0, z },
+        objective: loadingQuestions ? 'Carregando desafios…' : !ready ? 'Desafios indisponíveis' :
+          isBoss ? adventure.portal : adventure.challenges[pathStep].name,
+        action: isBoss ? 'Enfrentar o Guardião' : 'Responder desafio',
+        progress: ready ? progressLabel : 'Explore a floresta enquanto aguarda',
+        energy: playerHp, feedback, ready, busy: Boolean(modal || won), boss: ready && isBoss,
+        activate: openNextChallenge, retry: !ready && !loadingQuestions ? () => setRequest(n => n + 1) : undefined
+      }}/>
+      {dialogs}
+    </div>;
+  }
   return <main className="relative min-h-[100dvh] overflow-hidden bg-[#08172d] text-white">
     {background ? <img src={background} alt={`Cenário da aventura ${adventure.title}`} className="absolute inset-0 h-full w-full object-cover" /> : <div aria-hidden style={{ background: backgroundGradient }} className="absolute inset-0 h-full w-full" />}
     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,12,29,.76)_0%,rgba(3,12,29,.04)_38%,rgba(3,12,29,.72)_100%)]" />
@@ -435,9 +451,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     <button onClick={() => setShowHelp(true)} aria-label="Como jogar" className="absolute bottom-5 right-5 z-30 grid h-12 w-12 place-items-center rounded-2xl border-2 border-cyan-100/70 bg-[#071528]/90 text-cyan-100 shadow-lg backdrop-blur"><CircleHelp className="h-6 w-6"/></button>
     {showHelp && <div className="absolute inset-0 z-40 grid place-items-end bg-slate-950/35 p-4 backdrop-blur-sm sm:place-items-center"><section className="w-full max-w-sm rounded-3xl border border-cyan-100/40 bg-[#071528]/95 p-5 shadow-2xl"><button onClick={() => setShowHelp(false)} className="float-right rounded-lg p-1"><X className="h-5 w-5"/></button><p className="text-xs font-black tracking-[.18em] text-cyan-200">COMO JOGAR</p><h2 className="mt-2 text-xl font-black">Explore a trilha até {adventure.portal}</h2><p className="mt-3 text-sm leading-relaxed text-slate-200">Cada marco alterna entre investigar uma pista, organizar uma estratégia, escolher um recurso ou responder uma pergunta. Ao chegar ao Guardião, use o conhecimento conquistado para atacar.</p><div className="mt-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-[11px] font-black text-cyan-100">{progressLabel}</div></section></div>}
 
-    {modal === 'path' && <MissionChallengeModal mode={pathStep % 4} eyebrow={adventure.challenges[pathStep].topic} title={adventure.challenges[pathStep].name} prompt={adventure.challenges[pathStep].question.prompt} options={adventure.challenges[pathStep].question.options} onAnswer={answerPath} />}
-    {modal === 'boss' && <MissionChallengeModal mode={0} eyebrow="ATAQUE DE CONHECIMENTO" title="Enfrente o Guardião" prompt={adventure.challenges[(100 - bossHp) / 25].question.prompt} options={adventure.challenges[(100 - bossHp) / 25].question.options} onAnswer={answerBoss} />}
-    {won && <div className="absolute inset-0 z-50 grid place-items-center bg-[#071528]/70 p-5 backdrop-blur-sm"><section className="w-full max-w-sm rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-500 to-cyan-700 p-8 text-center shadow-2xl"><Sparkles className="mx-auto h-12 w-12 text-yellow-100"/><h2 className="mt-3 text-3xl font-black">Território restaurado!</h2><p className="my-4 font-medium">Você explorou a trilha, conquistou pistas e usou o conhecimento do território para vencer o Guardião.</p><button onClick={() => onWin(territoryId, 150, 40)} className="w-full rounded-xl bg-yellow-200 py-4 font-black text-slate-950">COLETAR +150 XP</button></section></div>}
+    {dialogs}
   </main>;
 }
 
