@@ -1,8 +1,8 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatedExplorer, ForestCinematicAssets, ForestNature, StylizedForestTrees, FOREST_V2_ASSETS } from './ForestCinematicAssets';
-import { Color, MathUtils, Shape, ShapeGeometry, Vector3 } from 'three';
-import type { Group } from 'three';
+import { Color, MathUtils, Object3D, Shape, ShapeGeometry, Vector3 } from 'three';
+import type { Group, InstancedMesh } from 'three';
 
 export type ForestPosition = { x: number; z: number };
 type Props = { position: ForestPosition; moving: boolean; onNavigate: (position: ForestPosition) => void; onPortal: () => void; portalReached: boolean };
@@ -484,6 +484,38 @@ function TrailDetails() {
 /** Low rolling earth banks break up the flat green plane while leaving
  * the central walkable corridor and click-to-move controls unobstructed.
  */
+/** Batched ground cover adds texture without hundreds of individual draw calls. */
+function ForestGroundCover() {
+  const blades = useRef<InstancedMesh>(null);
+  const count = 1100;
+  useEffect(() => {
+    const mesh = blades.current;
+    if (!mesh) return;
+    const object = new Object3D();
+    const palette = ['#3d7446', '#4b8751', '#6b9458', '#315e3c'].map(hex => new Color(hex));
+    for (let i = 0; i < count; i++) {
+      const x = Math.sin(i * 127.1 + 8.3) * 34.5;
+      const z = Math.cos(i * 71.9 + 1.4) * 33.5 - 7;
+      // Keep grass off the earth trail; the forest floor is otherwise free to explore.
+      const trailCenter = Math.sin(z * 0.16) * 0.32 + Math.sin(z * 0.43) * 0.13;
+      const safeX = Math.abs(x - trailCenter) < 3.1 ? x + (x < trailCenter ? -3.2 : 3.2) : x;
+      const height = 0.18 + ((i * 37) % 19) / 100;
+      object.position.set(safeX, height * 0.5, z);
+      object.rotation.set(0, i * 2.39996, Math.sin(i * 3.13) * 0.17);
+      object.scale.set(0.12 + (i % 5) * 0.025, height, 0.12 + (i % 3) * 0.018);
+      object.updateMatrix();
+      mesh.setMatrixAt(i, object.matrix);
+      mesh.setColorAt(i, palette[i % palette.length]);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, []);
+  return <instancedMesh ref={blades} args={[undefined, undefined, count]} castShadow={false} receiveShadow={false} frustumCulled={false}>
+    <coneGeometry args={[1, 1, 3]}/>
+    <meshStandardMaterial roughness={1} side={2}/>
+  </instancedMesh>;
+}
+
 function ForestTerrainBanks() {
   const mounds = useMemo(() => Array.from({ length: 44 }, (_, i) => {
     const side = i % 2 === 0 ? -1 : 1;
@@ -548,6 +580,7 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
     </mesh>
     <ForestTrail onNavigate={onNavigate}/>
     <ForestTerrainBanks/>
+    <ForestGroundCover/>
     {stylizedReady ? <Suspense fallback={null}><StylizedForestTrees/></Suspense> : treeLocations.map((p, i) => <Tree key={i} position={p} index={i}/>)}
     {/* Real licensed nature replaces placeholder ferns and rocks in the playable scene. */}
     <Suspense fallback={null}><ForestNature/></Suspense>
