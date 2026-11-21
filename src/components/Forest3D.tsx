@@ -155,18 +155,6 @@ function SpiritTrail({ position }: { position: ForestPosition }) {
   </group>;
 }
 
-function ForestCanopyLight() {
-  const beams = useMemo(() => Array.from({ length: 11 }, (_, i) => ({
-    x: Math.sin(i * 4.9) * 17, z: -28 + (i * 5.7) % 37, angle: -0.12 + i * 0.028,
-  })), []);
-  return <group>
-    {beams.map((p, i) => <mesh key={i} position={[p.x, 8, p.z]} rotation={[0,0,p.angle]}>
-      <coneGeometry args={[1.1 + (i % 3) * 0.3, 16, 12, 1, true]}/>
-      <meshBasicMaterial color="#fff2bf" transparent opacity={0.035} depthWrite={false} side={2}/>
-    </mesh>)}
-  </group>;
-}
-
 function ForestAtmosphere() {
   const fireflies = useRef<Group>(null);
   const particles = useMemo(() => Array.from({ length: 38 }, (_, i) => ({
@@ -349,7 +337,7 @@ function Portal({ active }: { active: boolean }) {
           </mesh>;
         })}
       </group>
-      <pointLight color={active?'#ffd49c':'#51ebdb'} intensity={active?29:17} distance={17}/>
+      <pointLight color={active?'#ffd49c':'#51ebdb'} intensity={active?7:4} distance={10} decay={2}/>
     </group>
     {[-3.4,3.4].map((x,i)=><group key={x} position={[x,0,-0.3]}>
       <mesh castShadow receiveShadow position={[0,2.15,0]}>
@@ -683,7 +671,6 @@ function Forest({ position, moving, onNavigate, portalReached, stylizedReady, ex
     <ForestFloor/>
     <TrailDetails/>
     <ForestAtmosphere/>
-    <ForestCanopyLight/>
     <ForestSpirit position={position} moving={moving}/>
     <SpiritTrail position={position}/>
     <ExplorerContactShadow position={position}/>
