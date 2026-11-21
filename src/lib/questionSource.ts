@@ -84,6 +84,15 @@ export type SourcedQuestion = Omit<Question, 'correct_answer' | 'explanation'> &
 
 type BankQuestion = { id: string; category: string; prompt: string; options: string[] };
 
+function validQuestion(question: Partial<SourcedQuestion>): boolean {
+  if (typeof question.id !== 'string' || !question.id.trim() || typeof question.prompt !== 'string' || question.prompt.trim().length < 10) return false;
+  if (!Array.isArray(question.options) || question.options.length !== 4 || question.options.some(option => typeof option !== 'string' || !option.trim())) return false;
+  const normalized = question.options.map(option => option.trim().toLocaleLowerCase('pt-BR'));
+  if (new Set(normalized).size !== 4) return false;
+  if (question.source === 'ai') return typeof question.correct_answer === 'string' && question.options.includes(question.correct_answer);
+  return true;
+}
+
 function difficultyLabel(difficulty: number): 'easy' | 'medium' | 'hard' {
   if (difficulty <= 2) return 'easy';
   if (difficulty >= 4) return 'hard';
@@ -96,7 +105,7 @@ async function fetchBankQuestions(categories: string[], amount: number, difficul
     const res = await fetch(`/api/game/questions?${params.toString()}`);
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data.questions) ? data.questions : [];
+    return Array.isArray(data.questions) ? data.questions.filter((question: BankQuestion) => validQuestion({ ...question, source: 'bank' })) : [];
   } catch (error) {
     console.error('Falha ao buscar perguntas do banco Terravox:', error);
     return [];
@@ -113,7 +122,7 @@ async function fetchAIQuestions(territoryId: string, theme: string, difficulty: 
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data.questions) ? data.questions : [];
+    return Array.isArray(data.questions) ? data.questions.filter((question: Question) => validQuestion({ ...question, source: 'ai' })) : [];
   } catch (error) {
     console.error('Falha ao gerar perguntas por IA:', error);
     return [];
@@ -162,11 +171,11 @@ export async function checkAnswer(question: SourcedQuestion, selected: string): 
         body: JSON.stringify({ answer: selected }),
       });
       const data = await res.json();
-      if (!res.ok) return { correct: false, explanation: data?.error || '' };
+      if (!res.ok) throw new Error(data?.error || 'Serviço de validação indisponível. Tente novamente.');
       return { correct: Boolean(data.correct), explanation: data.explanation || '' };
     } catch (error) {
       console.error('Falha ao validar resposta no banco Terravox:', error);
-      return { correct: false, explanation: '' };
+      throw new Error('Não foi possível verificar a resposta. Verifique sua conexão e tente novamente.');
     }
   }
   return { correct: selected === question.correct_answer, explanation: question.explanation || '' };
