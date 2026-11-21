@@ -92,6 +92,11 @@ try {
     throw new Error('Explorer spawn heading or smooth shortest-path turning regressed');
   }
   checks.push('explorer faces portal at spawn and turns smoothly');
+  if (!forestSource.includes('class ForestRenderBoundary extends Component') ||
+      !forestSource.includes('Não foi possível iniciar a floresta 3D')) {
+    throw new Error('3D rendering recovery screen missing');
+  }
+  checks.push('WebGL rendering error boundary present');
   // Guard against accidentally reintroducing the quiz modal or its clipped CTA.
   const arenaSource = await readFile('src/components/Arena3DPreview.tsx', 'utf8');
   const forbidden = ['PORTAL_QUESTION', 'challengeOpen', 'challengeFeedback', 'Interagir com o Guardião'];
