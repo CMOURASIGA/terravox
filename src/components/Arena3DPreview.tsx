@@ -15,11 +15,9 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
   const positionRef = useRef(INITIAL);
   const destination = useRef<ForestPosition | null>(null);
   const portalRef = useRef(false);
-  const visibilityRef = useRef(false);
   const pausedRef = useRef(false);
   const togglePause = () => {
     pausedRef.current = !pausedRef.current;
-    visibilityRef.current = false;
     setPaused(pausedRef.current);
     keys.current.clear();
     destination.current = null;
@@ -57,7 +55,6 @@ export function Arena3DPreview({ onBack }: { onBack: () => void }) {
     const visibility = () => {
       if (document.hidden && !pausedRef.current) {
         pausedRef.current = true;
-        visibilityRef.current = true;
         setPaused(true);
         keys.current.clear();
         setMoving(false);
