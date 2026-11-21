@@ -1,0 +1,58 @@
+name: TerraVox forest-v2 nature GLB integration
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'scripts/export-forest-v2-nature.py'
+      - '.github/workflows/forest-v2-nature-integrate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-nature:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install GLB exporter
+        run: pip install 'trimesh==4.6.8' 'Pillow>=10,<12' 'numpy>=1.26,<3'
+      - name: Download pinned CC0 source models
+        run: python scripts/stage-forest-v2-assets.py
+      - name: Convert source models to self-contained GLB
+        run: python scripts/export-forest-v2-nature.py
+      - name: Verify GLB files and licensing manifest
+        run: |
+          python - <<'PY'
+          import json, pathlib, struct
+          root = pathlib.Path('public/assets/forest-v2/nature')
+          manifest = json.loads((root / 'manifest.json').read_text())
+          assert len(manifest['assets']) == 4
+          for entry in manifest['assets']:
+              path = root / entry['file']
+              data = path.read_bytes()
+              assert data[:4] == b'glTF'
+              assert struct.unpack_from('<I', data, 4)[0] == 2
+              assert struct.unpack_from('<I', data, 8)[0] == len(data)
+              assert entry['license'] == 'CC0-1.0'
+              print(path, len(data))
+          print('NATURE_GLB_GATE_PASS')
+          PY
+      - name: Commit licensed nature models to develop
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/assets/forest-v2/nature/
+          if git diff --cached --quiet; then
+            echo 'No new models to commit'
+          else
+            git commit -m 'assets(terravox): integrate reviewed CC0 forest nature GLBs'
+            git push origin HEAD:develop
+          fi
