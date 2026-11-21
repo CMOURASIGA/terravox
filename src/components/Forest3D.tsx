@@ -38,6 +38,10 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
   const root = useRef<Group>(null);
   const body = useRef<Group>(null);
   const last = useRef(new Vector3(position.x, 0, position.z));
+  const leftLeg = useRef<Group>(null);
+  const rightLeg = useRef<Group>(null);
+  const leftArm = useRef<Group>(null);
+  const rightArm = useRef<Group>(null);
   useFrame((state, delta) => {
     if (!root.current) return;
     const next = new Vector3(position.x, 0, position.z);
@@ -45,7 +49,12 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
     if (direction.lengthSq() > 0.0001) root.current.rotation.y = MathUtils.lerp(root.current.rotation.y, Math.atan2(direction.x, direction.z), Math.min(1, delta * 9));
     root.current.position.lerp(next, Math.min(1, delta * 12));
     last.current.copy(next);
-    if (body.current) body.current.position.y = moving ? Math.sin(state.clock.elapsedTime * 13) * 0.085 : 0;
+    const stride = moving ? Math.sin(state.clock.elapsedTime * 9) * 0.45 : 0;
+    if (body.current) body.current.position.y = moving ? Math.abs(Math.sin(state.clock.elapsedTime * 9)) * 0.055 : 0;
+    if (leftLeg.current) leftLeg.current.rotation.x = MathUtils.damp(leftLeg.current.rotation.x, stride, 12, delta);
+    if (rightLeg.current) rightLeg.current.rotation.x = MathUtils.damp(rightLeg.current.rotation.x, -stride, 12, delta);
+    if (leftArm.current) leftArm.current.rotation.x = MathUtils.damp(leftArm.current.rotation.x, -stride * 0.7, 12, delta);
+    if (rightArm.current) rightArm.current.rotation.x = MathUtils.damp(rightArm.current.rotation.x, stride * 0.7, 12, delta);
   });
   return <group ref={root} position={[position.x, 0, position.z]}>
     <group ref={body}>
@@ -53,8 +62,10 @@ function Explorer({ position, moving }: { position: ForestPosition; moving: bool
       <mesh castShadow position={[0, 2.55, 0]}><sphereGeometry args={[0.43, 16, 12]}/><meshStandardMaterial color="#e9b68f"/></mesh>
       <mesh castShadow position={[0, 2.86, -0.1]}><sphereGeometry args={[0.44, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6]}/><meshStandardMaterial color="#30241d"/></mesh>
       <mesh castShadow position={[0, 1.55, -0.38]}><boxGeometry args={[0.68, 0.94, 0.35]}/><meshStandardMaterial color="#ae7144"/></mesh>
-      {[-0.22, 0.22].map((x) => <group key={x} position={[x, 0, 0]}><mesh castShadow position={[0, 0.65, 0]}><capsuleGeometry args={[0.15, 0.72, 4, 8]}/><meshStandardMaterial color="#293747"/></mesh><mesh castShadow position={[0, 0.18, 0.12]}><boxGeometry args={[0.3, 0.35, 0.55]}/><meshStandardMaterial color="#453124"/></mesh></group>)}
-      {[-0.52, 0.52].map((x) => <mesh key={x} castShadow position={[x, 1.63, 0]} rotation={[0, 0, x > 0 ? -0.3 : 0.3]}><capsuleGeometry args={[0.14, 0.65, 4, 8]}/><meshStandardMaterial color="#2aa9a4"/></mesh>)}
+      <mesh castShadow position={[0, 2.95, 0]} rotation={[0.18, 0, 0]}><cylinderGeometry args={[0.37, 0.43, 0.12, 14]}/><meshStandardMaterial color="#3a544b"/></mesh>
+      <mesh castShadow position={[0, 1.6, 0.37]}><boxGeometry args={[0.55, 0.1, 0.12]}/><meshStandardMaterial color="#d9b26a"/></mesh>
+      {[-0.22, 0.22].map((x) => <group key={x} ref={x < 0 ? leftLeg : rightLeg} position={[x, 1.08, 0]}><group position={[0, -1.08, 0]}><mesh castShadow position={[0, 0.65, 0]}><capsuleGeometry args={[0.15, 0.72, 4, 8]}/><meshStandardMaterial color="#293747"/></mesh><mesh castShadow position={[0, 0.18, 0.12]}><boxGeometry args={[0.3, 0.35, 0.55]}/><meshStandardMaterial color="#453124"/></mesh></group></group>)}
+      {[-0.52, 0.52].map((x) => <group key={x} ref={x < 0 ? leftArm : rightArm} position={[x, 1.98, 0]}><mesh castShadow position={[0, -0.35, 0]} rotation={[0, 0, x > 0 ? -0.3 : 0.3]}><capsuleGeometry args={[0.14, 0.65, 4, 8]}/><meshStandardMaterial color="#2aa9a4"/></mesh><mesh castShadow position={[0, -0.76, 0]}><sphereGeometry args={[0.14, 10, 8]}/><meshStandardMaterial color="#e9b68f"/></mesh></group>)}
     </group>
   </group>;
 }
