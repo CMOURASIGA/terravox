@@ -440,9 +440,14 @@ function MissionChallengeModal({ mode, eyebrow, title, prompt, options, onAnswer
   const choose = async (option: string) => {
     if (checking) return;
     setChecking(true);
-    const correct = await onAnswer(option);
-    setChecking(false);
-    setError(correct ? null : 'Resposta incorreta. Você perdeu energia. Escolha outra alternativa para continuar.');
+    try {
+      const correct = await onAnswer(option);
+      setError(correct ? null : 'Resposta incorreta. Você perdeu energia. Escolha outra alternativa para continuar.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Falha ao verificar resposta. Tente novamente.');
+    } finally {
+      setChecking(false);
+    }
   };
   const sequenceWords = ['OBSERVAR', 'PENSAR', 'PROTEGER'];
   const addWord = async (word: string) => {
