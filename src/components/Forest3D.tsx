@@ -76,7 +76,7 @@ function Portal({ active }: { active: boolean }) {
       <mesh castShadow position={[0,4.6,0]}><boxGeometry args={[1.9,0.6,1.8]}/><meshStandardMaterial color="#6e7d6c"/></mesh>
       <mesh position={[x>0 ? -0.45 : 0.45,4.8,0.75]}><sphereGeometry args={[0.2,8,8]}/><meshStandardMaterial color="#65f5d6" emissive="#10c5bd" emissiveIntensity={2}/></mesh>
     </group>)}
-    {Array.from({length:14},(_,i)=><mesh key={i} position={[(i%7-3)*1.1, 0.7+(i%3)*0.33, 1.2+Math.floor(i/7)*0.9]} rotation={[i*0.2,i*0.8,i*0.12]} castShadow><dodecahedronGeometry args={[0.35+(i%3)*0.14,0]}/><meshStandardMaterial color={i%2 ? '#6c796b':'#536b61'} roughness={1}/></mesh>)}
+    {Array.from({length:14},(_,i)=><mesh key={i} position={[(i%7-3)*1.1, 0.2+(i%3)*0.12, 1.2+Math.floor(i/7)*0.9]} rotation={[i*0.2,i*0.8,i*0.12]} castShadow><dodecahedronGeometry args={[0.2+(i%3)*0.09,0]}/><meshStandardMaterial color={i%2 ? '#6c796b':'#536b61'} roughness={1}/></mesh>)}
   </group>;
 }
 
@@ -85,8 +85,8 @@ function FollowCamera({ position }: { position: ForestPosition }) {
   const target = useRef(new Vector3());
   useFrame((_, delta) => {
     const t = Math.min(1, delta * 3.5);
-    camera.position.lerp(new Vector3(position.x, 5.3, position.z + 9.8), t);
-    target.current.lerp(new Vector3(position.x, 2.1, position.z - 5), t);
+    camera.position.lerp(new Vector3(position.x, position.z < -19 ? 6.3 : 5.3, position.z + (position.z < -19 ? 6.6 : 9.8)), t);
+    target.current.lerp(new Vector3(position.x, position.z < -19 ? 3.2 : 2.1, position.z < -19 ? -24 : position.z - 5), t);
     camera.lookAt(target.current);
   });
   return null;
@@ -115,7 +115,7 @@ function Forest({ position, moving, onNavigate, portalReached }: Props) {
       </group>;
     })}
     {Array.from({length:18},(_,i)=>{
-      const z=-25+i*2.1, x=(i%2 ? 1:-1)*(3.4+(i%3)*0.5);
+      const z=-25+i*2.1, x=(i%2 ? 1:-1)*(5.2+(i%3)*0.5);
       return <mesh key={'rock'+i} castShadow position={[x,0.28,z]} rotation={[i*0.15,i*1.7,i*0.11]} scale={[0.8+(i%3)*0.25,0.45,0.6]}><dodecahedronGeometry args={[1,0]}/><meshStandardMaterial color={i%2?'#68776c':'#4f655c'} roughness={1}/></mesh>;
     })}
     {Array.from({length: 48}, (_,i) => {
