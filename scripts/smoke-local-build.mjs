@@ -82,6 +82,11 @@ try {
     throw new Error('Full-width procedural forest ground or free-roam click navigation regressed');
   }
   checks.push('procedural forest ground and full-width click navigation present');
+  if (!forestSource.includes('<ForestMushrooms/>') ||
+      !forestSource.includes('function ForestMushrooms()')) {
+    throw new Error('Instanced mushroom colonies missing from forest scene');
+  }
+  checks.push('forest mushroom colonies mounted');
   if (!forestSource.includes('rotation={[0, Math.PI, 0]}') ||
       !forestSource.includes('Math.atan2(Math.sin(heading - current), Math.cos(heading - current))')) {
     throw new Error('Explorer spawn heading or smooth shortest-path turning regressed');
@@ -106,6 +111,11 @@ try {
     throw new Error('Accessible portal navigation HUD missing');
   }
   checks.push('accessible portal distance and progress HUD present');
+  if (!arenaSource.includes("if (key !== 'shift') destination.current = null") ||
+      !arenaSource.includes('Math.min(distance, dt * speed)')) {
+    throw new Error('Click-to-move sprint or target overshoot regression');
+  }
+  checks.push('sprint preserves click destination and arrival clamps step');
   checks.push('exploration UI contains no mandatory guardian challenge');
   // This distribution is exploration-only: it must start without requiring a
   // questions provider or network access beyond localhost. External quiz APIs
