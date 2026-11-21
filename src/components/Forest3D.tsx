@@ -346,8 +346,15 @@ export function Forest3D(props: Props) {
       try {
         // Do not render an incomplete scene or present the old scene as the new version.
         const results = await Promise.all(Object.values(FOREST_V2_ASSETS).map(async (url) => {
-          const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
-          return response.ok && Number(response.headers.get('content-length') || 0) > 20 && !(response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+          const response = await fetch(url, { headers: { Range: 'bytes=0-19' }, signal: controller.signal });
+          if (!response.ok) return false;
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          if (bytes.length < 20) return false;
+          const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+          return String.fromCharCode(...bytes.slice(0, 4)) === 'glTF'
+            && view.getUint32(4, true) === 2
+            && view.getUint32(8, true) >= 20
+            && view.getUint32(16, true) === 0x4e4f534a;
         }));
         if (mounted) setCinematicReady(results.every(Boolean));
       } catch { if (mounted) setCinematicReady(false); }
