@@ -69,11 +69,21 @@ with sync_playwright() as p:
     page.wait_for_timeout(3000)
     page.evaluate('window.frames3D=[]')
     page.keyboard.down('w')
-    page.wait_for_timeout(1800)
-    page.keyboard.down('Shift')
-    portal = page.get_by_role('button',name=re.compile('Ativar portal'))
-    portal.wait_for(timeout=180000)
+    page.wait_for_timeout(1200)
     page.keyboard.up('w')
+    # Sample only while stationary. A remote driver can take long enough between
+    # observing the prompt and releasing W to run completely through its radius.
+    portal = page.get_by_role('button', name=re.compile('Ativar portal'))
+    discovered = page.get_by_text('Portal encontrado', exact=True)
+    deadline = monotonic() + 150
+    page.keyboard.down('Shift')
+    while not portal.is_visible():
+        if monotonic() > deadline:
+            raise AssertionError('Portal approach failed: ' + page.locator('main').inner_text())
+        key = 's' if discovered.is_visible() else 'w'
+        page.keyboard.down(key)
+        page.wait_for_timeout(220)
+        page.keyboard.up(key)
     page.keyboard.up('Shift')
     result = page.evaluate("""()=>{const gl=document.querySelector('canvas').getContext('webgl2');
       const ext=gl.getExtension('WEBGL_debug_renderer_info');
