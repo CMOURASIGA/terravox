@@ -77,30 +77,10 @@ def main():
     args = parser.parse_args()
     output = pathlib.Path(args.output)
     manifest = {"provider": "Poly Haven", "license": "CC0-1.0", "api": API, "assets": []}
-    catalog = get_json(f"{API}/assets?t=models")
-    if not isinstance(catalog, dict):
-        raise RuntimeError("Unexpected Poly Haven model catalog response")
-    chosen = set()
-    for category, terms in CATEGORIES.items():
-        ranked = sorted(
-            (key for key, metadata in catalog.items()
-             if key not in chosen
-             and any(term in key.lower().replace("-", "_").split("_") for term in terms)
-             and not any(excluded in key.lower() for excluded in EXCLUDE)),
-            key=lambda key: (0 if any(term in key.lower() for term in terms) else 1, key),
-        )
-        asset = None
-        for candidate in ranked:
-            try:
-                candidate_files = get_json(f"{API}/files/{candidate}")
-                select_gltf(candidate_files)
-                asset, files = candidate, candidate_files
-                break
-            except (RuntimeError, KeyError, ValueError):
-                continue
-        if not asset:
-            raise RuntimeError(f"No usable glTF model for category {category}")
-        chosen.add(asset)
+    # Pinned, previously inspected CC0 models; no fuzzy matching or furniture substitutions.
+    pinned = {"fern": "fern_02", "rock": "boulder_01", "moss": "moss_01", "wood": "pine_roots"}
+    for category, asset in pinned.items():
+        files = get_json(f"{API}/files/{asset}")
         _, _, resolution, fmt, entry = select_gltf(files)
         folder = output / asset
         source_name = pathlib.PurePosixPath(urllib.parse.urlparse(entry["url"]).path).name
