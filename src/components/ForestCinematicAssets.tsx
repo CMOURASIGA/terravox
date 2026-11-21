@@ -142,7 +142,7 @@ function AnimatedExplorer({ position, moving }: { position: ForestPosition; movi
   const model = useMemo(() => scene.clone(true), [scene]);
   const { actions } = useAnimations(animations, model);
   useEffect(() => {
-    const selected = moving ? actions.walk : actions.idle;
+    const selected = moving ? (actions.Walking ?? actions.Run ?? actions.walk) : (actions.Idle ?? actions.idle);
     if (!selected) return;
     selected.enabled = true;
     selected.reset().fadeIn(0.25).play();
