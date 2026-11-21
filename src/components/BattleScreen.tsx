@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, CircleHelp, Footprints, Heart, Loader2, Lock, MapPin, Shield, Sparkles, Swords, X } from 'lucide-react';
 import { PlayerProfile } from '../types';
 import { checkAnswer, fetchTerritoryQuestions, SourcedQuestion } from '../lib/questionSource';
+import { Arena3DPreview } from './Arena3DPreview';
 
 interface BattleScreenProps { territoryId: string; profile: PlayerProfile; onWin: (territory: string, xp: number, coins: number) => void; onLeave: () => void; }
 
@@ -313,6 +314,7 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
   const [showHelp, setShowHelp] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [questions, setQuestions] = useState<SourcedQuestion[]>([]);
+  const [exploringWithoutQuestions, setExploringWithoutQuestions] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify({ pathStep, bossHp, playerHp }));
@@ -358,10 +360,17 @@ export function BattleScreen({ territoryId, profile, onWin, onLeave }: BattleScr
     );
   }
 
+  // Exploration is a visual preview only. It cannot award XP or unlock missions.
+  if (exploringWithoutQuestions && territoryId === 'brasil') {
+    return <Arena3DPreview onBack={() => setExploringWithoutQuestions(false)} />;
+  }
+
   if (adventure.challenges.length < MIN_MARCOS) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white gap-4 p-6 text-center">
         <p className="text-lg font-bold text-rose-300">Não foi possível carregar os desafios deste território agora.</p>
+        <p className="max-w-lg text-sm text-slate-300">O serviço de perguntas está indisponível. A exploração visual pode continuar sem alterar XP, moedas ou progresso da missão.</p>
+        {territoryId === 'brasil' && <button type="button" onClick={() => setExploringWithoutQuestions(true)} className="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-400">Explorar a Floresta 3D sem desafios</button>}
         <button onClick={onLeave} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold">Voltar ao Mapa</button>
       </div>
     );
