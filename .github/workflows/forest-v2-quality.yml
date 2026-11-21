@@ -32,8 +32,17 @@ jobs:
         run: npm run lint
       - name: Build
         run: npm run build
-      - name: Game preview smoke
+      - name: Game preview smoke (deployed environment)
+        if: ${{ vars.GAME_PREVIEW_URL != '' && secrets.VERCEL_TOKEN != '' }}
+        env:
+          GAME_PREVIEW_URL: ${{ vars.GAME_PREVIEW_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npm run test:game-preview
+      - name: Report missing preview smoke configuration
+        if: ${{ vars.GAME_PREVIEW_URL == '' || secrets.VERCEL_TOKEN == '' }}
+        run: |
+          echo '::warning::Game preview smoke NOT EXECUTED: configure GAME_PREVIEW_URL (Actions variable) and VERCEL_TOKEN (Actions secret).'
+          echo 'PREVIEW_SMOKE_NOT_VERIFIED' >> "$GITHUB_STEP_SUMMARY"
       - name: Validate complete forest asset bundle when present
         run: |
           if [ -d public/assets/forest-v2 ]; then
