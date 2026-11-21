@@ -1,0 +1,56 @@
+name: B3.3-A Disposable Reconstruction
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RECONSTRUCT_B3_3_A
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  reconstruct:
+    if: github.event.inputs.confirmation == 'RECONSTRUCT_B3_3_A'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_TELEMETRY_DISABLED: '1'
+      B3_3_A_TEST_SHA: 0bc1345ee4d3b9037cbe00c32d26448bc7ac3ffe
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 0bc1345ee4d3b9037cbe00c32d26448bc7ac3ffe
+          persist-credentials: false
+      - name: Confirm immutable test checkout
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          printf 'B3.3-A test SHA: %s
+' "$actual_sha"
+          test "$actual_sha" = "$B3_3_A_TEST_SHA"
+      - uses: actions/setup-node@1e60f620b9541d5eaa0db02eec305a5c8a2968e6
+        with:
+          node-version: '24.12.0'
+          cache: npm
+          cache-dependency-path: blender-mcp/package-lock.json
+      - name: Reconstruct disposable Supabase
+        working-directory: blender-mcp
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.121.0 start
+          npx --yes supabase@2.121.0 db reset --local
+      - name: Run PostgreSQL matrix
+        working-directory: blender-mcp
+        run: |
+          set -euo pipefail
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/sql/b3_3_a_matrix.sql
+      - name: Run independent-session concurrency matrix
+        working-directory: blender-mcp
+        run: |
+          set -euo pipefail
+          chmod +x tests/sql/b3_3_a_concurrency.sh
+          PGPASSWORD=postgres tests/sql/b3_3_a_concurrency.sh
+      - name: Stop disposable Supabase
+        if: always()
+        working-directory: blender-mcp
+        run: npx --yes supabase@2.121.0 stop --no-backup
